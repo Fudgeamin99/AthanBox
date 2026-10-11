@@ -1,0 +1,79 @@
+# Publishes a GitHub Release for every version.
+# - Each version in azan_sip/__init__.py is tagged at the first commit on main where it appeared,
+#   so bumping __version__ and pushing is all it takes to publish a release.
+# - Any v* tag without a release gets one (this also back-fills older versions).
+# Release notes come from the matching "## x.y.z" section of CHANGELOG.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          notes_for() {  # $1 = version without the v
+            awk -v v="$1" '
+              $0 ~ "^## " v "( |$)" {found=1; next}
+              found && /^## / {exit}
+              found {print}
+            ' CHANGELOG.md > notes.md
+            {
+              echo
+              echo "### Install"
+              echo "1. Install Python 3.11 or newer from python.org. During setup, tick \"Add python.exe to PATH\"."
+              echo "2. Download **Source code (zip)** below and extract it somewhere permanent, for example \`C:\\azan-sip\`."
+              echo "3. Double-click **Azan SIP**. The control panel opens in your browser."
+              echo
+              echo "### Already installed?"
+              echo "In the control panel, go to **Settings → Updates** and press **Check for updates**, then **Update now**. Your settings, recordings and timetable are kept."
+            } >> notes.md
+          }
+
+          title_for() {  # "1.2.0 - Stays registered on the phone system"
+            t=$(grep -m1 "^## $1\( \|$\)" CHANGELOG.md | sed "s/^## //" || true); echo "${t:-$1}"
+          }
+
+          # 1) Tag every version: the first commit on main where each __version__ appeared
+          declare -A seen
+          for sha in $(git rev-list --reverse HEAD); do
+            v=$(git show "$sha:azan_sip/__init__.py" 2>/dev/null | sed -n 's/^__version__ = "\(.*\)"/\1/p' || true)
+            if [ -z "$v" ] || [ -n "${seen[$v]:-}" ]; then continue; fi
+            seen[$v]=$sha
+            if ! git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+              git tag "v$v" "$sha"
+              git push origin "v$v"
+              echo "Tagged v$v at ${sha:0:7}"
+            fi
+          done
+
+          # 2) Make sure every v* tag has a release (oldest first, newest marked latest)
+          latest=$(git tag -l 'v*' --sort=v:refname | tail -n1)
+          for tag in $(git tag -l 'v*' --sort=v:refname); do
+            if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then
+              continue
+            fi
+            v="${tag#v}"
+            notes_for "$v"
+            flag="--latest=false"
+            [ "$tag" = "$latest" ] && flag="--latest"
+            gh release create "$tag" -R "$REPO" --verify-tag --title "$(title_for "$v")" \
+              --notes-file notes.md $flag
+            echo "Released $tag"
+          done

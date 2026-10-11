@@ -28,6 +28,8 @@ The **Today** page shows the countdown to the next azan and has on/off switches 
 
 ## Updating
 
+What's new in each version is listed under **Releases** on this page, and in `CHANGELOG.md`.
+
 Go to **Settings → Updates** and press **Check for updates**, then **Update now**. Azan SIP is also checked for updates once a day automatically, and a notice appears on the Today page when one is available.
 
 - The new version is downloaded from this repository and checked to make sure it starts before anything is replaced. Then Azan SIP restarts itself.
