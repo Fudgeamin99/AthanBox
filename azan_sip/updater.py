@@ -39,8 +39,8 @@ USER_DIRS = {"audio", "backups", ".git", "__pycache__"}
 KEEP_BACKUPS = 3
 
 
-def _get(url: str, timeout: float = 20, raw: bool = False):
-    req = urllib.request.Request(url, headers=UA)
+def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = None):
+    req = urllib.request.Request(url, headers=dict(UA, **({"Accept": accept} if accept else {})))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = r.read()
@@ -121,7 +121,8 @@ def check(base: Path) -> dict:
 
     c = _get(f"{API}/commits/{BRANCH}")
     sha = c["sha"]
-    init_py = _get(f"https://raw.githubusercontent.com/{REPO}/{sha}/azan_sip/__init__.py", raw=True).decode()
+    init_py = _get(f"{API}/contents/azan_sip/__init__.py?ref={sha}", raw=True,
+                   accept="application/vnd.github.raw").decode()
     m = re.search(r'__version__\s*=\s*"([^"]+)"', init_py)
     latest = m.group(1) if m else "0"
     if inst.get("commit"):
