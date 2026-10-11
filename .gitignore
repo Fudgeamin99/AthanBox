@@ -1,0 +1,16 @@
+# Each installation's own data - never committed, never touched by updates
+config.toml
+config.toml.bak
+config.tmp
+timetable.csv
+audio/*
+!audio/.gitkeep
+backups/
+azan.log*
+.installed.json
+
+# Python
+__pycache__/
+*.pyc
+*.new
+*.tmp

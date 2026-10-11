@@ -1,0 +1,16 @@
+[Unit]
+Description=azan-sip - automatic azan over VoIP phones
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/azan-sip
+ExecStart=/usr/bin/python3 -m azan_sip -c /opt/azan-sip/config.toml run
+Restart=always
+RestartSec=10
+User=nobody
+Group=nogroup
+Environment=HOME=/opt/azan-sip
+
+[Install]
+WantedBy=multi-user.target

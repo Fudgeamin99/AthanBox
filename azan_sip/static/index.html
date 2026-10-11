@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azan SIP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f5f2ea; --panel:#fffdf8; --panel-2:#f0ebdf; --ink:#1d2622; --muted:#5f6b65; --line:#e1d9c7;
+  --brand:#146356; --brand-2:#0e4a40; --brand-ink:#fff; --accent:#b7832f; --accent-soft:#f6ead2;
+  --ok:#1f7a4d; --warn:#9a6200; --warn-bg:#fff3d6; --bad:#b4372f; --bad-bg:#fde8e6;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 16px rgba(40,30,10,.06); --r:14px;
+}
+:root[data-theme=dark]{
+  --bg:#111715; --panel:#18201d; --panel-2:#1f2925; --ink:#e7ece9; --muted:#9aa8a1; --line:#2b3632;
+  --brand:#2f9c86; --brand-2:#3db39b; --brand-ink:#04120e; --accent:#d9a74f; --accent-soft:#2c261a;
+  --ok:#5cc28e; --warn:#e3b04f; --warn-bg:#2d2615; --bad:#ef7d74; --bad-bg:#341b19; --shadow:none;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+input[type=checkbox],input[type=radio],input[type=range]{accent-color:var(--brand)}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand)}
+.layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+nav{background:var(--panel);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;padding:4px 10px 20px;font-weight:700;font-size:18px;letter-spacing:.2px}
+.logo svg{flex:none}
+nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:var(--muted);font-weight:500}
+nav button:hover{background:var(--panel-2);color:var(--ink)}
+nav button.active{background:var(--brand);color:var(--brand-ink)}
+nav button svg{width:18px;height:18px;flex:none}
+nav .spacer{flex:1}
+.status-mini{padding:12px;border-radius:10px;background:var(--panel-2);font-size:13px;color:var(--muted)}
+.status-mini b{color:var(--ink);display:block;font-size:14px}
+main{padding:28px 34px 110px;max-width:1080px;width:100%}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.2px}
+h2{font-size:17px;margin:0 0 12px}
+.sub{color:var(--muted);margin:0 0 22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field>label,.lbl{font-size:13px;font-weight:600;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:-2px}
+input[type=text],input[type=number],input[type=password],input[type=time],input[type=search],select,textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel);outline:none}
+textarea{min-height:84px;resize:vertical;font-family:Consolas,ui-monospace,monospace;font-size:13.5px}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 18%,transparent)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:var(--panel-2)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.primary:hover{background:var(--brand-2)}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:6px 11px;font-size:13.5px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn svg{width:16px;height:16px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:600;background:var(--panel-2);color:var(--muted)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.brand{background:var(--brand);color:var(--brand-ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.banner{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--warn-bg);color:var(--warn);margin-bottom:12px;font-weight:500}
+.banner.bad{background:var(--bad-bg);color:var(--bad)}
+.banner svg{flex:none;width:18px;height:18px;margin-top:2px}
+/* hero */
+.hero{background:linear-gradient(135deg,var(--brand-2),var(--brand));color:#fff;border:0;position:relative;overflow:hidden;padding:26px 28px}
+:root[data-theme=dark] .hero{background:linear-gradient(135deg,#123d35,#18584b)}
+.hero .pattern{position:absolute;right:-40px;top:-40px;opacity:.12;width:300px;height:300px}
+.hero .eyebrow{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;opacity:.85;font-weight:600}
+.hero .big{font-size:44px;font-weight:700;line-height:1.1;margin:6px 0 2px;letter-spacing:-.5px}
+.hero .when{font-size:17px;opacity:.95}
+.hero .countdown{font-variant-numeric:tabular-nums;font-size:30px;font-weight:600;letter-spacing:.5px}
+.hero .meta{opacity:.8;font-size:13.5px;margin-top:14px}
+.hero .btn{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.25);color:#fff}
+.hero .btn:hover{background:rgba(255,255,255,.24)}
+.hero-grid{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;flex-wrap:wrap;position:relative}
+.playing{display:flex;align-items:center;gap:12px}
+.bars{display:flex;gap:3px;align-items:flex-end;height:22px}
+.bars i{width:4px;background:#fff;border-radius:2px;animation:b 1s infinite ease-in-out}
+.bars i:nth-child(2){animation-delay:.15s}.bars i:nth-child(3){animation-delay:.3s}.bars i:nth-child(4){animation-delay:.45s}
+@keyframes b{0%,100%{height:5px}50%{height:22px}}
+/* prayer cards */
+.prayers{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px}
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+.pcard .name{font-size:13px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.pcard .time{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.pcard.next{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent)}
+.pcard.passed .time,.pcard.played .time{opacity:.55}
+.pcard.sunrise{background:var(--panel-2);box-shadow:none}
+.pcard .foot{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);min-height:24px}
+/* switch */
+.switch{position:relative;display:inline-block;width:38px;height:22px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--line);border-radius:99px;transition:.15s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked+span{background:var(--brand)}
+.switch input:checked+span:before{transform:translateX(16px)}
+.switch input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
+.toggle-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.toggle-row:last-child{border-bottom:0}
+.toggle-row .t{font-weight:600}.toggle-row .d{font-size:13px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+.log{font-family:Consolas,ui-monospace,monospace;font-size:12.5px;background:var(--panel-2);border-radius:10px;padding:10px 12px;max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.log .WARNING{color:var(--warn)}.log .ERROR{color:var(--bad)}
+.log .ts{color:var(--muted)}
+.list-item{display:flex;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.list-item:last-child{border-bottom:0}
+.list-item .grow{flex:1;min-width:0}
+.list-item .title{font-weight:600}
+.list-item .detail{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-box{width:40px;height:40px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.icon-box svg{width:20px;height:20px}
+.choice{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+.choice label{border:1.5px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;display:block}
+.choice label:hover{border-color:var(--brand)}
+.choice input{display:none}
+.choice input:checked+div{color:var(--ink)}
+.choice label:has(input:checked){border-color:var(--brand);background:color-mix(in srgb,var(--brand) 7%,transparent)}
+.choice .ct{font-weight:700;margin-bottom:3px;display:flex;gap:8px;align-items:center}
+.choice .cd{font-size:13px;color:var(--muted)}
+.seg{align-self:flex-start;display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg label{padding:8px 14px;cursor:pointer;border-right:1px solid var(--line);font-weight:500}
+.seg label:last-child{border-right:0}
+.seg input{display:none}
+.seg label:has(input:checked){background:var(--brand);color:var(--brand-ink)}
+details{border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
+.results{border:1px solid var(--line);border-radius:10px;margin-top:6px;overflow:hidden}
+.results button{all:unset;display:block;width:100%;box-sizing:border-box;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.results button:last-child{border-bottom:0}
+.results button:hover{background:var(--panel-2)}
+.savebar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:var(--ink);color:var(--bg);padding:10px 12px 10px 20px;border-radius:14px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);z-index:20}
+.savebar .btn{border-color:transparent}
+.savebar .btn.ghost{background:transparent;color:var(--bg)}
+.toast{position:fixed;right:20px;top:20px;padding:12px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:30;max-width:420px;font-weight:500}
+.toast.bad{border-color:var(--bad);color:var(--bad)}
+.toast.ok{border-color:var(--ok)}
+.muted{color:var(--muted)}
+.mono{font-family:Consolas,ui-monospace,monospace}
+.kbd{font-family:Consolas,ui-monospace,monospace;background:var(--panel-2);padding:1px 6px;border-radius:5px;font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:30px}
+.stopped{max-width:520px;margin:15vh auto;text-align:center}
+.overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:50}
+.overlay .card{max-width:420px;text-align:center;padding:30px}
+.spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;margin:0 auto 14px;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr} nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}
+  nav .spacer,.status-mini{display:none} .logo{padding:6px 10px}
+  main{padding:20px 16px 110px} .prayers{grid-template-columns:repeat(3,1fr)} .grid2,.grid3,.choice{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="layout" id="layout">
+  <nav>
+    <div class="logo">
+      <svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="var(--brand)"/><path d="M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z" fill="#f4e3b5"/></svg>
+      Azan SIP
+    </div>
+    <button data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Today</button>
+    <button data-page="times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prayer times</button>
+    <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
+    <button data-page="phones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
+    <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    <div class="spacer"></div>
+    <div class="status-mini" id="mini">Connecting…</div>
+  </nav>
+  <main id="main"></main>
+</div>
+<div id="savebar" class="savebar" hidden>
+  <span>You have unsaved changes</span>
+  <button class="btn ghost small" onclick="discard()">Discard</button>
+  <button class="btn primary small" id="savebtn" onclick="save()">Save changes</button>
+</div>
+<div id="toast" class="toast" hidden></div>
+<div id="overlay" class="overlay" hidden><div class="card"><div class="spinner"></div><h2 id="ov-title">Updating…</h2><p class="muted" id="ov-text">Please keep this page open.</p></div></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- utilities
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+const PRAYERS = ["fajr","dhuhr","asr","maghrib","isha"];
+const TITLE = {fajr:"Fajr",sunrise:"Sunrise",dhuhr:"Dhuhr",asr:"Asr",maghrib:"Maghrib",isha:"Isha",jumuah:"Jumu'ah"};
+const ICON = {
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
+  stop:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
+  broadcast:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>',
+  server:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
+  speaker:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
+  file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+};
+const pattern = '<svg class="pattern" viewBox="0 0 100 100"><g fill="none" stroke="#fff" stroke-width="1.2"><rect x="20" y="20" width="60" height="60"/><rect x="20" y="20" width="60" height="60" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="18"/><circle cx="50" cy="50" r="42"/></g></svg>';
+
+function getPath(o, p){ return p.split(".").reduce((a,k)=>a==null?undefined:a[k], o); }
+function setPath(o, p, v){ const ks=p.split("."); let a=o; ks.slice(0,-1).forEach(k=>{ if(a[k]==null||typeof a[k]!=="object") a[k]={}; a=a[k]; }); if(v===undefined) delete a[ks.at(-1)]; else a[ks.at(-1)]=v; }
+
+async function api(path, body, raw){
+  const opt = {method: body===undefined ? "GET" : "POST", headers:{"X-Azan-Panel":"1"}};
+  if(body!==undefined){
+    if(raw){ opt.body = body; opt.headers["Content-Type"]="application/octet-stream"; }
+    else { opt.body = JSON.stringify(body); opt.headers["Content-Type"]="application/json"; }
+  }
+  let r;
+  try { r = await fetch(path, opt); } catch(e){ throw new Error("Azan SIP isn't running. Double-click 'Azan SIP' to start it."); }
+  const j = await r.json().catch(()=>({ok:false,error:"Unexpected reply"}));
+  if(!r.ok || j.ok===false) throw new Error(j.error || ("Error "+r.status));
+  return j;
+}
+let toastTimer;
+function toast(msg, kind="ok"){ const t=$("#toast"); t.textContent=msg; t.className="toast "+kind; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.hidden=true, kind==="bad"?7000:3500); }
+async function act(fn, okMsg){ try{ const r=await fn(); if(okMsg) toast(okMsg); return r; }catch(e){ toast(e.message,"bad"); } }
+function fmtDur(s){ s=Math.max(0,Math.floor(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
+  return h ? `${h} h ${String(m).padStart(2,"0")} min` : m ? `${m} min ${String(x).padStart(2,"0")} s` : `${x} s`; }
+function themeSync(){ document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark":"light"; }
+themeSync(); matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeSync);
+
+// ---------------------------------------------------------------- state
+let S = null, stateAt = 0, CFG = null, SAVED = "", META = null, page = location.hash.slice(1) || "overview";
+let editing = null, previewTimer = null, previewData = null, logSeen = 0, offline = false, restartingUI = false;
+
+async function loadConfig(){
+  const r = await api("/api/config");
+  CFG = r.config; META = r.meta; SAVED = JSON.stringify(CFG);
+  normalize(CFG); SAVED = JSON.stringify(CFG);
+  dirty();
+}
+function normalize(c){
+  for(const k of ["general","location","calculation","offsets","prayers","audio","network"]) c[k] = c[k] || {};
+  c.targets = c.targets || [];
+  c.prayers.enabled = c.prayers.enabled || PRAYERS.slice();
+  c.prayers.skip_days = c.prayers.skip_days || [];
+  if(c.location.timezone === undefined) c.location.timezone = "local";
+}
+function isDirty(){ return CFG && JSON.stringify(CFG) !== SAVED; }
+function dirty(){ $("#savebar").hidden = !isDirty(); }
+async function save(){
+  const b=$("#savebtn"); b.disabled=true;
+  try{ const r = await api("/api/config", {config: CFG}); CFG=r.config; normalize(CFG); SAVED=JSON.stringify(CFG); dirty(); toast("Saved - the new settings are active."); await poll(); render(); }
+  catch(e){ toast(e.message,"bad"); }
+  b.disabled=false;
+}
+function discard(){ CFG = JSON.parse(SAVED); editing=null; dirty(); render(); schedulePreview(); }
+// apply a change that the server already saved, without disturbing other unsaved edits
+function applySaved(path, value){ const s=JSON.parse(SAVED); setPath(s,path,value); SAVED=JSON.stringify(s); setPath(CFG,path,clone(value)); dirty(); }
+
+async function poll(){
+  try{
+    S = await api("/api/state"); stateAt = Date.now();
+    if(offline){ offline=false; }
+  }catch(e){
+    if(!offline && !restartingUI){ offline=true; renderMini(); if(page==="overview") render(); }
+    return;
+  }
+  renderMini();
+  if(page==="overview") renderOverviewLive();
+  if(page==="settings") renderLog();
+}
+setInterval(poll, 2000);
+setInterval(()=>{ if(S && S.next){ const el=$("#countdown"); if(el) el.textContent=fmtDur(S.next.seconds-(Date.now()-stateAt)/1000); } const c=$("#clock"); if(c&&S&&S.clock){ /* server clock text refreshes every poll */ } }, 250);
+
+function renderMini(){
+  const m=$("#mini");
+  if(offline||!S){ m.innerHTML="<b>Not running</b>Double-click Azan SIP to start it."; return; }
+  if(S.playing){ m.innerHTML=`<b>▶ Playing</b>${esc(S.playing)}`; return; }
+  m.innerHTML = S.running ? `<b><span style="color:var(--ok)">●</span> Automatic azan on</b>${S.next?esc(TITLE[S.next.prayer]+" "+(S.next.kind==="reminder"?"reminder ":"")+"at "+S.next.time):""}`
+                          : `<b><span style="color:var(--warn)">●</span> Paused</b>Azan will not play`;
+}
+
+// ---------------------------------------------------------------- binding
+document.addEventListener("input", onField); document.addEventListener("change", onField);
+function onField(e){
+  const el = e.target; const path = el.dataset.path; if(!path) return;
+  if(e.type==="input" && (el.type==="checkbox"||el.type==="radio"||el.tagName==="SELECT")) return;
+  const root = path.startsWith("edit.") ? editing : CFG; const p = path.replace(/^edit\./,"");
+  let v;
+  const kind = el.dataset.kind || "text";
+  if(kind==="num"){ v = el.value.trim()==="" ? undefined : Number(el.value); if(Number.isNaN(v)) return; }
+  else if(kind==="int"){ v = el.value.trim()==="" ? 0 : parseInt(el.value,10); if(Number.isNaN(v)) return; }
+  else if(kind==="bool"){ v = el.checked; }
+  else if(kind==="member"){ const list=(getPath(root,p)||[]).filter(x=>x!==el.value); if(el.checked) list.push(el.value); v=list; }
+  else { v = el.value; }
+  setPath(root, p, v);
+  if(root===CFG) dirty();
+  if(el.dataset.preview!==undefined) schedulePreview();
+  if(el.dataset.rerender!==undefined && e.type==="change") render();
+}
+const val = p => esc(getPath(CFG,p) ?? "");
+const evl = p => esc(getPath(editing,p) ?? "");
+function opt(v, label, cur){ return `<option value="${esc(v)}" ${String(cur??"")===String(v)?"selected":""}>${esc(label)}</option>`; }
+function sw(path, checked, extra=""){ return `<label class="switch"><input type="checkbox" data-path="${path}" data-kind="bool" ${checked?"checked":""} ${extra}><span></span></label>`; }
+
+// ---------------------------------------------------------------- pages
+document.querySelectorAll("nav button[data-page]").forEach(b=>b.onclick=()=>go(b.dataset.page));
+function go(p){ page=p; location.hash=p; editing=null; render(); window.scrollTo(0,0); if(p==="times") schedulePreview(0); }
+function render(){
+  document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
+  if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
+  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, settings:pageSettings}[page]||pageOverview)();
+}
+function stoppedHTML(){ return `<div class="stopped card"><h1>Azan SIP is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
+
+// ---- Today
+function pageOverview(){
+  $("#main").innerHTML = `<div id="ov-banners"></div><div class="card hero" id="hero"></div><div class="prayers" id="pgrid"></div>
+  <div class="grid2">
+    <div class="card"><h2>Quick test</h2><p class="muted" style="margin-top:-6px">Plays on every switched-on phone right now.</p>
+      <div class="row"><button class="btn" onclick="test({source:'tone',label:'Test chime'})">${ICON.play} Test chime</button>
+      <button class="btn" onclick="test({source:'dhuhr',seconds:20,label:'Azan test (20 s)'})">${ICON.play} 20 s of the azan</button>
+      <button class="btn danger" onclick="stopAudio()">${ICON.stop} Stop</button></div></div>
+    <div class="card"><h2>Recent activity</h2><div id="history"></div></div>
+  </div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Log</h2><button class="btn small" onclick="go('settings')">Full log</button></div><div class="log" id="ovlog" style="margin-top:12px;max-height:180px"></div></div>`;
+  renderOverviewLive();
+}
+function renderOverviewLive(){
+  if(!$("#hero")) return;
+  if(offline||!S){ $("#main").innerHTML = stoppedHTML(); return; }
+  const warn = [...(S.error?[S.error]:[]), ...(S.warnings||[])];
+  $("#ov-banners").innerHTML = warn.map((w,i)=>`<div class="banner ${i===0&&S.error?"bad":""}">${ICON.warn}<div>${esc(w)}</div></div>`).join("");
+  let hero;
+  if(S.playing){
+    hero = `<div class="eyebrow">Now playing</div><div class="hero-grid"><div class="playing"><div class="bars"><i></i><i></i><i></i><i></i></div><div class="big">${esc(S.playing)}</div></div>
+            <button class="btn" onclick="stopAudio()">${ICON.stop} Stop now</button></div>`;
+  } else if(!S.running){
+    hero = `<div class="eyebrow">${S.configured===false?"Almost ready":"Paused"}</div><div class="hero-grid"><div><div class="big">${S.configured===false?"Set up, then save":"Automatic azan is off"}</div>
+            <div class="when">${S.configured===false?"Check each page in the menu, then press Save changes.":"Nothing will play at prayer times."}</div></div>
+            ${S.configured===false?"":`<button class="btn" onclick="setScheduler(true)">${ICON.play} Switch on</button>`}</div>`;
+  } else if(S.next){
+    const n=S.next, title=TITLE[n.prayer]+(n.kind==="reminder"?" reminder":"");
+    hero = `<div class="eyebrow">Next azan</div><div class="hero-grid"><div><div class="big">${esc(title)}</div><div class="when">${esc(n.time)} ${esc(n.day)}</div></div>
+            <div style="text-align:right"><div class="countdown" id="countdown">${fmtDur(n.seconds)}</div><div style="opacity:.8;font-size:13px">remaining</div></div></div>`;
+  } else {
+    hero = `<div class="eyebrow">Next azan</div><div class="big">None scheduled</div><div class="when">Switch on at least one prayer below.</div>`;
+  }
+  $("#hero").innerHTML = pattern + hero + `<div class="meta">${esc(S.date||"")} · ${esc(S.location||"")} · ${esc(S.method||"")}${S.asr==="hanafi"?" · Hanafi Asr":""}${S.skip_today?" · <b>skipped today</b>":""}</div>`;
+  $("#pgrid").innerHTML = (S.today||[]).map(p=>{
+    const name = p.jumuah ? "Jumu'ah" : TITLE[p.name];
+    const badge = p.status==="next" ? '<span class="pill brand">Next</span>' : p.status==="played" ? '<span class="pill ok">Played</span>' : "";
+    const foot = p.azan ? `<span>${p.enabled?"Azan on":"Azan off"}</span><label class="switch" title="Play the azan for ${esc(name)}"><input type="checkbox" ${p.enabled?"checked":""} onchange="togglePrayer('${p.name}',this.checked)"><span></span></label>` : `<span>No azan</span>`;
+    return `<div class="pcard ${p.name==="sunrise"?"sunrise":""} ${p.status}"><div class="name">${esc(name)} ${badge}</div><div class="time">${esc(p.time)}</div><div class="foot">${foot}</div></div>`;
+  }).join("");
+  $("#history").innerHTML = (S.history||[]).length ? `<table>${S.history.slice(0,6).map(h=>`<tr><td>${esc(h.label)}</td><td class="muted">${esc(h.at.slice(11,16))} ${esc(h.at.slice(0,10))}</td><td>${h.ok?'<span class="pill ok">sent</span>':'<span class="pill warn">failed</span>'}</td></tr>`).join("")}</table>` : '<p class="muted">Nothing played yet since Azan SIP started.</p>';
+  const ol=$("#ovlog"); ol.innerHTML = logHTML((S.log||[]).slice(-8)); ol.scrollTop=ol.scrollHeight;
+}
+function logHTML(lines){ return lines.map(l=>`<div class="${esc(l.level)}"><span class="ts">${esc(l.t.slice(11))}</span> ${esc(l.msg)}</div>`).join("") || '<span class="muted">No messages yet.</span>'; }
+async function togglePrayer(p, on){
+  await act(async()=>{ await api("/api/prayer",{prayer:p,enabled:on}); const list=JSON.parse(SAVED).prayers?.enabled||PRAYERS.slice(); const nl=PRAYERS.filter(x=> x===p ? on : list.includes(x)); applySaved("prayers.enabled", nl); await poll(); }, `${TITLE[p]} azan ${on?"on":"off"}`);
+}
+async function setScheduler(on){ await act(async()=>{ await api("/api/scheduler",{enabled:on}); applySaved("general.scheduler_enabled", on); await poll(); render(); }, on?"Automatic azan switched on":"Automatic azan paused"); }
+async function test(req){ await act(async()=>{ await api("/api/test", req); setTimeout(poll,400); }, "Playing on the phones…"); }
+async function stopAudio(){ await act(()=>api("/api/stop",{}), "Stopped"); setTimeout(poll,300); }
+
+// ---- Prayer times
+function pageTimes(){
+  const c=CFG.calculation, m=META.methods, method=c.method||"MWL";
+  const custom = method==="custom", tt = !!c.timetable, seasonal = !!(m.find(x=>x.id===method)||{}).seasonal;
+  const zones = META.zones||[];
+  $("#main").innerHTML = `<h1>Prayer times</h1><p class="sub">Where you are and how the times are worked out. The preview at the bottom updates as you change things.</p>
+  <div class="card"><h2>Location</h2>
+    <div class="field"><label>Find your town or city</label><div class="row" style="flex-wrap:nowrap"><input type="search" id="city" placeholder="e.g. Birmingham" onkeydown="if(event.key==='Enter')findCity()"><button class="btn" onclick="findCity()">Search</button></div>
+      <div class="hint">Needs internet on this PC. You can also type the coordinates below.</div><div id="cityres"></div></div>
+    <div class="grid3">
+      <div class="field"><label>Place name</label><input type="text" data-path="location.name" value="${val("location.name")}"></div>
+      <div class="field"><label>Latitude</label><input type="number" step="0.0001" data-path="location.latitude" data-kind="num" data-preview value="${val("location.latitude")}"></div>
+      <div class="field"><label>Longitude</label><input type="number" step="0.0001" data-path="location.longitude" data-kind="num" data-preview value="${val("location.longitude")}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Time zone</label><select data-path="location.timezone" data-preview>${opt("local","This computer's time zone (recommended)",CFG.location.timezone)}${zones.map(z=>opt(z,z,CFG.location.timezone)).join("")}${(!zones.includes(CFG.location.timezone)&&CFG.location.timezone&&CFG.location.timezone!=="local")?opt(CFG.location.timezone,CFG.location.timezone+" (not installed)",CFG.location.timezone):""}</select>
+        <div class="hint">Summer/winter clock changes are handled automatically.</div></div>
+      <div class="field"><label>Elevation (metres)</label><input type="number" data-path="location.elevation" data-kind="num" data-preview value="${val("location.elevation")}"><div class="hint">Optional, slightly affects sunrise and maghrib.</div></div>
+    </div>
+  </div>
+  <div class="card"><h2>Calculation</h2>
+    <div class="field"><label>Mosque timetable</label>
+      <div class="toggle-row" style="padding-top:0"><div><div class="t">Use my mosque's timetable</div><div class="d">Most accurate for your community. Days not in the timetable use the calculation below.</div></div>
+      <label class="switch"><input type="checkbox" ${tt?"checked":""} onchange="setTimetable(this.checked)"><span></span></label></div>
+      ${tt?`<div class="row"><span class="pill ok">${esc(c.timetable)}</span><label class="btn small">Upload timetable (CSV)<input type="file" accept=".csv,text/csv" hidden onchange="uploadTimetable(this.files[0])"></label><button class="btn small" onclick="downloadTemplate()">Download a template for the year</button></div>
+      <div class="hint" style="margin-top:8px">Format: <span class="kbd">date,fajr,sunrise,dhuhr,asr,maghrib,isha</span> with rows like <span class="kbd">2026-10-12,05:45,07:15,12:53,15:46,18:21,19:45</span>. Easiest: download the template, open it in Excel, type in your mosque's times, save as CSV, and upload.</div>`:""}
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Calculation method</label><select data-path="calculation.method" data-preview data-rerender>${m.map(x=>opt(x.id,x.name,method)).join("")}${opt("custom","Custom angles",method)}</select>
+        <div class="hint">${esc((m.find(x=>x.id===method)||{}).detail||"Enter your own Fajr and Isha angles.")}</div></div>
+      <div class="field"><label>Asr time</label><div class="seg">
+        <label><input type="radio" name="asr" value="standard" data-path="calculation.asr" data-preview ${c.asr!=="hanafi"?"checked":""}>Standard (Shafi'i, Maliki, Hanbali)</label>
+        <label><input type="radio" name="asr" value="hanafi" data-path="calculation.asr" data-preview ${c.asr==="hanafi"?"checked":""}>Hanafi</label></div></div>
+    </div>
+    ${custom?`<div class="grid3"><div class="field"><label>Fajr angle (°)</label><input type="number" step="0.1" data-path="calculation.fajr_angle" data-kind="num" data-preview value="${val("calculation.fajr_angle")}"></div>
+      <div class="field"><label>Isha angle (°)</label><input type="number" step="0.1" data-path="calculation.isha_angle" data-kind="num" data-preview value="${val("calculation.isha_angle")}"></div>
+      <div class="field"><label>…or Isha minutes after Maghrib</label><input type="number" data-path="calculation.isha_minutes" data-kind="num" data-preview value="${val("calculation.isha_minutes")}"></div></div>`:""}
+    ${seasonal?`<div class="field"><label>Isha twilight (shafaq)</label><select data-path="calculation.shafaq" data-preview>${Object.entries(META.shafaq||{}).map(([k,l])=>opt(k,l,c.shafaq||"general")).join("")}</select>
+      <div class="hint">General suits most places. Ahmer = disappearance of the red glow (earlier Isha); Abyad = white glow (later Isha). The committee's method already handles UK summer nights.</div></div>`:`
+    <div class="field"><label>Summer nights (high latitude)</label><select data-path="calculation.high_latitude" data-preview>
+      ${opt("angle","Angle-based (recommended for the UK)",c.high_latitude||"angle")}${opt("seventh","One-seventh of the night",c.high_latitude)}${opt("midnight","Middle of the night",c.high_latitude)}${opt("none","None (only near the equator)",c.high_latitude)}</select>
+      <div class="hint">In the UK the sun doesn't go low enough in summer for Fajr/Isha by angle, so a rule is needed.</div></div>`}
+    <details><summary>Adjust times by a few minutes</summary>
+      <div class="grid3" style="grid-template-columns:repeat(5,1fr)">${PRAYERS.map(p=>`<div class="field"><label>${TITLE[p]}</label><input type="number" data-path="offsets.${p}" data-kind="int" data-preview value="${val("offsets."+p)||0}"></div>`).join("")}</div>
+      <div class="hint">Minutes added to each time (use a minus number for earlier). Applies to timetable times too.</div></details>
+  </div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Preview - next 7 days</h2><span class="muted" id="tzname"></span></div><div id="preview" style="margin-top:10px"></div></div>`;
+  renderPreview();
+}
+function schedulePreview(delay=350){ if(page!=="times") return; clearTimeout(previewTimer); previewTimer=setTimeout(async()=>{ try{ previewData = await api("/api/preview",{config:CFG}); previewData.error=null; }catch(e){ previewData={error:e.message}; } renderPreview(); }, delay); }
+function renderPreview(){
+  const el=$("#preview"); if(!el) return;
+  if(!previewData){ el.innerHTML='<p class="muted">Calculating…</p>'; return; }
+  if(previewData.error){ el.innerHTML=`<div class="banner bad">${ICON.warn}<div>${esc(previewData.error)}</div></div>`; return; }
+  $("#tzname").textContent = previewData.timezone;
+  el.innerHTML = `<table><tr><th>Date</th>${["fajr","sunrise","dhuhr","asr","maghrib","isha"].map(k=>`<th>${TITLE[k]}</th>`).join("")}</tr>${previewData.week.map(r=>`<tr><td>${esc(r.date)}</td>${["fajr","sunrise","dhuhr","asr","maghrib","isha"].map(k=>`<td ${k==="sunrise"?'class="muted"':""}>${esc(r[k])}</td>`).join("")}</tr>`).join("")}</table>`;
+}
+async function findCity(){
+  const q=$("#city").value.trim(); if(!q) return; const box=$("#cityres"); box.innerHTML='<p class="muted">Searching…</p>';
+  try{
+    const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=6&language=en&name="+encodeURIComponent(q)); const j=await r.json();
+    const res = j.results||[];
+    window._cities = res;
+    box.innerHTML = res.length ? `<div class="results">${res.map((c,i)=>`<button onclick="pickCity(${i})"><b>${esc(c.name)}</b> <span class="muted">${esc([c.admin1,c.country].filter(Boolean).join(", "))} · ${c.latitude.toFixed(3)}, ${c.longitude.toFixed(3)}</span></button>`).join("")}</div>` : '<p class="muted">No places found.</p>';
+  }catch(e){ box.innerHTML='<p class="muted">Search needs internet. Type the latitude and longitude instead (right-click a spot in Google Maps to copy them).</p>'; }
+}
+function pickCity(i){
+  const c=window._cities[i];
+  CFG.location.name=[c.name,c.country].filter(Boolean).join(", "); CFG.location.latitude=+c.latitude.toFixed(4); CFG.location.longitude=+c.longitude.toFixed(4);
+  if(c.elevation!=null) CFG.location.elevation=Math.round(c.elevation);
+  if(c.timezone && CFG.location.timezone!=="local" && (META.zones||[]).includes(c.timezone)) CFG.location.timezone=c.timezone;
+  dirty(); render(); schedulePreview(0); toast("Location set to "+CFG.location.name+" - press Save to keep it.");
+}
+function setTimetable(on){ if(on){ CFG.calculation.timetable = "timetable.csv"; } else { delete CFG.calculation.timetable; } dirty(); render(); schedulePreview(0); }
+async function uploadTimetable(f){
+  if(!f) return; await act(async()=>{ await api("/api/upload?kind=timetable&name=timetable.csv", await f.arrayBuffer(), true); CFG.calculation.timetable="timetable.csv"; dirty(); schedulePreview(0); }, "Timetable uploaded - press Save to use it.");
+}
+async function downloadTemplate(){
+  await act(async()=>{
+    const cfg=clone(CFG); delete cfg.calculation.timetable;
+    const rows=[]; const start=new Date(); start.setMonth(0,1);
+    // ask the server for the whole year using the current calculation
+    const r = await api("/api/preview?days=366",{config:cfg, days:366, start:`${start.getFullYear()}-01-01`});
+    rows.push("date,fajr,sunrise,dhuhr,asr,maghrib,isha");
+    r.week.forEach(x=>rows.push([x.iso,x.fajr,x.sunrise,x.dhuhr,x.asr,x.maghrib,x.isha].join(",")));
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([rows.join("\r\n")+"\r\n"],{type:"text/csv"})); a.download=`timetable-${start.getFullYear()}.csv`; a.click();
+  }, "Template downloaded - fill it in with your mosque's times.");
+}
+
+// ---- Audio
+function audioOptions(cur, extra){
+  const files = META.audio_files||[];
+  let o = extra.map(([v,l])=>opt(v,l,cur)).join("");
+  o += files.map(f=>opt("audio/"+f, f, cur)).join("");
+  if(cur && cur!=="tone" && !extra.some(([v])=>v===cur) && !files.some(f=>"audio/"+f===cur)) o += opt(cur, cur+" (missing!)", cur);
+  return o;
+}
+function soundRow(key, label, hint, extra, testSrc){
+  const cur = CFG.audio[key] ?? "";
+  return `<div class="field"><label>${label}</label><div class="row" style="flex-wrap:nowrap"><select data-path="audio.${key}" data-rerender>${audioOptions(cur, extra)}</select>
+    <button class="btn" title="Play on the phones (first 20 seconds)" onclick="test({source:'${testSrc}',seconds:20,label:'${label} test'})">${ICON.play} Test</button></div>${hint?`<div class="hint">${hint}</div>`:""}</div>`;
+}
+function pageAudio(){
+  const a=CFG.audio, files=META.audio_files||[];
+  $("#main").innerHTML = `<h1>Azan sound</h1><p class="sub">Add your azan recordings and choose what plays. Test buttons play on the phones for 20 seconds.</p>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your recordings</h2>
+    <label class="btn primary">Add recording…<input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" multiple hidden onchange="uploadAudio(this.files)"></label></div>
+    <p class="muted" style="margin:8px 0 4px">MP3, WAV, M4A and most other formats. They are converted to phone quality automatically.</p>
+    <div id="upl"></div>
+    ${files.length?files.map(f=>`<div class="list-item"><div class="icon-box">${ICON.file}</div><div class="grow"><div class="title">${esc(f)}</div><audio controls preload="none" src="/audio/${encodeURIComponent(f)}" style="height:32px;margin-top:6px;max-width:100%"></audio></div>
+      <button class="btn small" onclick="test({source:'file:${esc(f)}',seconds:20,label:'${esc(f)} test'})">${ICON.play} Test on phones</button><button class="btn small danger" onclick="delAudio('${esc(f)}')">Remove</button></div>`).join("")
+    :'<div class="empty">No recordings yet. Until you add one, the built-in test chime plays at prayer times.</div>'}
+  </div>
+  <div class="card"><h2>What plays when</h2>
+    <div class="grid2">
+      ${soundRow("azan","Azan", "Used for every prayer unless set differently below.", [["tone","Built-in test chime"]], "dhuhr")}
+      ${soundRow("fajr","Fajr azan", "Many use a different azan for Fajr.", [["","Same as the azan"],["tone","Built-in test chime"]], "fajr")}
+    </div>
+    <details><summary>Different sound for other prayers</summary><div class="grid2">
+      ${["dhuhr","asr","maghrib","isha"].map(p=>soundRow(p, TITLE[p], "", [["","Same as the azan"],["tone","Built-in test chime"]], p)).join("")}</div></details>
+  </div>
+  <div class="card"><h2>Jumu'ah (Friday)</h2><div class="grid2">
+    ${soundRow("jumuah","Friday Dhuhr sound","", [["","Same as Dhuhr"],["tone","Built-in test chime"]], "jumuah")}
+    <div class="field"><label>Fixed Jumu'ah time (optional)</label><input type="time" data-path="prayers.jumuah_time" value="${val("prayers.jumuah_time")}"><div class="hint">Leave empty to use the normal Dhuhr time on Fridays.</div></div></div></div>
+  <div class="card"><h2>Reminder before each prayer</h2><div class="grid2">
+    ${soundRow("reminder","Reminder sound","A short chime or announcement.", [["","No reminder"],["tone","Built-in test chime"]], "reminder")}
+    <div class="field"><label>Minutes before the azan</label><input type="number" min="0" max="120" data-path="prayers.reminder_minutes" data-kind="int" value="${val("prayers.reminder_minutes")||0}"><div class="hint">0 = off.</div></div></div></div>
+  <div class="card"><h2>Volume and length</h2><div class="grid3">
+    <div class="field"><label>Volume boost: <span id="volv">${(+a.volume_db||0)>0?"+":""}${+a.volume_db||0} dB</span></label><input type="range" min="-12" max="12" step="1" data-path="audio.volume_db" data-kind="num" value="${+a.volume_db||0}" oninput="$('#volv').textContent=(this.value>0?'+':'')+this.value+' dB'"></div>
+    <div class="field"><label>Stop after (seconds)</label><input type="number" min="0" data-path="audio.max_seconds" data-kind="num" placeholder="Play the whole recording" value="${val("audio.max_seconds")}"><div class="hint">Leave empty to play the whole azan.</div></div>
+    <div class="field"><label>Silence before audio (ms)</label><input type="number" min="0" max="3000" step="100" data-path="audio.lead_in_ms" data-kind="int" value="${val("audio.lead_in_ms")}"><div class="hint">If the first word is cut off, increase this.</div></div>
+  </div></div>`;
+}
+async function uploadAudio(fileList){
+  const box=$("#upl");
+  for(const f of fileList){
+    box.innerHTML=`<p class="muted">Converting ${esc(f.name)}…</p>`;
+    let body, name;
+    try{ body = await toPhoneWav(f); name = f.name.replace(/\.[^.]+$/,"")+".wav"; }
+    catch(e){ body = await f.arrayBuffer(); name = f.name; toast(`Couldn't convert ${f.name} in the browser - uploading as is.`,"bad"); }
+    box.innerHTML=`<p class="muted">Saving ${esc(name)}…</p>`;
+    try{
+      const r = await api("/api/upload?kind=audio&name="+encodeURIComponent(name), body, true);
+      META.audio_files = r.files;
+      if(!CFG.audio.azan || CFG.audio.azan==="tone" || !(META.audio_files||[]).some(x=>"audio/"+x===CFG.audio.azan)){ CFG.audio.azan="audio/"+r.name; dirty(); toast(`Added ${r.name} and set it as the azan - press Save.`); }
+      else toast(`Added ${r.name}. Choose where to use it below.`);
+    }catch(e){ toast(e.message,"bad"); }
+  }
+  box.innerHTML=""; render();
+}
+async function toPhoneWav(file){
+  const data = await file.arrayBuffer();
+  const AC = window.AudioContext||window.webkitAudioContext; const ctx = new AC();
+  const decoded = await ctx.decodeAudioData(data.slice(0)); ctx.close();
+  const rate = 8000, len = Math.ceil(decoded.duration*rate);
+  const off = new OfflineAudioContext(1, len, rate);
+  const src = off.createBufferSource(); src.buffer = decoded;
+  const hp = off.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=180;
+  const comp = off.createDynamicsCompressor(); comp.threshold.value=-20; comp.ratio.value=3; comp.attack.value=0.01; comp.release.value=0.25;
+  src.connect(hp); hp.connect(comp); comp.connect(off.destination); src.start();
+  const out = (await off.startRendering()).getChannelData(0);
+  let peak=0; for(let i=0;i<out.length;i++){ const v=Math.abs(out[i]); if(v>peak) peak=v; }
+  const gain = peak>0 ? 0.89/peak : 1;
+  const buf = new ArrayBuffer(44+out.length*2), v = new DataView(buf);
+  const w = (o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+  w(0,"RIFF"); v.setUint32(4,36+out.length*2,true); w(8,"WAVE"); w(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,"data"); v.setUint32(40,out.length*2,true);
+  for(let i=0;i<out.length;i++){ const s=Math.max(-1,Math.min(1,out[i]*gain)); v.setInt16(44+i*2, s<0?s*32768:s*32767, true); }
+  return buf;
+}
+async function delAudio(f){ if(!confirm(`Remove ${f}?`)) return; await act(async()=>{ const r=await api("/api/delete-audio",{name:f}); META.audio_files=r.files; render(); }, "Removed"); }
+
+// ---- Phones
+const KINDS = {
+  multicast:{t:"Multicast paging", d:"Recommended. Yealink, Grandstream, Fanvil, Snom, Cisco MPP. No phone system changes - each phone listens on one address.", i:ICON.broadcast},
+  pbx:{t:"Phone system page group", d:"FreePBX, Asterisk, 3CX and others. Azan SIP calls your paging group like an extension.", i:ICON.server},
+  direct:{t:"Call each phone directly", d:"For Poly/Polycom or when multicast isn't possible. Phones must allow direct IP calls and auto-answer.", i:ICON.phone},
+  rtp:{t:"IP speaker (RTP)", d:"Paging speakers that listen for audio on a fixed IP address and port.", i:ICON.speaker},
+};
+function kindOf(t){ if(t.type==="multicast") return "multicast"; if(t.type==="unicast_rtp") return "rtp"; if(t.mode) return t.mode; return (t.username || /sip:[^@]+@/.test(t.uri||"")) && !t.uris ? "pbx" : "direct"; }
+function summary(t){
+  const k=kindOf(t);
+  if(k==="multicast") return `Multicast ${t.address||""} · ${t.codec||"PCMU"}`;
+  if(k==="rtp") return (t.addresses||[t.address]).filter(Boolean).join(", ");
+  if(k==="pbx") return `${t.uri||""}${t.username?" as extension "+t.username:""}`;
+  return `${(t.uris||[t.uri]).filter(Boolean).length} phone(s): ${(t.uris||[t.uri]).filter(Boolean).map(u=>u.replace(/^sip:/,"")).join(", ")}`;
+}
+function toEdit(t){
+  const k=kindOf(t), e={kind:k,name:t.name||"",enabled:t.enabled!==false,codec:t.codec||"PCMU"};
+  const [ip,port] = String(t.address||"224.5.6.20:10008").split(":"); e.mc_ip=ip; e.mc_port=port||"10008";
+  const m=/^sip:(?:([^@]+)@)?([^;>]+)/.exec(t.uri||""); e.pbx_ext=m&&m[1]||""; e.pbx_host=m&&m[2]||"";
+  e.username=t.username||""; e.password=t.password||""; e.auth_username=t.auth_username||"";
+  e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
+  e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
+  return e;
+}
+function fromEdit(e){
+  const base={name:e.name||KINDS[e.kind].t, enabled:e.enabled, codec:e.codec};
+  const lines=s=>String(s||"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+  if(e.kind==="multicast"){ if(!/^(22[4-9]|23\d)\./.test(e.mc_ip)) throw new Error("A multicast address starts with 224-239, e.g. 224.5.6.20"); return {...base,type:"multicast",address:`${e.mc_ip}:${parseInt(e.mc_port)||10008}`}; }
+  if(e.kind==="rtp"){ const a=lines(e.rtp); if(!a.length) throw new Error("Enter at least one speaker as IP:port"); return {...base,type:"unicast_rtp",addresses:a}; }
+  if(e.kind==="pbx"){ if(!e.pbx_host||!e.pbx_ext) throw new Error("Enter the phone system address and the paging group number"); const t={...base,type:"sip",mode:"pbx",uri:`sip:${e.pbx_ext.trim()}@${e.pbx_host.trim()}`,username:e.username.trim(),password:e.password,auto_answer:false}; if(e.auth_username.trim()) t.auth_username=e.auth_username.trim(); return t; }
+  const p=lines(e.phones); if(!p.length) throw new Error("Enter at least one phone IP address"); return {...base,type:"sip",mode:"direct",uris:p.map(x=>x.startsWith("sip:")?x:"sip:"+x),auto_answer:true};
+}
+function pagePhones(){
+  const ts=CFG.targets;
+  let html = `<h1>Phones</h1><p class="sub">Where the azan is played. You can use more than one method at the same time.</p>`;
+  if(editing){ html += editorHTML(); }
+  else {
+    html += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your phones</h2><button class="btn primary" onclick="editTarget(-1)">+ Add phones</button></div>
+      ${ts.length?ts.map((t,i)=>`<div class="list-item"><div class="icon-box">${KINDS[kindOf(t)].i}</div><div class="grow"><div class="title">${esc(t.name||KINDS[kindOf(t)].t)}</div><div class="detail">${esc(summary(t))}</div></div>
+        <button class="btn small" onclick="testTarget(${i})">${ICON.play} Test</button><button class="btn small" onclick="editTarget(${i})">Edit</button>
+        <label class="switch" title="On/off"><input type="checkbox" data-path="targets.${i}.enabled" data-kind="bool" ${t.enabled!==false?"checked":""}><span></span></label></div>`).join("")
+      :'<div class="empty">No phones yet. Click <b>Add phones</b> to start.</div>'}
+      </div>${guideHTML()}`;
+  }
+  $("#main").innerHTML = html;
+}
+function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", phones:"", rtp:""} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
+function editorHTML(){
+  const e=editing, k=e.kind;
+  const codec = `<div class="field"><label>Audio codec</label><select data-path="edit.codec">${opt("PCMU","G.711 µ-law (PCMU) - North America / most phones",e.codec)}${opt("PCMA","G.711 A-law (PCMA) - Europe / UK systems",e.codec)}</select><div class="hint">If the phones play silence or noise, try the other one.</div></div>`;
+  let fields="";
+  if(k==="multicast") fields = `<div class="grid3"><div class="field"><label>Multicast address</label><input type="text" data-path="edit.mc_ip" value="${evl("mc_ip")}"></div><div class="field"><label>Port</label><input type="number" data-path="edit.mc_port" value="${evl("mc_port")}"></div>${codec}</div>
+      <div class="hint">Enter the same address and port on every phone (see the setup guide below the list). The PC running Azan SIP must be on the same network as the phones.</div>`;
+  if(k==="pbx") fields = `<div class="grid2"><div class="field"><label>Phone system address</label><input type="text" placeholder="192.168.1.10" data-path="edit.pbx_host" value="${evl("pbx_host")}"></div>
+      <div class="field"><label>Paging group number</label><input type="text" placeholder="7000" data-path="edit.pbx_ext" value="${evl("pbx_ext")}"></div>
+      <div class="field"><label>Extension number for Azan SIP</label><input type="text" placeholder="7099" data-path="edit.username" value="${evl("username")}"><div class="hint">Create an extension on the phone system for Azan SIP to use.</div></div>
+      <div class="field"><label>Extension password (SIP secret)</label><input type="password" data-path="edit.password" value="${evl("password")}"></div></div>
+      <div class="grid2"><div class="field"><label>Authentication ID (only if different)</label><input type="text" data-path="edit.auth_username" value="${evl("auth_username")}"><div class="hint">3CX shows this as "Authentication ID".</div></div>${codec}</div>`;
+  if(k==="direct") fields = `<div class="field"><label>Phone IP addresses (one per line)</label><textarea data-path="edit.phones" placeholder="192.168.1.50&#10;192.168.1.51">${evl("phones")}</textarea>
+      <div class="hint">Each phone must accept direct IP calls and auto-answer intercom calls. Find a phone's IP in its menu under Status.</div></div>${codec}`;
+  if(k==="rtp") fields = `<div class="field"><label>Speakers as IP:port (one per line)</label><textarea data-path="edit.rtp" placeholder="192.168.1.80:50000">${evl("rtp")}</textarea></div>${codec}`;
+  return `<div class="card"><h2>${e.index<0?"Add phones":"Edit "+esc(e.name)}</h2>
+    <div class="lbl" style="margin-bottom:8px">How should the azan reach them?</div>
+    <div class="choice">${Object.entries(KINDS).map(([id,x])=>`<label><input type="radio" name="kind" value="${id}" ${k===id?"checked":""} onchange="editing.kind=this.value;render()"><div><div class="ct">${x.i.replace('<svg','<svg width="18" height="18"')} ${x.t}</div><div class="cd">${x.d}</div></div></label>`).join("")}</div>
+    <div class="field"><label>Name</label><input type="text" placeholder="${esc(KINDS[k].t)}" data-path="edit.name" value="${evl("name")}"></div>
+    ${fields}
+    <div class="row" style="justify-content:space-between;margin-top:8px">
+      <div class="row">${e.index>=0?`<button class="btn danger" onclick="removeTarget()">Remove</button>`:""}</div>
+      <div class="row"><button class="btn" onclick="testEditing()">${ICON.play} Test now</button><button class="btn" onclick="editing=null;render()">Cancel</button><button class="btn primary" onclick="finishEdit()">Done</button></div>
+    </div></div>`;
+}
+function finishEdit(){ try{ const t=fromEdit(editing); if(editing.index<0) CFG.targets.push(t); else CFG.targets[editing.index]=t; editing=null; dirty(); render(); toast("Press Save changes to start using it."); }catch(e){ toast(e.message,"bad"); } }
+function removeTarget(){ if(!confirm("Remove these phones?")) return; CFG.targets.splice(editing.index,1); editing=null; dirty(); render(); }
+async function testEditing(){ let t; try{ t=fromEdit(editing); }catch(e){ return toast(e.message,"bad"); } await test({source:"tone", target:t, label:"Test chime - "+(t.name)}); }
+async function testTarget(i){ await test({source:"tone", target:CFG.targets[i], label:"Test chime - "+(CFG.targets[i].name||"")}); }
+function guideHTML(){
+  const mc = CFG.targets.find(t=>t.type==="multicast"); const addr = mc ? mc.address : "224.5.6.20:10008"; const [ip,port]=addr.split(":");
+  return `<div class="card"><h2>Phone setup guide</h2><p class="muted" style="margin-top:-6px">Settings to make on the phones. Open each phone's web page by typing its IP address into a browser.</p>
+  <details open><summary>Yealink (multicast)</summary><p>Features → General Information → <b>Multicast Listening</b>: set Listening Address to <span class="kbd">${esc(addr)}</span>, Label "Azan", and choose a priority. Turn <b>Paging Barge</b> off so the azan doesn't interrupt calls (or on if it should).<br><span class="muted">Provisioning:</span> <span class="kbd">multicast.listen_address.1.ip_address = ${esc(addr)}</span></p></details>
+  <details><summary>Grandstream (multicast)</summary><p>Settings → Call Features (or Multicast Paging) → <b>Multicast Listening</b>: add <span class="kbd">${esc(addr)}</span> with label "Azan". Set <b>Paging Barge</b> as you prefer.</p></details>
+  <details><summary>Fanvil (multicast)</summary><p>Line → <b>Multicast / Paging</b>: enable, set priority, add <span class="kbd">${esc(ip)}</span> port <span class="kbd">${esc(port)}</span> name "Azan".</p></details>
+  <details><summary>Snom (multicast)</summary><p>Advanced → Audio → <b>Multicast Addresses</b>: <span class="kbd">${esc(addr)}</span>.</p></details>
+  <details><summary>Cisco MPP / SPA (multicast)</summary><p>Voice → Phone → <b>Multiple Paging Group Parameters</b> → Group 1 Paging Script: <span class="kbd">pggrp=${esc(addr)};name=Azan;num=800;listen=yes;</span></p></details>
+  <details><summary>Poly / Polycom (direct calls)</summary><p>Poly's group paging isn't standard RTP multicast, so use <b>Call each phone directly</b>. On the phones set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>, and allow calls to the IP address.</p></details>
+  <details><summary>FreePBX / Asterisk</summary><p>Applications → Extensions: add a PJSIP extension for Azan SIP (e.g. 7099). Applications → <b>Paging and Intercom</b>: create a group (e.g. 7000) with the phones as members, Duplex off. Then add <b>Phone system page group</b> here with those numbers.</p></details>
+  <details><summary>3CX</summary><p>Users: add an extension for Azan SIP. Groups → <b>Paging</b>: create a paging group with the phones. Use the extension's <b>Authentication ID</b> and <b>password</b> here.</p></details>
+  </div>`;
+}
+
+// ---- Settings
+function pageSettings(){
+  const g=CFG.general, days=[["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
+  $("#main").innerHTML = `<h1>Settings</h1><p class="sub">General options and the activity log.</p>
+  <div class="card">
+    <div class="toggle-row"><div><div class="t">Automatic azan</div><div class="d">Play the azan at prayer times. Switch off to pause without closing the app.</div></div>
+      <label class="switch"><input type="checkbox" ${g.scheduler_enabled!==false?"checked":""} onchange="setScheduler(this.checked)"><span></span></label></div>
+    ${META.windows?`<div class="toggle-row"><div><div class="t">Start with Windows</div><div class="d">Runs silently in the background when this PC starts, so the azan keeps playing after a restart.</div></div>
+      <label class="switch"><input type="checkbox" ${META.startup?"checked":""} onchange="setStartup(this.checked)"><span></span></label></div>`:""}
+    <div class="toggle-row"><div><div class="t">Days with no azan</div><div class="d">For example weekends, if the office is closed.</div></div>
+      <div class="row">${days.map(([v,l])=>`<label class="pill" style="cursor:pointer"><input type="checkbox" data-path="prayers.skip_days" data-kind="member" value="${v}" ${(CFG.prayers.skip_days||[]).includes(v)?"checked":""}> ${l}</label>`).join("")}</div></div>
+  </div>
+  <div class="card"><h2>Network</h2><div class="grid2">
+    <div class="field"><label>Network card to use</label><select data-path="network.local_ip">${opt("","Automatic",CFG.network.local_ip)}${(META.ips||[]).map(ip=>opt(ip,ip,CFG.network.local_ip)).join("")}${CFG.network.local_ip&&!(META.ips||[]).includes(CFG.network.local_ip)?opt(CFG.network.local_ip,CFG.network.local_ip+" (not found)",CFG.network.local_ip):""}</select><div class="hint">Choose the one on the phones' network if this PC has more than one (e.g. Wi-Fi and cable).</div></div>
+    <div class="field"><label>Multicast hops (TTL)</label><input type="number" min="1" max="32" data-path="network.multicast_ttl" data-kind="int" value="${val("network.multicast_ttl")||4}"><div class="hint">Raise only if phones are on other routed subnets.</div></div>
+  </div></div>
+  <div class="card" id="upd"><h2>Updates</h2><p class="muted">Loading…</p></div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Activity log</h2><span class="muted">Also saved to azan.log</span></div><div class="log" id="fulllog" style="margin-top:12px"></div></div>
+  <div class="card"><h2>About</h2><p class="muted">Azan SIP ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
+    <button class="btn danger" onclick="quitApp()">Quit Azan SIP</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`;
+  renderLog(true);
+  loadUpdate();
+}
+function renderLog(force){
+  const el=$("#fulllog"); if(!el||!S) return;
+  if(!force && S.log_id===logSeen) return; logSeen=S.log_id;
+  const atBottom = el.scrollHeight-el.scrollTop-el.clientHeight<30;
+  el.innerHTML = logHTML(S.log||[]); if(atBottom||force) el.scrollTop=el.scrollHeight;
+}
+// ---- Updates
+let UPD = null, updBusy = false;
+async function loadUpdate(){ try{ UPD = await api("/api/update"); }catch(e){ UPD = {error:e.message}; } renderUpdate(); }
+function renderUpdate(){
+  const el=$("#upd"); if(!el||!UPD) return;
+  const short = c => c ? String(c).slice(0,7) : "";
+  const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">Latest on GitHub: version ${esc(UPD.latest_version)} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
+      <div class="d">${esc((UPD.latest_date||"").slice(0,10))} · ${esc(UPD.latest_message||"")} · <span class="mono">${esc(short(UPD.latest_commit))}</span></div></div></div>` : "";
+  const bk = UPD.backups||[];
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/SIP-TO-ATHAN")}" target="_blank" rel="noopener">GitHub: SIP-TO-ATHAN</a></div>
+    <p class="muted" style="margin:8px 0 10px">Installed: version ${esc(UPD.current_version||S&&S.version||"")}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":""}.
+      Your settings, recordings and timetable are kept when updating.</p>
+    ${UPD.error?`<div class="banner bad">${ICON.warn}<div>${esc(UPD.error)}</div></div>`:""}
+    ${latest}
+    <div class="row" style="margin:12px 0">
+      <button class="btn" onclick="checkUpdate()" ${updBusy?"disabled":""}>${updBusy?"Checking…":"Check for updates"}</button>
+      ${UPD.available?`<button class="btn primary" onclick="installUpdate()">Update now to ${esc(UPD.latest_version)}</button>`:
+        (UPD.latest_version?`<button class="btn small" onclick="installUpdate(true)">Reinstall latest</button>`:"")}
+    </div>
+    <div class="toggle-row"><div><div class="t">Check for updates automatically</div><div class="d">Once a day. You'll see a notice on the Today page; nothing installs without you pressing Update.</div></div>
+      <label class="switch"><input type="checkbox" ${UPD.auto!==false?"checked":""} onchange="setAutoUpdate(this.checked)"><span></span></label></div>
+    ${bk.length?`<div class="toggle-row"><div><div class="t">Go back to the previous version</div><div class="d">If an update causes a problem. Saved copies: ${bk.map(b=>"v"+esc(b.version)).join(", ")}</div></div>
+      <button class="btn small" onclick="rollbackUpdate('${esc(bk[0].name)}','${esc(bk[0].version)}')">Restore v${esc(bk[0].version)}</button></div>`:""}`;
+}
+async function checkUpdate(){ updBusy=true; renderUpdate(); try{ UPD = await api("/api/update/check",{}); UPD.error=null; toast(UPD.available?`Version ${UPD.latest_version} is available`:"You're on the latest version"); }catch(e){ UPD = {...(UPD||{}), error:e.message}; } updBusy=false; renderUpdate(); }
+async function setAutoUpdate(on){ await act(async()=>{ await api("/api/update/auto",{enabled:on}); applySaved("general.check_updates", on); UPD.auto=on; }, on?"Will check for updates daily":"Automatic update checks off"); }
+async function installUpdate(reinstall){
+  if(isDirty() && !confirm("You have unsaved changes. They will be lost if you update now. Continue?")) return;
+  if(!confirm(reinstall?"Download and reinstall the latest version? Azan SIP will restart.":`Update to version ${UPD.latest_version}? Azan SIP will restart, which takes a few seconds.`)) return;
+  await runInstall("/api/update/apply", {}, "Updating Azan SIP…", "Downloading and checking the new version. Your settings are kept.");
+}
+async function rollbackUpdate(name, version){
+  if(!confirm(`Go back to version ${version}? Azan SIP will restart.`)) return;
+  await runInstall("/api/update/rollback", {name}, "Restoring the previous version…", "Azan SIP will restart in a moment.");
+}
+async function runInstall(path, body, title, text){
+  const ov=$("#overlay"); $("#ov-title").textContent=title; $("#ov-text").textContent=text; ov.hidden=false;
+  restartingUI = true;
+  try{ const r = await api(path, body); $("#ov-title").textContent = `Installed version ${r.version}`; $("#ov-text").textContent = "Restarting Azan SIP…"; }
+  catch(e){ ov.hidden=true; restartingUI=false; toast(e.message,"bad"); return; }
+  const t0 = Date.now(); let sawDown = false;
+  while(Date.now()-t0 < 120000){
+    await new Promise(r=>setTimeout(r,1000));
+    try{ const p = await fetch("/api/ping",{cache:"no-store"}); if(p.ok && sawDown){ location.reload(); return; } if(!p.ok) sawDown=true; }
+    catch(e){ sawDown = true; }
+  }
+  $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML="Double-click <b>Azan SIP</b> in the program folder to start it, then refresh this page.";
+}
+
+async function setStartup(on){ await act(async()=>{ await api("/api/startup",{enabled:on}); META.startup=on; }, on?"Azan SIP will start with Windows":"Won't start with Windows"); }
+async function quitApp(){
+  if(!confirm("Quit Azan SIP? The azan will not play until you start it again.")) return;
+  try{ await api("/api/quit",{}); }catch(e){}
+  offline=true; S=null; renderMini(); $("#main").innerHTML = stoppedHTML();
+}
+
+// ---------------------------------------------------------------- start
+window.addEventListener("beforeunload", e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=""; } });
+window.addEventListener("hashchange", ()=>{ const p=location.hash.slice(1); if(p&&p!==page){ page=p; editing=null; render(); if(p==="times") schedulePreview(0); } });
+(async function init(){
+  render();
+  await poll();
+  for(let i=0;i<100 && !CFG;i++){ try{ await loadConfig(); }catch(e){ await new Promise(r=>setTimeout(r,2000)); } }
+  render(); if(page==="times") schedulePreview(0);
+  setInterval(async()=>{ if(offline) return; if(!CFG){ try{ await loadConfig(); render(); }catch(e){} } }, 3000);
+})();
+// reconnect: when the service comes back after being stopped, reload settings
+setInterval(async()=>{ if(offline){ try{ await api("/api/ping"); offline=false; await loadConfig(); await poll(); render(); }catch(e){} } }, 3000);
+</script>
+</body>
+</html>
