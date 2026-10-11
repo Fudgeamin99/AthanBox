@@ -266,7 +266,7 @@ async function poll(){
   renderMini();
   if(page==="overview") renderOverviewLive();
   if(page==="settings") renderLog();
-  if(page==="phones" && CFG && META && !editing && !isDirty()) pagePhones();
+  if(page==="phones" && CFG) refreshRegPills();
   }catch(e){ console.error(e); }
 }
 setInterval(poll, 2000);
@@ -574,7 +574,7 @@ function pagePhones(){
   if(editing){ html += editorHTML(); }
   else {
     html += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your phones</h2><button class="btn primary" onclick="editTarget(-1)">+ Add phones</button></div>
-      ${ts.length?ts.map((t,i)=>`<div class="list-item"><div class="icon-box">${KINDS[kindOf(t)].i}</div><div class="grow"><div class="title">${esc(t.name||KINDS[kindOf(t)].t)} ${regPill(t)}</div><div class="detail">${esc(summary(t))}</div></div>
+      ${ts.length?ts.map((t,i)=>`<div class="list-item"><div class="icon-box">${KINDS[kindOf(t)].i}</div><div class="grow"><div class="title">${esc(t.name||KINDS[kindOf(t)].t)} <span class="regpill" data-i="${i}">${regPill(t)}</span></div><div class="detail">${esc(summary(t))}</div></div>
         <button class="btn small" onclick="testTarget(${i})">${ICON.play} Test</button><button class="btn small" onclick="editTarget(${i})">Edit</button>
         <label class="switch" title="On/off"><input type="checkbox" data-path="targets.${i}.enabled" data-kind="bool" ${t.enabled!==false?"checked":""}><span></span></label></div>`).join("")
       :'<div class="empty">No phones yet. Click <b>Add phones</b> to start.</div>'}
@@ -587,6 +587,13 @@ function regFor(t){
   const host=(/@([^;>]+)/.exec(t.uri||"")||[])[1]||"";
   const regs=((S&&S.registrations)||[]).filter(r=>r.extension===t.username && (r.host===host || r.host===host+":5060"));
   return regs.find(r=>r.name===(t.name||"Phone system")) || regs[0] || {status:"starting",detail:""};
+}
+function refreshRegPills(){
+  // Update only the registration labels so open guide sections and scroll position stay put.
+  document.querySelectorAll(".regpill[data-i]").forEach(el=>{
+    const t=CFG.targets[+el.dataset.i]; if(!t) return;
+    const html=regPill(t); if(el.innerHTML!==html) el.innerHTML=html;
+  });
 }
 function regPill(t){
   const r=regFor(t); if(!r) return "";
