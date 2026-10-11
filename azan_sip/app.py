@@ -24,8 +24,9 @@ class Clip:
     """An audio file (or the built-in test chime) prepared on demand per codec."""
 
     def __init__(self, source: str, base: Path, volume_db: float = 0.0, lead_in_ms: int = 400,
-                 max_seconds: float | None = None):
+                 max_seconds: float | None = None, tone_seconds: float = 6.0):
         self.source = source
+        self.tone_seconds = tone_seconds
         self.path = None if source == "tone" else (base / source).resolve()
         self.volume_db, self.lead_in_ms, self.max_seconds = volume_db, lead_in_ms, max_seconds
         self._cache: dict[str, bytes] = {}
@@ -34,7 +35,8 @@ class Clip:
     def get(self, codec: str) -> bytes:
         with self._lock:
             if codec not in self._cache:
-                body = audio.tone(codec=codec) if self.path is None else audio.load(self.path, codec, self.volume_db)
+                body = (audio.tone(self.tone_seconds, codec, self.volume_db) if self.path is None
+                        else audio.load(self.path, codec, self.volume_db))
                 if self.max_seconds:
                     body = body[: int(self.max_seconds * audio.SAMPLE_RATE)]
                 self._cache[codec] = audio.silence(self.lead_in_ms, codec) + body + audio.silence(600, codec)
@@ -119,7 +121,8 @@ def build_targets(cfg: dict, require: bool = True) -> list:
                               from_user=t.get("from_user", t.get("username") or "azan"),
                               display_name=t.get("display_name", "Azan"),
                               auto_answer=t.get("auto_answer", True), codecs=[c.upper() for c in codecs],
-                              ring_timeout=float(t.get("ring_timeout", 20)), local_ip=local_ip,
+                              ring_timeout=float(t.get("ring_timeout") or net.get("ring_seconds") or 20),
+                              local_ip=local_ip,
                               extra_headers=t.get("extra_headers", []))
                     for u in uris if u]
             out.append(SipCallTarget(name, sips))

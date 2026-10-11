@@ -319,7 +319,7 @@ function pageOverview(){
   <div class="grid2">
     <div class="card"><h2>Quick test</h2><p class="muted" style="margin-top:-6px">Plays on every switched-on phone right now.</p>
       <div class="row"><button class="btn" onclick="test({source:'tone',label:'Test chime'})">${ICON.play} Test chime</button>
-      <button class="btn" onclick="test({source:'dhuhr',seconds:20,label:'Azan test (20 s)'})">${ICON.play} 20 s of the azan</button>
+      <button class="btn" onclick="test({source:'dhuhr',seconds:'default',label:'Azan test'})">${ICON.play} ${esc(azanTestLabel())}</button>
       <button class="btn danger" onclick="stopAudio()">${ICON.stop} Stop</button></div></div>
     <div class="card"><h2>Recent activity</h2><div id="history"></div></div>
   </div>
@@ -356,6 +356,7 @@ function renderOverviewLive(){
   $("#history").innerHTML = (S.history||[]).length ? `<table>${S.history.slice(0,6).map(h=>`<tr><td>${esc(h.label)}</td><td class="muted">${esc(h.at.slice(11,16))} ${esc(h.at.slice(0,10))}</td><td>${h.ok?'<span class="pill ok">sent</span>':'<span class="pill warn">failed</span>'}</td></tr>`).join("")}</table>` : '<p class="muted">Nothing played yet since Azan SIP started.</p>';
   const ol=$("#ovlog"); ol.innerHTML = logHTML((S.log||[]).slice(-8)); ol.scrollTop=ol.scrollHeight;
 }
+function azanTestLabel(){ const n=+((CFG&&CFG.general&&CFG.general.test_azan_seconds)??20); return n>0 ? `${n} s of the azan` : "the whole azan"; }
 function logHTML(lines){ return lines.map(l=>`<div class="${esc(l.level)}"><span class="ts">${esc(l.t.slice(11))}</span> ${esc(l.msg)}</div>`).join("") || '<span class="muted">No messages yet.</span>'; }
 async function togglePrayer(p, on){
   await act(async()=>{ await api("/api/prayer",{prayer:p,enabled:on}); const list=JSON.parse(SAVED).prayers?.enabled||PRAYERS.slice(); const nl=PRAYERS.filter(x=> x===p ? on : list.includes(x)); applySaved("prayers.enabled", nl); await poll(); }, `${TITLE[p]} azan ${on?"on":"off"}`);
@@ -464,17 +465,17 @@ function audioOptions(cur, extra){
 function soundRow(key, label, hint, extra, testSrc){
   const cur = CFG.audio[key] ?? "";
   return `<div class="field"><label>${label}</label><div class="row" style="flex-wrap:nowrap"><select data-path="audio.${key}" data-rerender>${audioOptions(cur, extra)}</select>
-    <button class="btn" title="Play on the phones (first 20 seconds)" onclick="test({source:'${testSrc}',seconds:20,label:'${label} test'})">${ICON.play} Test</button></div>${hint?`<div class="hint">${hint}</div>`:""}</div>`;
+    <button class="btn" title="Play on the phones (${esc(azanTestLabel())})" onclick="test({source:'${testSrc}',seconds:'default',label:'${label} test'})">${ICON.play} Test</button></div>${hint?`<div class="hint">${hint}</div>`:""}</div>`;
 }
 function pageAudio(){
   const a=CFG.audio, files=META.audio_files||[];
-  $("#main").innerHTML = `<h1>Azan sound</h1><p class="sub">Add your azan recordings and choose what plays. Test buttons play on the phones for 20 seconds.</p>
+  $("#main").innerHTML = `<h1>Azan sound</h1><p class="sub">Add your azan recordings and choose what plays. Test buttons play on the phones (${esc(azanTestLabel())} - change this in Settings).</p>
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your recordings</h2>
     <label class="btn primary">Add recording…<input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" multiple hidden onchange="uploadAudio(this.files)"></label></div>
     <p class="muted" style="margin:8px 0 4px">MP3, WAV, M4A and most other formats. They are converted to phone quality automatically.</p>
     <div id="upl"></div>
     ${files.length?files.map(f=>`<div class="list-item"><div class="icon-box">${ICON.file}</div><div class="grow"><div class="title">${esc(f)}</div><audio controls preload="none" src="/audio/${encodeURIComponent(f)}" style="height:32px;margin-top:6px;max-width:100%"></audio></div>
-      <button class="btn small" onclick="test({source:'file:${esc(f)}',seconds:20,label:'${esc(f)} test'})">${ICON.play} Test on phones</button><button class="btn small danger" onclick="delAudio('${esc(f)}')">Remove</button></div>`).join("")
+      <button class="btn small" onclick="test({source:'file:${esc(f)}',seconds:'default',label:'${esc(f)} test'})">${ICON.play} Test on phones</button><button class="btn small danger" onclick="delAudio('${esc(f)}')">Remove</button></div>`).join("")
     :'<div class="empty">No recordings yet. Until you add one, the built-in test chime plays at prayer times.</div>'}
   </div>
   <div class="card"><h2>What plays when</h2>
@@ -661,6 +662,17 @@ function pageSettings(){
     <div class="toggle-row"><div><div class="t">Days with no azan</div><div class="d">For example weekends, if the office is closed.</div></div>
       <div class="row">${days.map(([v,l])=>`<label class="pill" style="cursor:pointer"><input type="checkbox" data-path="prayers.skip_days" data-kind="member" value="${v}" ${(CFG.prayers.skip_days||[]).includes(v)?"checked":""}> ${l}</label>`).join("")}</div></div>
   </div>
+  <div class="card"><h2>Testing and calls</h2><div class="grid2">
+    <div class="field"><label>Azan test length</label><select data-path="general.test_azan_seconds" data-kind="num">
+      ${[10,20,30,45,60,90,120,180,0].map(n=>opt(n, n?`${n} seconds`:"Whole recording", CFG.general.test_azan_seconds??20)).join("")}</select>
+      <div class="hint">How much of the azan the Test buttons play.</div></div>
+    <div class="field"><label>Ring time (seconds)</label><input type="number" min="5" max="120" data-path="network.ring_seconds" data-kind="num" placeholder="20" value="${val("network.ring_seconds")}">
+      <div class="hint">How long a call rings before Azan SIP gives up. Raise it if the phones have to be answered or the phone system is slow to connect.</div></div>
+    <div class="field"><label>Test chime length (seconds)</label><input type="number" min="2" max="120" data-path="general.test_chime_seconds" data-kind="num" placeholder="6" value="${val("general.test_chime_seconds")}"></div>
+    <div class="field"><label>Test chime volume: <span id="chv">${(+CFG.general.test_chime_volume_db||0)>0?"+":""}${+CFG.general.test_chime_volume_db||0} dB</span></label>
+      <input type="range" min="-12" max="12" step="1" data-path="general.test_chime_volume_db" data-kind="num" value="${+CFG.general.test_chime_volume_db||0}" oninput="$('#chv').textContent=(this.value>0?'+':'')+this.value+' dB'"></div>
+  </div><div class="row"><button class="btn" onclick="test({source:'tone',label:'Test chime'})">${ICON.play} Test chime</button><button class="btn" onclick="test({source:'dhuhr',seconds:'default',label:'Azan test'})">${ICON.play} Test azan</button><button class="btn danger" onclick="stopAudio()">${ICON.stop} Stop</button>
+    <span class="muted">Save changes first to test with new values.</span></div></div>
   <div class="card"><h2>Network</h2><div class="grid2">
     <div class="field"><label>Network card to use</label><select data-path="network.local_ip">${opt("","Automatic",CFG.network.local_ip)}${(META.ips||[]).map(ip=>opt(ip,ip,CFG.network.local_ip)).join("")}${CFG.network.local_ip&&!(META.ips||[]).includes(CFG.network.local_ip)?opt(CFG.network.local_ip,CFG.network.local_ip+" (not found)",CFG.network.local_ip):""}</select><div class="hint">Choose the one on the phones' network if this PC has more than one (e.g. Wi-Fi and cable).</div></div>
     <div class="field"><label>Multicast hops (TTL)</label><input type="number" min="1" max="32" data-path="network.multicast_ttl" data-kind="int" value="${val("network.multicast_ttl")||4}"><div class="hint">Raise only if phones are on other routed subnets.</div></div>

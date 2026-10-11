@@ -392,9 +392,15 @@ class Service:
             raise RuntimeError(self.error or "Settings not loaded")
         a = self.cfg.get("audio", {})
         vol, lead = float(a.get("volume_db", 0) or 0), int(a.get("lead_in_ms", 400) or 0)
+        g = self.cfg.get("general", {})
+        clamp = lambda v, lo, hi, d: max(lo, min(hi, float(v if v not in (None, "") else d)))  # noqa: E731
+        chime_s = clamp(g.get("test_chime_seconds"), 2, 120, 6)
+        chime_db = clamp(g.get("test_chime_volume_db"), -12, 12, 0)
         src = req.get("source", "tone")
+        if req.get("seconds") == "default":  # Test buttons: use the length chosen in Settings (0 = whole recording)
+            req["seconds"] = clamp(g.get("test_azan_seconds"), 0, 3600, 20) or None
         if src == "tone":
-            clip = Clip("tone", app.base, vol, lead)
+            clip = Clip("tone", app.base, chime_db, lead, tone_seconds=chime_s)
         elif src in ADHAN_PRAYERS:
             clip = app.clip_for(src)
         elif src == "reminder":
@@ -405,7 +411,7 @@ class Service:
             clip = Clip("audio/" + Path(src[5:]).name, app.base, vol, lead)
         else:
             clip = app.default_clip
-        if req.get("seconds"):
+        if req.get("seconds") and src != "tone":
             clip = Clip(clip.source, app.base, vol, lead, float(req["seconds"]))
         clip.check()
         targets = None

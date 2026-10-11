@@ -144,9 +144,10 @@ def _wav_python(path: Path, codec: str, volume_db: float) -> bytes:
     return encode_pcm16(samples, codec)
 
 
-def tone(seconds: float = 6.0, codec: str = "PCMU") -> bytes:
+def tone(seconds: float = 6.0, codec: str = "PCMU", gain_db: float = 0.0) -> bytes:
     """A gentle chime pattern for testing without an azan file."""
     out = []
+    peak = min(32000.0, 12000.0 * 10 ** (gain_db / 20))
     notes = [659.25, 523.25, 587.33, 392.0]
     n_total = int(seconds * SAMPLE_RATE)
     seg = int(0.6 * SAMPLE_RATE)
@@ -157,7 +158,7 @@ def tone(seconds: float = 6.0, codec: str = "PCMU") -> bytes:
             continue
         t = (i % seg) / SAMPLE_RATE
         env = math.exp(-3.5 * t)
-        out.append(int(12000 * env * math.sin(2 * math.pi * notes[k] * t)))
+        out.append(int(peak * env * math.sin(2 * math.pi * notes[k] * t)))
     return encode_pcm16(out, codec.upper())
 
 
