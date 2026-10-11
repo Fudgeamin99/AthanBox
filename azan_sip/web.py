@@ -26,6 +26,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__, rtp, tomlw, updater
+from .sipreg import RegistrationManager
 from .app import ADHAN_PRAYERS, AzanApp, Clip, Shared, build_targets, load_config
 from .praytimes import METHODS, PRAYERS, SHAFAQ, get_zone
 
@@ -176,6 +177,7 @@ class Service:
         self.cfg: dict = {}
         self.server: ThreadingHTTPServer | None = None
         self.shared = Shared()
+        self.regs = RegistrationManager()
         self.update_info: dict | None = None
         self.update_lock = threading.Lock()
         self.restarting = False
@@ -214,6 +216,7 @@ class Service:
                 self.write(cfg)
             self._stop_scheduler(halt_audio=False)  # an azan that is playing carries on
             self.app, self.cfg, self.error = app, cfg, None
+            self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
             g = cfg.get("general", {})
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
@@ -228,6 +231,7 @@ class Service:
 
     def shutdown(self):
         self._stop_scheduler()
+        self.regs.stop_all()
 
     # -- state for the panel
     def state(self) -> dict:
@@ -238,7 +242,7 @@ class Service:
                   "update": {"available": bool(ui.get("available")), "latest_version": ui.get("latest_version")}, "running": bool(self.thread and self.thread.is_alive()),
                   "configured": self.cfg.get("general", {}).get("configured", True),
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
-                  "log_id": RING.counter}
+                  "log_id": RING.counter, "registrations": self.regs.info()}
             if app is None:
                 return st
             now = app.now()
@@ -335,6 +339,9 @@ class Service:
             elif c.path is not None and c.path.suffix.lower() != ".wav" and not shutil.which("ffmpeg"):
                 w.append(f"{c.path.name} is not a WAV file and ffmpeg isn't installed. "
                          "Re-add it with the Upload button (it is converted automatically).")
+        for r in self.regs.info():
+            if r["status"] == "failed":
+                w.append(f"Extension {r['extension']} is not registered on the phone system: {r['detail']}")
         if (self.update_info or {}).get("available"):
             w.append(f"A new version of Azan SIP ({self.update_info.get('latest_version')}) is available - "
                      "install it from Settings > Updates.")

@@ -101,18 +101,19 @@ def _digest(challenge: str, method: str, uri: str, username: str, password: str)
     algo = params.get("algorithm", "MD5")
     md5 = lambda s: hashlib.md5(s.encode()).hexdigest()  # noqa: E731
     ha1 = md5(f"{username}:{realm}:{password}")
+    cnonce, nc = _rand(12), "00000001"
     if algo.upper() == "MD5-SESS":
-        cnonce0 = _rand(8)
-        ha1 = md5(f"{ha1}:{nonce}:{cnonce0}")
+        ha1 = md5(f"{ha1}:{nonce}:{cnonce}")
     ha2 = md5(f"{method}:{uri}")
     out = [f'Digest username="{username}"', f'realm="{realm}"', f'nonce="{nonce}"', f'uri="{uri}"']
     qop = params.get("qop")
     if qop and "auth" in [q.strip() for q in qop.split(",")]:
-        cnonce, nc = _rand(12), "00000001"
         resp = md5(f"{ha1}:{nonce}:{nc}:{cnonce}:auth:{ha2}")
         out += [f'response="{resp}"', "qop=auth", f"nc={nc}", f'cnonce="{cnonce}"']
     else:
         out.append(f'response="{md5(f"{ha1}:{nonce}:{ha2}")}"')
+        if algo.upper() == "MD5-SESS":
+            out.append(f'cnonce="{cnonce}"')
     out.append(f"algorithm={algo}")
     if "opaque" in params:
         out.append(f'opaque="{params["opaque"]}"')
@@ -150,6 +151,7 @@ class SipCall:
         self.rtp_sock.bind(("0.0.0.0", 0))
         self.rtp_port = self.rtp_sock.getsockname()[1]
         self.call_id = f"{_rand(16)}@{self.lip}"
+        self.from_domain = self.host if target.username else self.lip
         self.from_tag = _rand(8)
         self.to_tag = ""
         self.cseq = 0
@@ -180,7 +182,7 @@ class SipCall:
         h = [f"{method} {uri} SIP/2.0",
              f"Via: SIP/2.0/UDP {self.lip}:{self.lport};branch={branch};rport",
              "Max-Forwards: 70",
-             f'From: "{self.t.display_name}" <sip:{self.t.from_user}@{self.lip}>;tag={self.from_tag}',
+             f'From: "{self.t.display_name}" <sip:{self.t.from_user}@{self.from_domain}>;tag={self.from_tag}',
              f"To: {to}",
              f"Call-ID: {self.call_id}",
              f"CSeq: {cseq} {method}",
@@ -269,7 +271,7 @@ class SipCall:
         h = [f"CANCEL {self.ruri} SIP/2.0",
              f"Via: SIP/2.0/UDP {self.lip}:{self.lport};branch={branch};rport",
              "Max-Forwards: 70",
-             f'From: "{self.t.display_name}" <sip:{self.t.from_user}@{self.lip}>;tag={self.from_tag}',
+             f'From: "{self.t.display_name}" <sip:{self.t.from_user}@{self.from_domain}>;tag={self.from_tag}',
              f"To: <{self.ruri}>", f"Call-ID: {self.call_id}", f"CSeq: {cseq} CANCEL", "Content-Length: 0"]
         self._send(("\r\n".join(h) + "\r\n\r\n").encode())
 
@@ -279,7 +281,7 @@ class SipCall:
             h = [f"ACK {self.ruri} SIP/2.0",
                  f"Via: SIP/2.0/UDP {self.lip}:{self.lport};branch={branch};rport",
                  "Max-Forwards: 70",
-                 f'From: "{self.t.display_name}" <sip:{self.t.from_user}@{self.lip}>;tag={self.from_tag}',
+                 f'From: "{self.t.display_name}" <sip:{self.t.from_user}@{self.from_domain}>;tag={self.from_tag}',
                  f"To: {resp.get('to')}", f"Call-ID: {self.call_id}", f"CSeq: {cseq_num} ACK",
                  "Content-Length: 0"]
             self._send(("\r\n".join(h) + "\r\n\r\n").encode())

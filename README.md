@@ -39,7 +39,7 @@ Go to **Settings → Updates** and press **Check for updates**, then **Update no
 | Method | Best for |
 |---|---|
 | Multicast paging | Yealink, Grandstream, Fanvil, Snom, Cisco MPP. Each phone listens on one address; no PBX changes. |
-| Phone system page group | FreePBX, Asterisk, 3CX and others. Azan SIP calls your paging group using its own extension. |
+| Phone system page group | Grandstream UCM, FreePBX, Asterisk, 3CX and others. Azan SIP stays registered as its own extension (shows as Idle) and calls your paging group. |
 | Call each phone directly | Poly/Polycom, or when multicast isn't possible. Needs direct IP calls and auto-answer on the phones. |
 | IP speaker (RTP) | Paging speakers that listen on a fixed IP address and port. |
 

@@ -262,9 +262,12 @@ async function poll(){
     if(!offline && !restartingUI){ offline=true; renderMini(); if(page==="overview") render(); }
     return;
   }
+  try{
   renderMini();
   if(page==="overview") renderOverviewLive();
   if(page==="settings") renderLog();
+  if(page==="phones" && CFG && META && !editing && !isDirty()) pagePhones();
+  }catch(e){ console.error(e); }
 }
 setInterval(poll, 2000);
 setInterval(()=>{ if(S && S.next){ const el=$("#countdown"); if(el) el.textContent=fmtDur(S.next.seconds-(Date.now()-stateAt)/1000); } const c=$("#clock"); if(c&&S&&S.clock){ /* server clock text refreshes every poll */ } }, 250);
@@ -536,7 +539,7 @@ async function delAudio(f){ if(!confirm(`Remove ${f}?`)) return; await act(async
 // ---- Phones
 const KINDS = {
   multicast:{t:"Multicast paging", d:"Recommended. Yealink, Grandstream, Fanvil, Snom, Cisco MPP. No phone system changes - each phone listens on one address.", i:ICON.broadcast},
-  pbx:{t:"Phone system page group", d:"FreePBX, Asterisk, 3CX and others. Azan SIP calls your paging group like an extension.", i:ICON.server},
+  pbx:{t:"Phone system page group", d:"Grandstream UCM, FreePBX, 3CX and others. Azan SIP signs in as an extension and calls your paging group.", i:ICON.server},
   direct:{t:"Call each phone directly", d:"For Poly/Polycom or when multicast isn't possible. Phones must allow direct IP calls and auto-answer.", i:ICON.phone},
   rtp:{t:"IP speaker (RTP)", d:"Paging speakers that listen for audio on a fixed IP address and port.", i:ICON.speaker},
 };
@@ -552,7 +555,7 @@ function toEdit(t){
   const k=kindOf(t), e={kind:k,name:t.name||"",enabled:t.enabled!==false,codec:t.codec||"PCMU"};
   const [ip,port] = String(t.address||"224.5.6.20:10008").split(":"); e.mc_ip=ip; e.mc_port=port||"10008";
   const m=/^sip:(?:([^@]+)@)?([^;>]+)/.exec(t.uri||""); e.pbx_ext=m&&m[1]||""; e.pbx_host=m&&m[2]||"";
-  e.username=t.username||""; e.password=t.password||""; e.auth_username=t.auth_username||"";
+  e.username=t.username||""; e.password=t.password||""; e.auth_username=t.auth_username||""; e.register=t.register!==false;
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
   return e;
@@ -562,7 +565,7 @@ function fromEdit(e){
   const lines=s=>String(s||"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
   if(e.kind==="multicast"){ if(!/^(22[4-9]|23\d)\./.test(e.mc_ip)) throw new Error("A multicast address starts with 224-239, e.g. 224.5.6.20"); return {...base,type:"multicast",address:`${e.mc_ip}:${parseInt(e.mc_port)||10008}`}; }
   if(e.kind==="rtp"){ const a=lines(e.rtp); if(!a.length) throw new Error("Enter at least one speaker as IP:port"); return {...base,type:"unicast_rtp",addresses:a}; }
-  if(e.kind==="pbx"){ if(!e.pbx_host||!e.pbx_ext) throw new Error("Enter the phone system address and the paging group number"); const t={...base,type:"sip",mode:"pbx",uri:`sip:${e.pbx_ext.trim()}@${e.pbx_host.trim()}`,username:e.username.trim(),password:e.password,auto_answer:false}; if(e.auth_username.trim()) t.auth_username=e.auth_username.trim(); return t; }
+  if(e.kind==="pbx"){ if(!e.pbx_host||!e.pbx_ext) throw new Error("Enter the phone system address and the paging group number"); const t={...base,type:"sip",mode:"pbx",uri:`sip:${e.pbx_ext.trim()}@${e.pbx_host.trim()}`,username:e.username.trim(),password:e.password,auto_answer:false,register:e.register!==false}; if(e.auth_username.trim()) t.auth_username=e.auth_username.trim(); return t; }
   const p=lines(e.phones); if(!p.length) throw new Error("Enter at least one phone IP address"); return {...base,type:"sip",mode:"direct",uris:p.map(x=>x.startsWith("sip:")?x:"sip:"+x),auto_answer:true};
 }
 function pagePhones(){
@@ -571,7 +574,7 @@ function pagePhones(){
   if(editing){ html += editorHTML(); }
   else {
     html += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your phones</h2><button class="btn primary" onclick="editTarget(-1)">+ Add phones</button></div>
-      ${ts.length?ts.map((t,i)=>`<div class="list-item"><div class="icon-box">${KINDS[kindOf(t)].i}</div><div class="grow"><div class="title">${esc(t.name||KINDS[kindOf(t)].t)}</div><div class="detail">${esc(summary(t))}</div></div>
+      ${ts.length?ts.map((t,i)=>`<div class="list-item"><div class="icon-box">${KINDS[kindOf(t)].i}</div><div class="grow"><div class="title">${esc(t.name||KINDS[kindOf(t)].t)} ${regPill(t)}</div><div class="detail">${esc(summary(t))}</div></div>
         <button class="btn small" onclick="testTarget(${i})">${ICON.play} Test</button><button class="btn small" onclick="editTarget(${i})">Edit</button>
         <label class="switch" title="On/off"><input type="checkbox" data-path="targets.${i}.enabled" data-kind="bool" ${t.enabled!==false?"checked":""}><span></span></label></div>`).join("")
       :'<div class="empty">No phones yet. Click <b>Add phones</b> to start.</div>'}
@@ -579,7 +582,19 @@ function pagePhones(){
   }
   $("#main").innerHTML = html;
 }
-function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", phones:"", rtp:""} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
+function regFor(t){
+  if(kindOf(t)!=="pbx" || !t.username || t.register===false || t.enabled===false) return null;
+  const host=(/@([^;>]+)/.exec(t.uri||"")||[])[1]||"";
+  const regs=((S&&S.registrations)||[]).filter(r=>r.extension===t.username && (r.host===host || r.host===host+":5060"));
+  return regs.find(r=>r.name===(t.name||"Phone system")) || regs[0] || {status:"starting",detail:""};
+}
+function regPill(t){
+  const r=regFor(t); if(!r) return "";
+  if(r.status==="registered") return `<span class="pill ok" title="${esc(r.detail)}"><span class="dot"></span>Registered</span>`;
+  if(r.status==="failed") return `<span class="pill warn" title="${esc(r.detail)}"><span class="dot"></span>Not registered</span><div class="detail" style="color:var(--warn);white-space:normal">${esc(r.detail)}</div>`;
+  return `<span class="pill"><span class="dot"></span>Registering…</span>`;
+}
+function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", register:true, phones:"", rtp:""} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
 function editorHTML(){
   const e=editing, k=e.kind;
   const codec = `<div class="field"><label>Audio codec</label><select data-path="edit.codec">${opt("PCMU","G.711 µ-law (PCMU) - North America / most phones",e.codec)}${opt("PCMA","G.711 A-law (PCMA) - Europe / UK systems",e.codec)}</select><div class="hint">If the phones play silence or noise, try the other one.</div></div>`;
@@ -590,7 +605,8 @@ function editorHTML(){
       <div class="field"><label>Paging group number</label><input type="text" placeholder="7000" data-path="edit.pbx_ext" value="${evl("pbx_ext")}"></div>
       <div class="field"><label>Extension number for Azan SIP</label><input type="text" placeholder="7099" data-path="edit.username" value="${evl("username")}"><div class="hint">Create an extension on the phone system for Azan SIP to use.</div></div>
       <div class="field"><label>Extension password (SIP secret)</label><input type="password" data-path="edit.password" value="${evl("password")}"></div></div>
-      <div class="grid2"><div class="field"><label>Authentication ID (only if different)</label><input type="text" data-path="edit.auth_username" value="${evl("auth_username")}"><div class="hint">3CX shows this as "Authentication ID".</div></div>${codec}</div>`;
+      <div class="grid2"><div class="field"><label>Authentication ID (only if different)</label><input type="text" data-path="edit.auth_username" value="${evl("auth_username")}"><div class="hint">3CX shows this as "Authentication ID".</div></div>${codec}</div>
+      <div class="toggle-row"><div><div class="t">Stay registered</div><div class="d">Keeps the extension signed in so the phone system shows it as Idle/online, like a desk phone.</div></div>${sw("edit.register", e.register!==false)}</div>`;
   if(k==="direct") fields = `<div class="field"><label>Phone IP addresses (one per line)</label><textarea data-path="edit.phones" placeholder="192.168.1.50&#10;192.168.1.51">${evl("phones")}</textarea>
       <div class="hint">Each phone must accept direct IP calls and auto-answer intercom calls. Find a phone's IP in its menu under Status.</div></div>${codec}`;
   if(k==="rtp") fields = `<div class="field"><label>Speakers as IP:port (one per line)</label><textarea data-path="edit.rtp" placeholder="192.168.1.80:50000">${evl("rtp")}</textarea></div>${codec}`;
@@ -617,6 +633,10 @@ function guideHTML(){
   <details><summary>Snom (multicast)</summary><p>Advanced → Audio → <b>Multicast Addresses</b>: <span class="kbd">${esc(addr)}</span>.</p></details>
   <details><summary>Cisco MPP / SPA (multicast)</summary><p>Voice → Phone → <b>Multiple Paging Group Parameters</b> → Group 1 Paging Script: <span class="kbd">pggrp=${esc(addr)};name=Azan;num=800;listen=yes;</span></p></details>
   <details><summary>Poly / Polycom (direct calls)</summary><p>Poly's group paging isn't standard RTP multicast, so use <b>Call each phone directly</b>. On the phones set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>, and allow calls to the IP address.</p></details>
+  <details><summary>Grandstream UCM</summary><p>1. <b>Extension/Trunk → Extensions</b>: add (or pick) an extension for Azan SIP, e.g. <span class="kbd">1004</span>, name it "Azan". Note its <b>SIP/IAX password</b> (not the user portal password).<br>
+    2. <b>Call Features → Paging/Intercom</b>: add a <b>Paging</b> group, e.g. number <span class="kbd">6300</span>, and add the desk phones as members.<br>
+    3. Here: add <b>Phone system page group</b> with the UCM's IP address, paging group <span class="kbd">6300</span>, extension <span class="kbd">1004</span> and its SIP password, with <b>Stay registered</b> on. The extension then shows as <b>Idle</b> on the UCM.<br>
+    <span class="muted">If it shows "Not registered": check the password, that UDP 5060 is enabled (PBX Settings → SIP Settings), and that the extension's <i>Permitted IP</i> list (if set) includes this PC. Several wrong passwords can make the UCM's Fail2ban block this PC for a while.</span></p></details>
   <details><summary>FreePBX / Asterisk</summary><p>Applications → Extensions: add a PJSIP extension for Azan SIP (e.g. 7099). Applications → <b>Paging and Intercom</b>: create a group (e.g. 7000) with the phones as members, Duplex off. Then add <b>Phone system page group</b> here with those numbers.</p></details>
   <details><summary>3CX</summary><p>Users: add an extension for Azan SIP. Groups → <b>Paging</b>: create a paging group with the phones. Use the extension's <b>Authentication ID</b> and <b>password</b> here.</p></details>
   </div>`;
