@@ -49,6 +49,9 @@ def _get(url: str, timeout: float = 20, raw: bool = False):
             raise RuntimeError("GitHub's hourly limit was reached - try again in an hour") from exc
         if exc.code == 404:
             raise RuntimeError(f"Couldn't find {REPO} on GitHub (is it still public?)") from exc
+        if exc.code == 409:
+            raise RuntimeError(f"Nothing has been published to {REPO} on GitHub yet, so there are no "
+                               "updates to install") from exc
         raise RuntimeError(f"GitHub returned an error ({exc.code})") from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise RuntimeError("Couldn't reach GitHub - check this PC's internet connection") from exc
@@ -97,7 +100,13 @@ def check(base: Path) -> dict:
             "mode": "git" if _is_git(base) else "download", "checked_at": datetime.now().isoformat(timespec="seconds"),
             "backups": backups(base)}
     if info["mode"] == "git":
-        _git(base, "fetch", "--quiet", "origin", BRANCH)
+        try:
+            _git(base, "fetch", "--quiet", "origin", BRANCH)
+        except RuntimeError as exc:
+            if "couldn't find remote ref" in str(exc):
+                raise RuntimeError(f"Nothing has been published to {REPO} on GitHub yet, so there are no "
+                                   "updates to install") from exc
+            raise
         head = _git(base, "rev-parse", "HEAD")
         remote = _git(base, "rev-parse", f"origin/{BRANCH}")
         behind = int(_git(base, "rev-list", "--count", f"HEAD..origin/{BRANCH}") or 0)
