@@ -1,0 +1,20 @@
+[Unit]
+Description=Azan SIP Box - automatic azan over VoIP phones, control panel at http://azan.local
+After=network-online.target time-sync.target avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/azan-sip
+ExecStart=/usr/bin/python3 -m azan_sip -c /opt/azan-sip/config.toml run --box
+Restart=always
+RestartSec=5
+User=azan
+Group=azan
+Environment=HOME=/opt/azan-sip
+# Port 80 (http://azan.local) without running as root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

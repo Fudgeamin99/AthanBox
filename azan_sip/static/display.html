@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azan SIP · Prayer times</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/box.css">
+<style>
+/* Sizes follow the screen's height so it fills any TV or monitor (designed at 1280x720).
+   Colours come from the theme chosen on the Display page (applyLook below); these are "Masjid green".
+   --t-tint is what cards, lines and buttons are tinted with (as r g b): white on dark themes, black on light ones.
+   --s is the text size, --f how much a part had to shrink to fit, --vw how much of the width Makkah live may take. */
+:root{--t-bg:#0d4a3f;--t-ink:#ffffff;--t-soft:#e6f0ec;--t-muted:#cfe3dc;--t-accent:#f3e2b4;--t-on:#14312a;--t-tint:255 255 255;--t-logo:#176356;--t-moon:#f3e2b4;
+      --s:1;--vw:75%}
+html,body{background:var(--t-bg);color:var(--t-ink);height:100%;overflow:hidden;transition:background-color .3s}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:5.6vh 4vw 3.4vh}
+.pattern{position:absolute;width:92vh;height:92vh;right:calc(12.5vw - 46vh);top:calc(25vh - 46vh);pointer-events:none;opacity:.9}
+.pattern *{fill:none;stroke:rgb(var(--t-tint) / .075);stroke-width:2}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:2vw;position:relative}
+.place{display:flex;gap:2.2vh;align-items:center;min-width:0}
+.place svg{width:calc(7.4vh*var(--s)*var(--f,1));height:auto;flex:none}
+.place svg circle,#splash svg.logo-big circle{fill:var(--t-logo)}
+.place svg path,#splash svg.logo-big path{fill:var(--t-moon)}
+.place b{display:block;font-size:calc(3.3vh*var(--s)*var(--f,1));line-height:1.2}
+.place .date{font-size:calc(2.5vh*var(--s)*var(--f,1));color:var(--t-muted)}
+#clock{font-size:calc(9.8vh*var(--s)*var(--f,1));font-weight:700;line-height:1;letter-spacing:.2vh;font-variant-numeric:tabular-nums;flex:none}
+
+.stage{flex:1;display:flex;min-height:0;position:relative}
+.side{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding-bottom:2vh;min-height:0}
+.hero .lbl{color:var(--t-accent);font-weight:700;font-size:calc(2.3vh*var(--s)*var(--f,1));letter-spacing:.42vh;text-transform:uppercase}
+.hero .name{font-size:calc(15vh*var(--s)*var(--f,1));font-weight:800;line-height:1.05;letter-spacing:-.2vh;margin:.6vh 0 1.4vh}
+.hero .name.sm{font-size:calc(10vh*var(--s)*var(--f,1))}
+.hero .name.xs{font-size:calc(8vh*var(--s)*var(--f,1))}
+.hero .when{font-size:calc(3.7vh*var(--s)*var(--f,1));font-weight:600}
+.hero .until{color:var(--t-accent)}
+
+/* prayer times as cards along the bottom */
+.daylabel{color:var(--t-accent);font-weight:700;font-size:calc(2.1vh*var(--s)*var(--f,1));letter-spacing:.32vh;text-transform:uppercase;margin-bottom:1.6vh;position:relative}
+.cards{display:grid;grid-template-columns:repeat(var(--n,6),minmax(0,1fr));gap:2.1vw;position:relative}
+.card{background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);border-radius:1.8vh;padding:2.4vh 1vw 2.6vh;text-align:center;min-width:0}
+.card>*{white-space:nowrap;overflow:hidden}
+.card .n{font-weight:700;font-size:calc(2.8vh*var(--s)*var(--f,1))}
+.card .ar{font-size:calc(2.7vh*var(--s)*var(--f,1));color:var(--t-soft);line-height:1.5}
+.card .t{font-size:calc(5.4vh*var(--s)*var(--f,1));font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:.4vh}
+.card.sunrise{border-style:dashed;background:transparent}
+.card.past,.r.past{opacity:.6}
+.card.next{background:var(--t-accent);border-color:var(--t-accent);color:var(--t-on);box-shadow:0 1vh 3vh rgba(0,0,0,.18)}
+.card.next .ar,.slist .r.next .ar{color:var(--t-on)}
+.tag{font-size:calc(1.8vh*var(--s)*var(--f,1));font-weight:700;letter-spacing:.2vh;text-transform:uppercase;color:var(--t-accent);margin-top:.2vh}
+.next .tag{color:var(--t-on)}
+
+/* prayer times as a list at the side */
+.slist{display:none}
+.slist .day{font-size:calc(1.9vh*var(--s)*var(--f,1));font-weight:700;letter-spacing:.28vh;text-transform:uppercase;color:var(--t-accent);text-align:center;margin-bottom:.6vh}
+.slist .r{display:flex;align-items:baseline;gap:1.2vw;padding:calc(1vh*var(--f,1)) 1.2vw;border-radius:1.2vh;line-height:1.3}
+.slist .r .n{font-size:calc(2.9vh*var(--s)*var(--f,1));font-weight:700}
+.slist .r .ar{font-size:calc(2.7vh*var(--s)*var(--f,1));color:var(--t-soft);flex:1;text-align:left}
+.slist .r .t{font-size:calc(3.4vh*var(--s)*var(--f,1));font-weight:700;font-variant-numeric:tabular-nums;margin-left:auto}
+.slist .r .tag{margin:0;align-self:center}
+.slist .r.sunrise{color:var(--t-muted)}
+.slist .r.sunrise .n,.slist .r.sunrise .t{font-weight:500}
+.slist .r.next{background:var(--t-accent);color:var(--t-on)}
+.panel{border-radius:1.8vh;background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1)}
+.l-list .daylabel,.l-list .cards{display:none}
+.l-list:not(.live) .side{flex-direction:row;gap:3vw;margin-top:2.4vh}
+.l-list:not(.live) .slist{display:flex;flex-direction:column;justify-content:space-evenly;width:clamp(300px,40vw,760px);padding:2.6vh 1.6vw}
+.l-list:not(.live) .slist .r{padding:calc(1.3vh*var(--f,1)) 1.4vw}
+.l-list:not(.live) .slist .r .n{font-size:calc(4vh*var(--s)*var(--f,1))}
+.l-list:not(.live) .slist .r .ar{font-size:calc(3.6vh*var(--s)*var(--f,1))}
+.l-list:not(.live) .slist .r .t{font-size:calc(5vh*var(--s)*var(--f,1))}
+.l-list:not(.live) .slist .day{font-size:calc(2.2vh*var(--s)*var(--f,1))}
+
+/* notice line along the bottom; a long one scrolls past */
+.notice{position:relative;margin-top:2.4vh;padding:1.4vh 1.6vw;overflow:hidden;white-space:nowrap;text-align:center;border-left:.5vh solid var(--t-accent)}
+.notice .ntrack{display:inline-block;font-size:calc(2.8vh*var(--s)*var(--f,1));font-weight:600;color:var(--t-soft)}
+.notice.run{text-align:left}
+.notice.run .ntrack{animation:ticker var(--dur,30s) linear infinite}
+.notice.run .ntrack span{padding-right:6em}
+@keyframes ticker{to{transform:translateX(-50%)}}
+
+footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;margin-top:3.2vh;position:relative;font-size:2.2vh;color:var(--t-soft)}
+.status{display:flex;align-items:center;gap:1.4vh;font-size:calc(2.2vh*var(--s)*var(--f,1))}
+.dot{width:1.3vh;height:1.3vh;border-radius:50%;background:#5dc28e;flex:none}
+.dot.warn{background:#e8b44f}.dot.bad{background:#ef7d74}
+.dot.live{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.fbtns{display:flex;gap:1.4vh;transition:opacity .3s}
+.fbtn{all:unset;cursor:pointer;display:flex;align-items:center;gap:1.2vh;padding:1.3vh 2.4vh;border-radius:1.4vh;border:1px solid rgb(var(--t-tint) / .18);background:rgb(var(--t-tint) / .05);font-weight:600;white-space:nowrap}
+.fbtn:hover,.fbtn:focus-visible{background:rgb(var(--t-tint) / .12)}
+.fbtn.on{background:var(--t-accent);border-color:var(--t-accent);color:var(--t-on)}
+.fbtn svg{width:2.4vh;height:2.4vh}
+/* buttons that only show when someone moves the mouse or taps the screen */
+.btn-auto:not(.ui) .fbtns,.btn-auto:not(.ui) .sound{opacity:0;pointer-events:none}
+.btn-auto:not(.ui) .screen,.btn-auto:not(.ui) .screen *{cursor:none}
+/* parts switched off on the Display page */
+.no-clock #clock,.no-date .date,.no-arabic .ar,.no-pattern .pattern,.no-countdown .until,.no-countdown .sep{display:none!important}
+.no-status .status{visibility:hidden}
+
+/* ---- Makkah live */
+.player{display:none;position:relative;min-width:0;min-height:0;border-radius:1.8vh;overflow:hidden;background:#000;box-shadow:0 1vh 4vh rgba(0,0,0,.3)}
+.player video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.badge{position:absolute;left:1.6vh;top:1.6vh;display:flex;align-items:center;gap:1vh;padding:.8vh 1.6vh;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:1.9vh;font-weight:700;letter-spacing:.06vh}
+.badge .rec{width:1.2vh;height:1.2vh;border-radius:50%;background:#e5484d;animation:pulse 1.6s infinite}
+.pmsg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4vh;text-align:center;padding:3vh;
+  background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--t-bg) 70%,#000) 0,color-mix(in srgb,var(--t-bg) 25%,#000) 75%);color:#e6ece9}
+.pmsg h2{margin:0;font-size:3.4vh;color:#fff}
+.pmsg p{margin:0;max-width:34em;font-size:2.1vh;color:#c9d4cf}
+.spin{width:5vh;height:5vh;border-radius:50%;border:.5vh solid rgba(255,255,255,.18);border-top-color:var(--t-accent);animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.sound{all:unset;position:absolute;right:1.6vh;bottom:1.6vh;display:flex;align-items:center;gap:1vh;padding:1.2vh 1.8vh;border-radius:1.2vh;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.55);color:#fff;font-size:1.9vh;font-weight:600;cursor:pointer;transition:opacity .3s}
+.sound:hover,.sound:focus-visible{background:rgba(0,0,0,.75)}
+.sound svg{width:2.4vh;height:2.4vh}
+.preview-pic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1vh;background:linear-gradient(160deg,#2b2f33,#0d0f10);color:#cfd6d3;font-size:2.6vh;font-weight:600}
+.preview-pic svg{width:18%;max-width:120px;opacity:.85}
+.live .screen .pattern{display:none}
+.live .stage{gap:1.6vw;margin-top:2.6vh}
+.live .player{display:block;flex:0 1 auto;height:100%;aspect-ratio:16/9;max-width:min(var(--vw),calc(100% - 250px - 1.6vw))}
+.vid-right .player{order:2}
+.live .side{flex:1 1 0;min-width:250px;padding:2.6vh 1.4vw;border-radius:1.8vh;background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);overflow:hidden}
+.live .hero{padding-bottom:0}
+.live .hero .name{font-size:calc(7vh*var(--s)*var(--f,1));margin:.4vh 0 .8vh}
+.live .hero .name.sm{font-size:calc(5.4vh*var(--s)*var(--f,1))}
+.live .hero .name.xs{font-size:calc(4.6vh*var(--s)*var(--f,1))}
+.live .hero .when{font-size:calc(2.6vh*var(--s)*var(--f,1))}
+.live .hero .sep{display:none}
+.live .hero .until{display:block;margin-top:.4vh;font-size:calc(3.2vh*var(--s)*var(--f,1))}
+.live.l-list .side .hero{flex:none;padding-bottom:2.2vh;border-bottom:1px solid rgb(var(--t-tint) / .12)}
+.live .slist.panel{background:none;border:0;border-radius:0}
+.live .slist .day{font-size:calc(1.6vh*var(--s)*var(--f,1));letter-spacing:.18vh}
+.live.l-list .slist .r{padding:calc(.7vh*var(--f,1)) 1vw}
+.live.l-list .slist{display:flex;flex-direction:column;flex:1;justify-content:space-evenly;gap:.4vh;margin-top:1.6vh;min-height:0}
+.live.l-cards .stage{margin-bottom:2.2vh}
+.live.l-cards .card{padding:1.5vh .6vw}
+.live.l-cards .card .n{font-size:calc(2.3vh*var(--s)*var(--f,1))}
+.live.l-cards .card .ar{font-size:calc(2.4vh*var(--s)*var(--f,1))}
+.live.l-cards .card .t{font-size:calc(4.4vh*var(--s)*var(--f,1))}
+
+/* splash while starting up */
+#splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#splash svg.logo-big{width:18vh;height:18vh}
+#splash h1{font-size:6.6vh;margin:3.4vh 0 1.4vh;line-height:1}
+#splash p{color:var(--t-accent);font-size:3vh;margin:0;font-weight:500}
+.dots{display:flex;gap:1.4vh;margin-top:4vh}
+.dots i{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--t-accent);opacity:.3;animation:dots 1.2s infinite}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes dots{0%,100%{opacity:.3}30%{opacity:1}}
+#splash .ver{position:absolute;bottom:4vh;font-size:2.2vh;color:var(--t-muted)}
+/* lock dialog: password field and lock icon as in the box's look */
+.modal .lock-ic{width:52px;height:52px;border-radius:12px;background:var(--gold-soft);color:var(--gold-ink);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.modal .lock-ic svg{width:24px;height:24px}
+.modal input[type=password]{border:1.5px solid var(--brand)}
+/* phone-sized screens: stack everything */
+@media (max-aspect-ratio:1/1){
+  :root{--sp:min(var(--s),1.15)}
+  html,body{height:auto;overflow-x:hidden;overflow-y:visible}
+  .screen{position:static;min-height:100vh;min-height:100dvh;padding:24px 18px}
+  .pattern{display:none}
+  header{align-items:center;gap:12px}
+  .place{flex:1 1 auto;gap:12px}
+  .place svg{width:calc(44px*var(--sp))}.place b{font-size:calc(20px*var(--sp))}.place .date{font-size:calc(15px*var(--sp))}
+  #clock{font-size:calc(38px*var(--sp))}
+  .hero{padding:40px 0}.hero .lbl{font-size:calc(14px*var(--s)*var(--f,1));letter-spacing:3px}
+  .hero .name{font-size:calc(64px*var(--s)*var(--f,1))}.hero .name.sm{font-size:calc(40px*var(--s)*var(--f,1))}.hero .name.xs{font-size:calc(32px*var(--s)*var(--f,1))}
+  .hero .when{font-size:calc(20px*var(--s)*var(--f,1))}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .card{padding:14px 8px;border-radius:14px}.card .n{font-size:calc(17px*var(--s)*var(--f,1))}.card .ar{font-size:calc(17px*var(--s)*var(--f,1))}.card .t{font-size:calc(30px*var(--s)*var(--f,1))}.tag{font-size:12px}
+  .daylabel,.slist .day,.l-list:not(.live) .slist .day{font-size:13px;letter-spacing:2px;margin-bottom:10px}
+  .slist .r,.l-list:not(.live) .slist .r{padding:8px 12px;gap:10px;border-radius:10px}
+  .slist .r .n,.l-list:not(.live) .slist .r .n{font-size:calc(17px*var(--s)*var(--f,1))}
+  .slist .r .ar,.l-list:not(.live) .slist .r .ar{font-size:calc(17px*var(--s)*var(--f,1))}
+  .slist .r .t,.l-list:not(.live) .slist .r .t{font-size:calc(21px*var(--s)*var(--f,1))}
+  .l-list:not(.live) .side{flex-direction:column;margin-top:0}
+  .l-list:not(.live) .slist{width:auto;padding:14px}
+  .panel{border-radius:14px}
+  .notice{margin-top:16px;padding:10px 14px;border-left-width:4px}.notice .ntrack{font-size:calc(16px*var(--s)*var(--f,1))}
+  footer{flex-direction:column;gap:14px;align-items:flex-start;font-size:15px}
+  .status{font-size:calc(15px*var(--s)*var(--f,1))}
+  .dot{width:10px;height:10px}.fbtns{flex-wrap:wrap}.fbtn{padding:10px 16px;border-radius:10px}.fbtn svg{width:18px;height:18px}
+  .live .stage{flex-direction:column;margin-top:16px;gap:14px}
+  .live .player{height:auto;width:100%;max-width:none;order:0}
+  .live .side{flex:none;min-width:0;padding:16px;border-radius:14px}
+  .live .hero .name{font-size:calc(52px*var(--s)*var(--f,1))}
+  .live .hero .when{font-size:calc(17px*var(--s)*var(--f,1))}.live .hero .until{font-size:calc(22px*var(--s)*var(--f,1))}
+  .live.l-list .side .hero{padding:2px 0 14px}
+  .badge{left:10px;top:10px;padding:5px 10px;font-size:12px;gap:6px}.badge .rec{width:8px;height:8px}
+  .sound{right:10px;bottom:10px;padding:8px 12px;font-size:13px;border-radius:10px}.sound svg{width:16px;height:16px}
+  .pmsg h2{font-size:18px}.pmsg p{font-size:13px}.spin{width:28px;height:28px;border-width:3px}
+}
+</style>
+</head>
+<body class="l-cards">
+<div id="splash">
+  <svg class="pattern" viewBox="0 0 600 600" aria-hidden="true"><circle cx="300" cy="300" r="298"/><circle cx="300" cy="300" r="130"/><rect x="88" y="88" width="424" height="424"/><path d="M300 2L598 300 300 598 2 300z"/></svg>
+  <span id="splashlogo"></span>
+  <h1>Azan SIP</h1>
+  <p id="splashmsg">Starting up…</p>
+  <div class="dots"><i></i><i></i><i></i></div>
+  <div class="ver" id="splashver"></div>
+</div>
+
+<div class="screen" id="screen" hidden>
+  <svg class="pattern" viewBox="0 0 600 600" aria-hidden="true"><circle cx="300" cy="300" r="298"/><circle cx="300" cy="300" r="130"/><rect x="88" y="88" width="424" height="424"/><path d="M300 2L598 300 300 598 2 300z"/></svg>
+  <header>
+    <div class="place"><span id="logo"></span><div><b id="place"></b><span class="date" id="date"></span></div></div>
+    <div id="clock"></div>
+  </header>
+  <div class="stage">
+    <div class="player" id="player">
+      <video id="video" muted autoplay playsinline aria-label="Makkah live"></video>
+      <div class="badge"><span class="rec"></span>LIVE · Makkah</div>
+      <div class="pmsg" id="pmsg"><div class="spin"></div><h2>Connecting to Makkah live…</h2></div>
+      <button class="sound" id="sound" type="button" hidden></button>
+    </div>
+    <div class="side">
+      <section class="hero" id="hero" aria-live="polite"></section>
+      <div class="slist panel" id="slist"></div>
+    </div>
+  </div>
+  <div class="daylabel" id="daylabel" hidden></div>
+  <section class="cards" id="cards"></section>
+  <div class="notice panel" id="notice" hidden><div class="ntrack" id="ntrack"></div></div>
+  <footer>
+    <div class="status" id="status"></div>
+    <div class="fbtns">
+    <button class="fbtn" id="livebtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg><span>Makkah live</span></button>
+    <button class="fbtn" id="fs" type="button" hidden onclick="fullScreen()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Full screen</button>
+    <button class="fbtn" id="settings" type="button" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Settings</button>
+    </div>
+  </footer>
+</div>
+
+<div class="modal" id="lock" hidden>
+  <form class="box" id="lockform" autocomplete="off">
+    <div class="lock-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+    <h2>Settings are locked</h2>
+    <p>Enter the password to change the prayer times, azan or phone settings.</p>
+    <div class="field"><label for="lockpw">Password</label><input type="password" id="lockpw" autocomplete="current-password"></div>
+    <div class="err" id="lockerr"></div>
+    <div class="row"><button class="btn" type="button" onclick="closeLock()">Cancel</button><button class="btn primary" id="lockbtn">Unlock</button></div>
+    <div class="foot" id="lockfoot">Forgotten it? The original password is on the sticker under the box.</div>
+  </form>
+</div>
+
+<script src="/static/box.js"></script>
+<script>
+"use strict";
+const PREVIEW = new URLSearchParams(location.search).get("preview") === "1";  // inside the control panel's Display page
+const store = {get(k){ if(PREVIEW) return null; try{ return localStorage.getItem(k); }catch(e){ return null; } },
+               set(k, v){ if(PREVIEW) return; try{ localStorage.setItem(k, v); }catch(e){} }};
+let S = null, SESSION = {}, got = 0, failures = 0, firstLoad = true, LOOK = null, previewLook = null, lookKey = "";
+$("#logo").innerHTML = LOGO;
+$("#splashlogo").innerHTML = LOGO.replace("<svg", '<svg class="logo-big"');
+
+// ---------------------------------------------------------------- theme and layout (Display page)
+const THEMES = {
+  green: {bg:"#0d4a3f", ink:"#ffffff", soft:"#e6f0ec", muted:"#cfe3dc", accent:"#f3e2b4", on:"#14312a", tint:"255 255 255", logo:"#176356"},
+  night: {bg:"#0b0f0e", ink:"#f4f1ea", soft:"#e6e1d6", muted:"#bdb6a6", accent:"#e2bf6e", on:"#1a1408", tint:"255 255 255", logo:"#1f2a26"},
+  navy:  {bg:"#0f2340", ink:"#ffffff", soft:"#e3e9f3", muted:"#c3cee0", accent:"#e8c36a", on:"#13213a", tint:"255 255 255", logo:"#1d3a66"},
+  maroon:{bg:"#4a1420", ink:"#ffffff", soft:"#f4e6e8", muted:"#e1c4c9", accent:"#f2dfb4", on:"#3b0f19", tint:"255 255 255", logo:"#6a2131"},
+  sand:  {bg:"#f4ecdc", ink:"#1d2622", soft:"#2c3631", muted:"#5f6b65", accent:"#146356", on:"#ffffff", tint:"0 0 0", logo:"#146356", moon:"#f4e3b5"},
+};
+const PARTS = ["clock", "date", "arabic", "countdown", "sunrise", "status", "pattern"];
+function lum(hex){
+  const n = parseInt(hex.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+  return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+}
+function themeVars(L){
+  if(L.theme !== "custom") return THEMES[L.theme] || THEMES.green;
+  const bg = L.background, light = lum(bg) > .4, ink = light ? "#1d2622" : "#ffffff";
+  const mix = p => `color-mix(in srgb,${ink} ${p}%,${bg})`;  // the text colour is picked to stay readable
+  return {bg, ink, soft: mix(90), muted: mix(74), accent: L.accent, on: lum(L.accent) > .35 ? "#1d2622" : "#ffffff",
+          tint: light ? "0 0 0" : "255 255 255", logo: `color-mix(in srgb,${bg} 72%,${ink})`};
+}
+function look(){ return previewLook || LOOK || {}; }
+function applyLook(L){
+  if(!L) return;
+  const key = JSON.stringify(L);
+  if(key === lookKey) return;
+  lookKey = key; LOOK = L;
+  const t = themeVars(L), r = document.documentElement.style, b = document.body.classList;
+  for(const [k, v] of Object.entries({bg:t.bg, ink:t.ink, soft:t.soft, muted:t.muted, accent:t.accent, on:t.on, tint:t.tint, logo:t.logo, moon:t.moon || t.accent}))
+    r.setProperty("--t-" + k, v);
+  r.setProperty("--s", (L.scale || 100) / 100);
+  r.setProperty("--vw", (L.live_width || 75) + "%");
+  layoutClasses();
+  b.toggle("vid-right", L.live_side === "right");
+  b.toggle("btn-auto", L.buttons === "auto");
+  for(const p of PARTS) b.toggle("no-" + p, (L.hide || []).includes(p));
+  if(!previewLook) store.set("azanLook", key);  // so the splash already has the right colours next time
+  if(S) render();
+}
+function layoutClasses(){  // the prayer times have their own layout next to Makkah live
+  const L = look(), list = (LV.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
+  b.toggle("l-list", list); b.toggle("l-cards", !list);
+}
+let uiTimer = null;
+function wake(){ document.body.classList.add("ui"); clearTimeout(uiTimer); uiTimer = setTimeout(() => document.body.classList.remove("ui"), 5000); }
+for(const ev of ["mousemove", "pointerdown", "keydown", "touchstart"]) addEventListener(ev, wake, {passive: true});
+
+// ---------------------------------------------------------------- prayer times
+// The clock and countdown tick every second between updates from the box.
+function tick(){
+  if(!S || !S.clock) return;
+  const passed = (Date.now() - got) / 1000;
+  const [h, m, s] = S.clock.split(":").map(Number);
+  const t = new Date(2000, 0, 1, h, m, s + passed);
+  $("#clock").textContent = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  const n = S.next_azan;
+  if(n){ const u = $("#until"); if(u) u.textContent = untilText(n.seconds - passed); }
+  // move on to the next prayer as soon as its time comes, without waiting for the next update
+  if(n && n.seconds - passed <= 0 && passed > 2) load();
+}
+
+// Today's times, or tomorrow's after the last azan of the day (with tomorrow's Fajr next)
+function rowsNow(){
+  const st = S, tm = st.tomorrow, n = st.next_azan, now = (st.clock || "").slice(0, 5), hide = look().hide || [];
+  return (tm ? tm.rows : st.today || []).filter(r => r.name !== "sunrise" || !hide.includes("sunrise")).map(r => {
+    const past = !tm && (r.status === "played" || r.status === "passed" || (!r.azan && r.time <= now));
+    const isNext = n && n.day === (tm ? "tomorrow" : "today") && n.prayer === r.name && !st.playing;
+    return {name: r.jumuah ? "jumuah" : r.name, time: r.time, off: r.azan && !r.enabled,
+            cls: [r.name === "sunrise" ? "sunrise" : "", isNext ? "next" : past ? "past" : ""].join(" ")};
+  });
+}
+
+function render(){
+  const st = S, L = look(), n = st.next_azan;
+  const town = (st.location || "").split(",")[0], date = (st.date || "").replace(/^(\w+) 0?/, "$1 ");
+  $("#place").textContent = L.title || town;
+  $("#date").textContent = L.title && town ? `${date} · ${town}` : date;
+  if(st.configured === false){
+    $("#hero").innerHTML = `<div class="lbl">Almost ready</div><div class="name sm">Setup isn't finished</div>
+      <div class="when">Open Settings to finish setting up.</div>`;
+  } else if(st.playing){
+    $("#hero").innerHTML = `<div class="lbl">Now playing</div><div class="name">${esc(st.playing.replace(/ (azan|test)$/i, ""))}</div><div class="when">on all phones</div>`;
+  } else if(n){
+    const fri = n.prayer === "dhuhr" && st.today && st.today.some(r => r.name === "dhuhr" && r.jumuah) && n.day === "today";
+    const name = fri ? "jumuah" : n.prayer;
+    $("#hero").innerHTML = `<div class="lbl">Next azan</div><div class="name">${esc(TITLE[name])}</div>
+      <div class="when">${n.day === "today" ? "" : esc(n.day) + " "}at ${esc(n.time)}<span class="sep"> · </span><span class="until" id="until">${esc(untilText(n.seconds))}</span></div>`;
+  } else {
+    $("#hero").innerHTML = `<div class="lbl">Next azan</div><div class="name xs">No azan is switched on</div>`;
+  }
+  const tm = st.tomorrow, rows = rowsNow();
+  $("#daylabel").textContent = tm ? tm.label : "";
+  $("#daylabel").hidden = !tm;
+  const tag = r => r.off ? '<div class="tag">No azan</div>' : "";
+  $("#cards").style.setProperty("--n", rows.length || 6);
+  $("#cards").innerHTML = rows.map(r => `<div class="card ${r.cls}"><div class="n">${esc(TITLE[r.name])}</div><div class="ar" lang="ar">${ARABIC[r.name]}</div><div class="t">${esc(r.time)}</div>${tag(r)}</div>`).join("");
+  $("#slist").innerHTML = (tm ? `<div class="day">${esc(tm.label)}</div>` : "")
+    + rows.map(r => `<div class="r ${r.cls}"><span class="n">${esc(TITLE[r.name])}</span>${r.off ? '<span class="tag">No azan</span>' : ""}<span class="ar" lang="ar">${ARABIC[r.name]}</span><span class="t">${esc(r.time)}</span></div>`).join("");
+  $("#status").innerHTML = statusLine(st);
+  renderNotice(L.message || "");
+  tick();
+  requestAnimationFrame(fitAll);
+}
+
+function statusLine(st){
+  const regs = st.registrations || [];
+  const failed = regs.filter(r => r.status === "failed"), waiting = regs.filter(r => r.status === "starting");
+  if(st.playing) return `<span class="dot live"></span> Playing on the phones now`;
+  if(st.configured === false) return `<span class="dot warn"></span> The azan won't play until setup is finished`;
+  if(!st.running) return `<span class="dot warn"></span> Automatic azan is paused. Switch it on in Settings.`;
+  if(!st.targets) return `<span class="dot warn"></span> No phones are set up yet. Add them in Settings.`;
+  if(failed.length) return `<span class="dot bad"></span> Not connected to the phone system: ${esc(failed[0].detail || "check Settings")}`;
+  if(waiting.length) return `<span class="dot warn"></span> Connecting to the phone system…`;
+  if(st.skip_today) return `<span class="dot warn"></span> No azan today (switched off for ${esc((st.date || "").split(" ")[0])}s)`;
+  return `<span class="dot"></span> ${regs.length ? "Phones connected" : "Phones ready"} · the azan will play on all phones`;
+}
+
+// Big text sizes on small screens: shrink the next azan, the list or the cards until they fit (--f)
+function overflows(el){ return el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1; }
+function fit(el, test){
+  if(!el || el.offsetParent === null) return;
+  let f = 1; el.style.setProperty("--f", "1");
+  while(f > .5 && test(el)){ f -= .05; el.style.setProperty("--f", f.toFixed(2)); }
+}
+function fitAll(){
+  const side = $(".side"), cl = document.body.classList;
+  for(const el of [side, $("#hero"), $("#slist"), $("#cards")]) el.style.removeProperty("--f");
+  if(cl.contains("live") && cl.contains("l-list")){  // the next azan and the list share the side panel: shrink both
+    fit(side, () => overflows($("#slist")));
+  } else {
+    fit($("#hero"), overflows);
+    fit($("#slist"), overflows);
+  }
+  fit($("#cards"), el => [...el.querySelectorAll(".card > *")].some(t => t.scrollWidth > t.clientWidth + 1));
+}
+addEventListener("resize", () => requestAnimationFrame(fitAll));
+
+let noticeKey = "";
+function renderNotice(text){
+  const n = $("#notice"), tr = $("#ntrack");
+  n.hidden = !text;
+  if(!text || text === noticeKey) return;
+  noticeKey = text;
+  n.classList.remove("run");
+  tr.innerHTML = `<span dir="auto">${esc(text)}</span>`;
+  requestAnimationFrame(() => {  // too long to fit: let it scroll past
+    if(tr.scrollWidth > n.clientWidth - 30){
+      tr.innerHTML = `<span dir="auto">${esc(text)}</span><span dir="auto" aria-hidden="true">${esc(text)}</span>`;
+      n.style.setProperty("--dur", Math.max(12, tr.scrollWidth / 2 / 70) + "s");
+      n.classList.add("run");
+    }
+  });
+}
+addEventListener("resize", () => { const t = noticeKey; noticeKey = ""; if(t) renderNotice(t); });
+
+async function load(){
+  let st;
+  try{ st = await api("/api/state"); failures = 0; }
+  catch(e){
+    failures++;
+    if(!S || failures > 2) showSplash(S ? "Reconnecting to the box…" : "Starting up…");
+    return;
+  }
+  if(!PREVIEW && st.configured === false && SESSION.box && !st.setup_manual){ location.replace("/setup"); return; }
+  S = st; got = Date.now();
+  $("#splash").hidden = true; $("#screen").hidden = false;
+  if(!previewLook) applyLook(st.look);
+  if(firstLoad){
+    firstLoad = false;
+    // Makkah live: ?live=1 in the address, else what this screen chose last, else the setting for new screens
+    const q = new URLSearchParams(location.search).get("live"), mine = store.get("azanLive");
+    if(!PREVIEW) setLive(q !== null ? q !== "0" : mine !== null ? mine === "1" : !!(st.look && st.look.live_start), false);
+  }
+  render(); azanCheck();
+}
+function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden = false; $("#screen").hidden = true; }
+
+// ---------------------------------------------------------------- Makkah live
+// The stream is relayed by the box (/live/stream.m3u8) and played with hls.js, loaded only when needed.
+const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0};
+const SPK = {off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>',
+             on:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'};
+function liveMsg(kind, title, text){
+  const m = $("#pmsg");
+  if(!kind){ m.hidden = true; return; }
+  m.hidden = false;
+  m.innerHTML = (kind === "wait" ? '<div class="spin"></div>' : "") + `<h2>${esc(title)}</h2>` + (text ? `<p>${esc(text)}</p>` : "");
+}
+function soundBtn(){
+  const v = $("#video"), b = $("#sound");
+  b.hidden = !LV.on || !$("#pmsg").hidden || PREVIEW;
+  b.innerHTML = LV.azanMuted ? `${SPK.off}Muted for the azan` : v.muted ? `${SPK.off}Sound off` : `${SPK.on}Sound on`;
+  b.setAttribute("aria-label", v.muted ? "Turn the Makkah live sound on" : "Turn the Makkah live sound off");
+}
+function loadHls(){
+  if(window.Hls) return Promise.resolve();
+  return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = "/static/hls.min.js";
+    s.onload = ok; s.onerror = () => bad(new Error("Couldn't load the video player")); document.head.appendChild(s); });
+}
+function stopLive(){
+  clearTimeout(LV.retry); LV.retry = null;
+  if(LV.hls){ LV.hls.destroy(); LV.hls = null; }
+  const v = $("#video"); if(v.getAttribute("src")){ v.removeAttribute("src"); v.load(); }
+}
+function retryLive(title, text){
+  stopLive();
+  if(text && !/[.!?]$/.test(text)) text += ".";
+  liveMsg("error", title, `${text ? text + " " : ""}Trying again in ${LV.wait} seconds.`);
+  soundBtn();
+  LV.retry = setTimeout(startLive, LV.wait * 1000);
+  LV.wait = Math.min(LV.wait * 2, 120);
+}
+async function play(){
+  const v = $("#video");
+  v.muted = !LV.want || LV.azanMuted;
+  try{ await v.play(); }
+  catch(e){ if(!v.muted){ v.muted = true; try{ await v.play(); }catch(e2){} } }  // the browser wants a tap before sound
+  soundBtn();
+}
+async function startLive(){
+  stopLive();
+  if(!LV.on) return;
+  if(PREVIEW){  // the preview on the Display page shows where the picture goes, without streaming it
+    $("#pmsg").hidden = false;
+    $("#pmsg").innerHTML = `<div class="preview-pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>The Makkah live picture</div>`;
+    return;
+  }
+  liveMsg("wait", "Connecting to Makkah live…");
+  soundBtn();
+  try{
+    const r = await fetch("/live/stream.m3u8", {cache: "no-store"});
+    if(!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.error || `The stream isn't available (error ${r.status}).`); }
+    await loadHls();
+  }catch(e){ return retryLive("Makkah live isn't available right now", e.message); }
+  if(!LV.on) return;
+  const v = $("#video");
+  if(window.Hls && Hls.isSupported()){
+    const h = LV.hls = new Hls({liveSyncDurationCount: 3, maxBufferLength: 30, backBufferLength: 30, enableWorker: true});
+    h.on(Hls.Events.ERROR, (ev, d) => {
+      if(!d.fatal) return;
+      if(d.type === Hls.ErrorTypes.MEDIA_ERROR && /codec|incompatible/i.test(d.details || "")){
+        stopLive(); liveMsg("error", "This screen can't play Makkah live", "Its browser doesn't support the stream's video format. Chrome or Edge will play it."); soundBtn(); return;
+      }
+      if(d.type === Hls.ErrorTypes.MEDIA_ERROR && !LV.recovered){ LV.recovered = true; h.recoverMediaError(); return; }
+      retryLive("Makkah live was interrupted", d.type === Hls.ErrorTypes.NETWORK_ERROR ? "The connection to the stream dropped." : "");
+    });
+    h.on(Hls.Events.MANIFEST_PARSED, () => play());
+    h.loadSource("/live/stream.m3u8");
+    h.attachMedia(v);
+  } else if(v.canPlayType("application/vnd.apple.mpegurl")){
+    v.src = "/live/stream.m3u8"; play();
+  } else {
+    liveMsg("error", "This screen can't play Makkah live", "Its browser is too old for live video. Chrome or Edge will play it."); soundBtn();
+  }
+}
+$("#video").addEventListener("playing", () => { liveMsg(null); LV.wait = 15; LV.recovered = false; LV.lastMove = Date.now(); soundBtn(); });
+$("#video").addEventListener("volumechange", soundBtn);
+$("#video").addEventListener("timeupdate", () => { const t = $("#video").currentTime; if(t !== LV.lastT){ LV.lastT = t; LV.lastMove = Date.now(); } });
+setInterval(() => {  // a TV runs for days: if the picture freezes, reconnect
+  if(LV.on && !PREVIEW && (LV.hls || $("#video").getAttribute("src")) && $("#pmsg").hidden && Date.now() - LV.lastMove > 30000) retryLive("Makkah live froze", "Reconnecting.");
+}, 10000);
+$("#sound").addEventListener("click", () => {
+  const v = $("#video");
+  if(LV.azanMuted) LV.azanMuted = false;
+  LV.want = v.muted; store.set("azanLiveSound", LV.want ? "1" : "0");
+  v.muted = !LV.want; if(!v.muted) v.play().catch(() => {});
+  soundBtn();
+});
+function setLive(on, remember){
+  if(on === LV.on && !remember && LV.started) return;
+  LV.on = on; LV.started = true;
+  document.body.classList.toggle("live", on);
+  layoutClasses();
+  if(S) render();
+  const b = $("#livebtn");
+  b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.querySelector("span").textContent = on ? "Hide Makkah live" : "Makkah live";
+  if(remember) store.set("azanLive", on ? "1" : "0");
+  if(on) startLive(); else { stopLive(); liveMsg(null); LV.azanMuted = false; }
+  soundBtn();
+}
+function azanCheck(){  // our own azan is playing on the phones: keep the stream quiet meanwhile
+  if(!LV.on || !S) return;
+  const v = $("#video");
+  if(S.playing && !LV.azanMuted && !v.muted){ LV.azanMuted = true; v.muted = true; soundBtn(); }
+  else if(!S.playing && LV.azanMuted){ LV.azanMuted = false; if(LV.want){ v.muted = false; v.play().catch(() => {}); } soundBtn(); }
+}
+$("#livebtn").addEventListener("click", () => setLive(!LV.on, true));
+
+// ---------------------------------------------------------------- settings, full screen
+// Settings: sign in here, then the control panel opens.
+async function openSettings(){
+  if(PREVIEW) return;
+  try{ SESSION = await api("/api/session"); }catch(e){}
+  if(SESSION.logged_in) return location.assign("/");
+  $("#lockerr").textContent = ""; $("#lockpw").value = ""; $("#lock").hidden = false;
+  setTimeout(() => $("#lockpw").focus(), 50);
+}
+function closeLock(){ $("#lock").hidden = true; }
+
+// Full screen, for a TV or monitor plugged into a PC (the box's own screen is full screen already)
+const canFull = () => !PREVIEW && !!document.documentElement.requestFullscreen && !document.fullscreenElement && !(SESSION.box && SESSION.local);
+function fullScreen(){ document.documentElement.requestFullscreen().catch(() => {}); }
+document.addEventListener("fullscreenchange", () => { $("#fs").hidden = !canFull(); });
+$("#lockform").addEventListener("submit", async e => {
+  e.preventDefault();
+  const b = $("#lockbtn"); b.disabled = true; $("#lockerr").textContent = "";
+  try{ await api("/api/login", {password: $("#lockpw").value}); location.assign("/"); }
+  catch(err){ $("#lockerr").textContent = err.message; $("#lockpw").select(); b.disabled = false; }
+});
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeLock(); });
+
+// The Display page's preview sends unsaved theme and layout changes here
+if(PREVIEW){
+  addEventListener("message", e => {
+    if(e.origin !== location.origin || !e.data || e.data.type !== "azan-look") return;
+    previewLook = e.data.look; lookKey = "";
+    setLive(!!e.data.live, false);
+    applyLook(previewLook);
+  });
+  if(parent !== window) parent.postMessage({type: "azan-preview-ready"}, location.origin);
+}
+
+(async () => {
+  try{ const c = store.get("azanLook"); if(c) applyLook(JSON.parse(c)); }catch(e){}
+  try{
+    SESSION = await api("/api/session");
+    $("#splashver").textContent = "Version " + SESSION.version;
+    if(SESSION.docker) $("#lockfoot").textContent = "Forgotten it? The original password is AZAN_PASSWORD in the box's compose.yaml.";
+    // Back on the box's own screen: lock the settings again (but not from the preview inside the settings).
+    if(!PREVIEW && SESSION.box && SESSION.local && SESSION.logged_in && SESSION.configured){ await api("/api/logout", {}).catch(() => {}); SESSION.logged_in = false; }
+  }catch(e){}
+  $("#fs").hidden = !canFull();
+  await load();
+  setInterval(load, 5000);
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
