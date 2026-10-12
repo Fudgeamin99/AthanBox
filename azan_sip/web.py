@@ -294,6 +294,8 @@ class Service:
             self.auth.new_setup_code()
         if not self.auth.has_password():
             log.warning("No password is set on this box - set one with: python -m azan_sip box-password --factory")
+        if updater.DOCKER:
+            updater.ensure_helper_token(self.base)
 
     def factory_reset(self):
         """Back to how the box left the factory: settings, recordings, timetable and own password removed."""
@@ -378,7 +380,16 @@ class Service:
         info["mode"] = updater.mode(self.base)
         info["auto"] = self.cfg.get("general", {}).get("check_updates", True)
         if info["mode"] == "docker":
-            info["note"] = updater.DOCKER_NOTE
+            h = updater.docker_helper(self.base)
+            info["helper"] = bool(h and h.get("ok"))
+            if info["helper"]:
+                info["current_version"] = h.get("current") or info.get("current_version")
+                if h.get("last_error"):
+                    info["error"] = f"The last update didn't work, so the old version was put back: {h['last_error']}"
+            else:
+                info["note"] = updater.DOCKER_NOTE
+                if h and h.get("error"):
+                    info["error"] = h["error"]
         return info
 
     def install(self, action: str, name: str | None = None) -> dict:
@@ -390,7 +401,8 @@ class Service:
             res = updater.apply(self.base) if action == "apply" else updater.rollback(self.base, name)
         finally:
             self.update_lock.release()
-        self.restart()
+        if not res.get("docker"):  # in Docker the updater container replaces this one
+            self.restart()
         return res
 
     def restart(self):

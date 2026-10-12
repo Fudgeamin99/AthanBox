@@ -24,6 +24,17 @@ services:
       TZ: Europe/London
     volumes:
       - ./data:/data          # settings, recordings, password and log, in a "data" folder next to this file
+
+  # Optional: the Update button in Settings > Updates (see "Updating" below)
+  updater:
+    image: ghcr.io/fudgeamin99/azan-sip-box:latest
+    container_name: azan-sip-updater
+    network_mode: host
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "azan_sip.dockerupdate"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data:ro
 ```
 
 Then start it:
@@ -68,7 +79,11 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 ## Updating
 
-Pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. Your `data` folder is kept. **Update now** in the panel is switched off in Docker, and it explains this.
+**With the Update button:** go to **Settings → Updates** and press **Check for updates**. If there's a new version, press **Update now**. The Box restarts with it in a few seconds, and your `data` folder is kept. If the new version won't start, the old one is put back.
+
+The button needs the `updater` part of the compose file above. It's a small helper, from the same image, that downloads the new image and restarts the `azan-sip` container with it. Because it can control Docker on that computer, it only listens on the computer itself (127.0.0.1, port 8770) and only does what the control panel asks, using a secret key the panel keeps in `data/auth`. If you leave it out, Settings → Updates says how to update by hand.
+
+**By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 
 What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](https://github.com/Fudgeamin99/azan-sip-box/blob/box-v0.2.0/BOX_CHANGELOG.md).
 

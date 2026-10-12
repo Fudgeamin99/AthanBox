@@ -787,35 +787,38 @@ function renderLog(force){
 }
 // ---- Updates
 let UPD = null, updBusy = false;
+// "version 0.3.1", or "test build 1a2b3c4" for a Docker test image
+const vname = v => /^\d/.test(String(v||"")) ? "version "+v : String(v||"");
 async function loadUpdate(){ try{ UPD = await api("/api/update"); }catch(e){ UPD = {error:e.message}; } renderUpdate(); }
 function renderUpdate(){
   const el=$("#upd"); if(!el||!UPD) return;
   const short = c => c ? String(c).slice(0,7) : "";
-  const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">Latest on GitHub: version ${esc(UPD.latest_version)} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
-      <div class="d">${esc((UPD.latest_date||"").slice(0,10))} · ${esc(UPD.latest_message||"")} · <span class="mono">${esc(short(UPD.latest_commit))}</span></div></div></div>` : "";
+  const dk = UPD.mode==="docker", canUpdate = !dk || UPD.helper;
+  const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">${dk?"Newest image":"Latest on GitHub"}: ${esc(vname(UPD.latest_version))} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
+      <div class="d">${esc((UPD.latest_date||"").slice(0,10))}${dk?(UPD.image?` · <span class="mono">${esc(UPD.image)}</span>`:""):` · ${esc(UPD.latest_message||"")} · <span class="mono">${esc(short(UPD.latest_commit))}</span>`}</div></div></div>` : "";
   const bk = UPD.backups||[];
   el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box")}" target="_blank" rel="noopener">GitHub: ${esc((UPD.repo||"").split("/").pop()||"azan-sip-box")}</a></div>
-    <p class="muted" style="margin:8px 0 10px">Installed: version ${esc(UPD.current_version||S&&S.version||"")}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":UPD.mode==="docker"?" · Docker container":""}.
+    <p class="muted" style="margin:8px 0 10px">Installed: ${esc(vname(UPD.current_version||S&&S.version||""))}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":UPD.mode==="docker"?" · Docker container":""}.
       Your settings, recordings and timetable are kept when updating.</p>
     ${UPD.error?`<div class="banner bad">${ICON.warn}<div>${esc(UPD.error)}</div></div>`:""}
     ${latest}
     ${UPD.note?`<p class="muted">${esc(UPD.note)}</p>`:""}
-    ${UPD.mode==="docker"?"":`<div class="row" style="margin:12px 0">
-      <button class="btn" onclick="checkUpdate()" ${updBusy?"disabled":""}>${updBusy?"Checking…":"Check for updates"}</button>
-      ${UPD.available?`<button class="btn primary" onclick="installUpdate()">Update now to ${esc(UPD.latest_version)}</button>`:
-        (UPD.latest_version?`<button class="btn small" onclick="installUpdate(true)">Reinstall latest</button>`:"")}
+    ${!canUpdate?"":`<div class="row" style="margin:12px 0">
+      <button class="btn" onclick="checkUpdate()" ${updBusy?"disabled":""}>${updBusy?(dk?"Checking (downloads the new image)…":"Checking…"):"Check for updates"}</button>
+      ${UPD.available?`<button class="btn primary" onclick="installUpdate()">Update now to ${esc(vname(UPD.latest_version))}</button>`:
+        (UPD.latest_version&&!dk?`<button class="btn small" onclick="installUpdate(true)">Reinstall latest</button>`:"")}
     </div>
     <div class="toggle-row"><div><div class="t">Check for updates automatically</div><div class="d">Once a day. You'll see a notice on the Today page; nothing installs without you pressing Update.</div></div>
       <label class="switch"><input type="checkbox" ${UPD.auto!==false?"checked":""} onchange="setAutoUpdate(this.checked)"><span></span></label></div>`}
     ${bk.length?`<div class="toggle-row"><div><div class="t">Go back to the previous version</div><div class="d">If an update causes a problem. Saved copies: ${bk.map(b=>"v"+esc(b.version)).join(", ")}</div></div>
       <button class="btn small" onclick="rollbackUpdate('${esc(bk[0].name)}','${esc(bk[0].version)}')">Restore v${esc(bk[0].version)}</button></div>`:""}`;
 }
-async function checkUpdate(){ updBusy=true; renderUpdate(); try{ UPD = await api("/api/update/check",{}); UPD.error=null; toast(UPD.available?`Version ${UPD.latest_version} is available`:"You're on the latest version"); }catch(e){ UPD = {...(UPD||{}), error:e.message}; } updBusy=false; renderUpdate(); }
+async function checkUpdate(){ updBusy=true; renderUpdate(); try{ UPD = await api("/api/update/check",{}); UPD.error=null; toast(UPD.available?`${vname(UPD.latest_version).replace(/^./, c=>c.toUpperCase())} is available`:"You're on the latest version"); }catch(e){ UPD = {...(UPD||{}), error:e.message}; } updBusy=false; renderUpdate(); }
 async function setAutoUpdate(on){ await act(async()=>{ await api("/api/update/auto",{enabled:on}); applySaved("general.check_updates", on); UPD.auto=on; }, on?"Will check for updates daily":"Automatic update checks off"); }
 async function installUpdate(reinstall){
   if(isDirty() && !confirm("You have unsaved changes. They will be lost if you update now. Continue?")) return;
-  if(!confirm(reinstall?"Download and reinstall the latest version? Azan SIP will restart.":`Update to version ${UPD.latest_version}? Azan SIP will restart, which takes a few seconds.`)) return;
-  await runInstall("/api/update/apply", {}, "Updating Azan SIP…", "Downloading and checking the new version. Your settings are kept.");
+  if(!confirm(reinstall?"Download and reinstall the latest version? Azan SIP will restart.":`Update to ${vname(UPD.latest_version)}? Azan SIP will restart, which takes a few seconds.`)) return;
+  await runInstall("/api/update/apply", {}, "Updating Azan SIP…", UPD.mode==="docker" ? "Restarting the container with the new version. Your settings are kept." : "Downloading and checking the new version. Your settings are kept.");
 }
 async function rollbackUpdate(name, version){
   if(!confirm(`Go back to version ${version}? Azan SIP will restart.`)) return;
@@ -824,7 +827,7 @@ async function rollbackUpdate(name, version){
 async function runInstall(path, body, title, text){
   const ov=$("#overlay"); $("#ov-title").textContent=title; $("#ov-text").textContent=text; ov.hidden=false;
   restartingUI = true;
-  try{ const r = await api(path, body); $("#ov-title").textContent = `Installed version ${r.version}`; $("#ov-text").textContent = "Restarting Azan SIP…"; }
+  try{ const r = await api(path, body); $("#ov-title").textContent = `Installing ${vname(r.version)}`; $("#ov-text").textContent = "Restarting Azan SIP…"; }
   catch(e){ ov.hidden=true; restartingUI=false; toast(e.message,"bad"); return; }
   const t0 = Date.now(); let sawDown = false;
   while(Date.now()-t0 < 120000){
@@ -832,7 +835,9 @@ async function runInstall(path, body, title, text){
     try{ const p = await fetch("/api/ping",{cache:"no-store"}); if(p.ok && sawDown){ location.reload(); return; } if(!p.ok) sawDown=true; }
     catch(e){ sawDown = true; }
   }
-  $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML="Double-click <b>Azan SIP</b> in the program folder to start it, then refresh this page.";
+  $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML = SESSION.docker ? "Refresh this page in a minute. If it still doesn't open, run <b>docker compose up -d</b> on the computer running the Box."
+    : SESSION.box ? "Refresh this page in a minute. If it still doesn't open, switch the box off and on again."
+    : "Double-click <b>Azan SIP</b> in the program folder to start it, then refresh this page.";
 }
 
 async function setStartup(on){ await act(async()=>{ await api("/api/startup",{enabled:on}); META.startup=on; }, on?"Azan SIP will start with Windows":"Won't start with Windows"); }

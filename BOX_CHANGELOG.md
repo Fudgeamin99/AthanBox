@@ -14,6 +14,8 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 - Prefer to set things up yourself? Choose "I'll set it up myself" on the welcome page and the control panel opens instead. The guide is one click away from there.
 - Run the setup guide again any time from Settings. It starts from your current settings and saves nothing until you press Finish.
 - Phones and PCs stay signed in for 30 days, even when the box restarts or updates. Changing the password signs every other device out.
+- In Docker, **Settings → Updates** can update the Box itself: **Check for updates**, then **Update now**. It needs the new `updater` part of the compose file, a small helper that downloads the new image and restarts the Box with it. If the new version won't start, the old one is put back.
+- The container now stops in a moment, signing out of the phone system first, instead of being killed after Docker's timeout.
 
 ## 0.2.0 - Docker
 - The Box software can run in Docker on a Linux computer, such as a home server, NAS or Raspberry Pi. See "Run it with Docker" in the README.
