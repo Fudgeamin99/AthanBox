@@ -1,0 +1,26 @@
+# Builds the Docker image for pull requests and checks that it starts and asks for the password,
+# so a broken image is caught before a Box release publishes it.
+name: Docker image
+
+on:
+  pull_request:
+    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", "azan_sip/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t azan-sip-box:test .
+
+      - name: Start it and check the panel
+        run: |
+          docker run -d --name azan -e AZAN_PASSWORD=ci-password-123 -p 8765:8765 azan-sip-box:test
+          sh packaging/docker/smoke-test.sh http://127.0.0.1:8765 ci-password-123 || { docker logs azan; exit 1; }
+          docker logs azan

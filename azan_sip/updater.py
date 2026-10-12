@@ -41,6 +41,12 @@ USER_FILES = {"config.toml", "config.toml.bak", "config.tmp", "timetable.csv", "
 USER_DIRS = {"audio", "auth", "backups", ".git", "__pycache__"}
 KEEP_BACKUPS = 3
 
+# The Docker image sets AZAN_DOCKER=1: there the program is replaced by pulling a new image,
+# because files changed inside a container are lost when it is recreated.
+DOCKER = os.environ.get("AZAN_DOCKER") == "1"
+DOCKER_NOTE = ("Running in Docker: to update, pull the new image with 'docker compose pull' and then "
+               "'docker compose up -d'. Your settings, recordings and password are kept.")
+
 
 def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = None):
     req = urllib.request.Request(url, headers=dict(UA, **({"Accept": accept} if accept else {})))
@@ -77,6 +83,8 @@ def _is_git(base: Path) -> bool:
 
 
 def mode(base: Path) -> str:
+    if DOCKER:
+        return "docker"
     return "exe" if FROZEN else ("git" if _is_git(base) else "download")
 
 
@@ -108,6 +116,8 @@ def check(base: Path) -> dict:
     info = {"repo": REPO_URL, "current_version": __version__, "current_commit": inst.get("commit"),
             "mode": mode(base), "checked_at": datetime.now().isoformat(timespec="seconds"),
             "backups": backups(base)}
+    if DOCKER:
+        return dict(info, available=False, note=DOCKER_NOTE)
     if FROZEN:
         return _exe_check(info)
     if info["mode"] == "git":
@@ -224,6 +234,8 @@ def _install_tree(src: Path, base: Path):
 
 def apply(base: Path) -> dict:
     base = Path(base)
+    if DOCKER:
+        raise RuntimeError(DOCKER_NOTE)
     if FROZEN:
         return _exe_apply(base)
     if _is_git(base):
@@ -271,6 +283,8 @@ def apply(base: Path) -> dict:
 
 def rollback(base: Path, name: str | None = None) -> dict:
     base = Path(base)
+    if DOCKER:
+        raise RuntimeError(DOCKER_NOTE)
     if FROZEN:
         return _exe_rollback(base, name)
     bk = backups(base)

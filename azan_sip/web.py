@@ -341,6 +341,8 @@ class Service:
         info["backups"] = updater.backups(self.base)
         info["mode"] = updater.mode(self.base)
         info["auto"] = self.cfg.get("general", {}).get("check_updates", True)
+        if info["mode"] == "docker":
+            info["note"] = updater.DOCKER_NOTE
         return info
 
     def install(self, action: str, name: str | None = None) -> dict:

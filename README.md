@@ -77,3 +77,16 @@ The Azan SIP Box is a small Debian computer that runs Azan SIP on its own. The W
 - **Settings → Password and reset** changes the password, signs out, or does a factory reset (removes settings, recordings and the owner's password).
 - Until first-time setup is saved, a one-time setup code lets a phone sign in by scanning the QR code on the box's screen.
 - To try it on a Debian machine: `sudo sh packaging/box/install.sh`. This installs `packaging/box/azan-sip-box.service` and names the machine `azan` on the network.
+
+### Run it with Docker (Linux)
+
+The same Box software can run in Docker on any Linux computer that stays on, such as a home server, a NAS or a Raspberry Pi. There's no full-screen display this way, just the control panel.
+
+1. Copy [`compose.yaml`](compose.yaml) to that computer and set `AZAN_PASSWORD` in it (at least 8 characters).
+2. Run `docker compose up -d`. To build from a copy of this repository instead, run `docker compose up -d --build`.
+3. Open `http://<that computer's address>:8765` and sign in with the password.
+
+- **Linux only.** The container uses the computer's own network (`network_mode: host`), because multicast paging and SIP don't work through Docker's private network. Docker Desktop on Windows or Mac isn't supported.
+- **Your data is kept.** Settings, recordings, the password and the log are kept in the `azan-data` volume.
+- **Updates come from the image.** Run `docker compose pull && docker compose up -d`. **Update now** in the panel is switched off in Docker.
+- **Address.** The panel is on port 8765. `azan.local` isn't set up in Docker, so use the computer's address or its own `.local` name.

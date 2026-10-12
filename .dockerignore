@@ -1,0 +1,11 @@
+.git
+.github
+**/__pycache__
+backups
+auth
+audio
+config.toml*
+timetable.csv
+*.log
+dist
+build

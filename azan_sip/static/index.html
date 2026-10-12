@@ -778,18 +778,18 @@ function renderUpdate(){
       <div class="d">${esc((UPD.latest_date||"").slice(0,10))} · ${esc(UPD.latest_message||"")} · <span class="mono">${esc(short(UPD.latest_commit))}</span></div></div></div>` : "";
   const bk = UPD.backups||[];
   el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box")}" target="_blank" rel="noopener">GitHub: ${esc((UPD.repo||"").split("/").pop()||"azan-sip-box")}</a></div>
-    <p class="muted" style="margin:8px 0 10px">Installed: version ${esc(UPD.current_version||S&&S.version||"")}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":""}.
+    <p class="muted" style="margin:8px 0 10px">Installed: version ${esc(UPD.current_version||S&&S.version||"")}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":UPD.mode==="docker"?" · Docker container":""}.
       Your settings, recordings and timetable are kept when updating.</p>
     ${UPD.error?`<div class="banner bad">${ICON.warn}<div>${esc(UPD.error)}</div></div>`:""}
     ${latest}
     ${UPD.note?`<p class="muted">${esc(UPD.note)}</p>`:""}
-    <div class="row" style="margin:12px 0">
+    ${UPD.mode==="docker"?"":`<div class="row" style="margin:12px 0">
       <button class="btn" onclick="checkUpdate()" ${updBusy?"disabled":""}>${updBusy?"Checking…":"Check for updates"}</button>
       ${UPD.available?`<button class="btn primary" onclick="installUpdate()">Update now to ${esc(UPD.latest_version)}</button>`:
         (UPD.latest_version?`<button class="btn small" onclick="installUpdate(true)">Reinstall latest</button>`:"")}
     </div>
     <div class="toggle-row"><div><div class="t">Check for updates automatically</div><div class="d">Once a day. You'll see a notice on the Today page; nothing installs without you pressing Update.</div></div>
-      <label class="switch"><input type="checkbox" ${UPD.auto!==false?"checked":""} onchange="setAutoUpdate(this.checked)"><span></span></label></div>
+      <label class="switch"><input type="checkbox" ${UPD.auto!==false?"checked":""} onchange="setAutoUpdate(this.checked)"><span></span></label></div>`}
     ${bk.length?`<div class="toggle-row"><div><div class="t">Go back to the previous version</div><div class="d">If an update causes a problem. Saved copies: ${bk.map(b=>"v"+esc(b.version)).join(", ")}</div></div>
       <button class="btn small" onclick="rollbackUpdate('${esc(bk[0].name)}','${esc(bk[0].version)}')">Restore v${esc(bk[0].version)}</button></div>`:""}`;
 }
