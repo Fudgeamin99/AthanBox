@@ -1,4 +1,4 @@
-"""Command line: python -m azan_sip {panel,run,times,test} [-c config.toml]"""
+"""Command line: python -m azan_sip {panel,run,times,test,box-password,factory-reset} [-c config.toml]"""
 from __future__ import annotations
 
 import argparse
@@ -22,7 +22,9 @@ def main(argv=None):
                                  description="Automatic azan over VoIP phones (SIP / multicast)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("run", parents=[common], help="run the scheduler + control panel without opening a browser")
+    r = sub.add_parser("run", parents=[common], help="run the scheduler + control panel without opening a browser")
+    r.add_argument("--box", action="store_true",
+                   help="Azan SIP Box: open the panel to the network (port 8765 and 80), password needed for changes")
     sub.add_parser("panel", parents=[common], help="run and open the control panel in the browser")
 
     t = sub.add_parser("times", parents=[common], help="show prayer times")
@@ -36,6 +38,14 @@ def main(argv=None):
     s.add_argument("--reminder", action="store_true", help="play the reminder audio")
     s.add_argument("--seconds", type=float, help="only play the first N seconds")
 
+    b = sub.add_parser("box-password", parents=[common], help="Azan SIP Box: set the control panel password")
+    b.add_argument("--factory", action="store_true", help="set the factory (sticker) password instead of the owner's")
+    b.add_argument("--serial", default="", help="serial number to keep with the factory password")
+    b.add_argument("--stdin", action="store_true", help="read the password from standard input (for scripts)")
+
+    sub.add_parser("factory-reset", parents=[common],
+                   help="Azan SIP Box: remove settings, recordings and the owner's password (stop the service first)")
+
     args = ap.parse_args(argv)
     for name, default in (("config", "config.toml"), ("verbose", False), ("log_file", None)):
         if not hasattr(args, name):
@@ -43,7 +53,10 @@ def main(argv=None):
     if args.cmd == "run":
         # Same service as the desktop launcher (scheduler + control panel), without opening a browser.
         from .web import serve
-        sys.exit(serve(args.config, open_browser=False, verbose=args.verbose))
+        sys.exit(serve(args.config, open_browser=False, verbose=args.verbose, box=args.box))
+
+    if args.cmd in ("box-password", "factory-reset"):
+        sys.exit(box_command(args))
 
     if args.cmd == "panel":
         from .web import serve
@@ -98,6 +111,41 @@ def main(argv=None):
             sys.exit(str(exc))
         ok = app.broadcast(clip, "test")
         sys.exit(0 if ok else 1)
+
+def box_command(args) -> int:
+    from pathlib import Path
+    from .auth import Auth
+    base = Path(args.config).resolve().parent
+    auth = Auth(base / "auth")
+    if args.cmd == "factory-reset":
+        for name in ("config.toml", "config.toml.bak", "config.tmp", "timetable.csv"):
+            (base / name).unlink(missing_ok=True)
+        if (base / "audio").is_dir():
+            for f in (base / "audio").iterdir():
+                if f.is_file() and f.name != ".gitkeep":
+                    f.unlink()
+        auth.reset_to_factory()
+        print("Factory reset done. Start the service again.")
+        return 0
+    if args.stdin:
+        pw = sys.stdin.readline().rstrip("\r\n")
+    else:
+        import getpass
+        pw = getpass.getpass("New password: ")
+        if getpass.getpass("Type it again: ") != pw:
+            print("The passwords don't match", file=sys.stderr)
+            return 1
+    try:
+        if args.factory:
+            auth.set_factory_password(pw, args.serial)
+        else:
+            auth.set_password(pw)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    print("Factory password saved." if args.factory else "Password saved. Restart the service to sign everyone out.")
+    return 0
+
 
 if __name__ == "__main__":
     main()

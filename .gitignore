@@ -20,3 +20,6 @@ build/
 dist/
 *.spec
 AzanSIP*.exe
+
+# Azan SIP Box passwords (hashed) - per box, never committed
+auth/

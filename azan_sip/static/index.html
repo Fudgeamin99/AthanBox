@@ -148,6 +148,15 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
 .stopped{max-width:520px;margin:15vh auto;text-align:center}
 .overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:50}
 .overlay .card{max-width:420px;text-align:center;padding:30px}
+/* Azan SIP Box: settings lock */
+.lock{position:fixed;inset:0;background:color-mix(in srgb,#0e4a40 82%,transparent);backdrop-filter:blur(4px);display:grid;place-items:center;z-index:60;padding:16px}
+.lock form{background:var(--panel);border-radius:20px;padding:30px 32px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.lock .lockicon{width:52px;height:52px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:16px}
+.lock h2{font-size:24px;margin:0 0 8px}
+.lock p{color:var(--muted);margin:0 0 18px}
+.lock .err{color:var(--bad);font-size:13.5px;margin:-6px 0 12px;min-height:1em}
+.lock .actions{display:flex;justify-content:flex-end;gap:10px}
+.lock .foot{font-size:13px;color:var(--muted);margin:18px 0 0}
 .spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;margin:0 auto 14px;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:900px){
@@ -180,6 +189,15 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
   <button class="btn primary small" id="savebtn" onclick="save()">Save changes</button>
 </div>
 <div id="toast" class="toast" hidden></div>
+<div id="lock" class="lock" hidden><form id="lockform" autocomplete="off">
+  <div class="lockicon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+  <h2>Settings are locked</h2>
+  <p>Enter the password to change the prayer times, azan or phone settings.</p>
+  <div class="field"><label for="lockpw">Password</label><input type="password" id="lockpw" autocomplete="current-password"></div>
+  <div class="err" id="lockerr"></div>
+  <div class="actions"><button class="btn primary" id="lockbtn" type="submit">Unlock</button></div>
+  <p class="foot">Forgotten it? The original password is on the sticker under the box.</p>
+</form></div>
 <div id="overlay" class="overlay" hidden><div class="card"><div class="spinner"></div><h2 id="ov-title">Updating…</h2><p class="muted" id="ov-text">Please keep this page open.</p></div></div>
 
 <script>
@@ -212,10 +230,69 @@ async function api(path, body, raw){
     else { opt.body = JSON.stringify(body); opt.headers["Content-Type"]="application/json"; }
   }
   let r;
-  try { r = await fetch(path, opt); } catch(e){ throw new Error("Azan SIP isn't running. Double-click 'Azan SIP' to start it."); }
+  try { r = await fetch(path, opt); } catch(e){ throw new Error(SESSION.box ? "Can't reach the Azan SIP Box. Check it's switched on and connected." : "Azan SIP isn't running. Double-click 'Azan SIP' to start it."); }
   const j = await r.json().catch(()=>({ok:false,error:"Unexpected reply"}));
+  if(r.status===401 && j.login && !path.startsWith("/api/log")){ await unlock(); return api(path, body, raw); }  // session ended: ask again, then retry
   if(!r.ok || j.ok===false) throw new Error(j.error || ("Error "+r.status));
   return j;
+}
+
+// ---------------------------------------------------------------- Azan SIP Box: password lock
+let SESSION = {box:false, logged_in:true}, lockWaiters = [];
+function unlock(){
+  return new Promise(res=>{
+    lockWaiters.push(res);
+    if(!$("#lock").hidden) return;
+    $("#lockerr").textContent=""; $("#lockpw").value=""; $("#lock").hidden=false; setTimeout(()=>$("#lockpw").focus(), 50);
+  });
+}
+$("#lockform").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const b=$("#lockbtn"); b.disabled=true; $("#lockerr").textContent="";
+  try{
+    await api("/api/login", {password: $("#lockpw").value});
+    SESSION.logged_in=true; $("#lock").hidden=true;
+    const w=lockWaiters; lockWaiters=[]; w.forEach(f=>f());
+  }catch(err){ $("#lockerr").textContent=err.message; $("#lockpw").select(); }
+  b.disabled=false;
+});
+async function loadSession(){
+  try{ SESSION = await api("/api/session"); }catch(e){ return; }
+  const code = new URLSearchParams(location.search).get("setup");
+  if(code){  // scanned the QR code on the box's screen during first-time setup
+    history.replaceState(null, "", location.pathname + location.hash);
+    if(SESSION.box && !SESSION.logged_in){
+      try{ await api("/api/login", {setup_code: code}); SESSION.logged_in=true; }catch(e){ toast(e.message, "bad"); }
+    }
+  }
+  if(SESSION.box && !SESSION.logged_in) await unlock();
+}
+async function changePassword(){
+  const cur=$("#pw-cur"), a=$("#pw-new"), b=$("#pw-again");
+  if(a.value.length<8) return toast("The new password must be at least 8 characters","bad");
+  if(a.value!==b.value) return toast("The new passwords don't match","bad");
+  await act(async()=>{ await api("/api/password",{current:cur?cur.value:"", new:a.value}); SESSION.custom_password=true; [cur,a,b].forEach(x=>x&&(x.value="")); }, "Password changed. Other devices have been signed out.");
+}
+async function signOut(){ try{ await api("/api/logout",{}); }catch(e){} location.reload(); }
+async function factoryReset(){
+  const t = prompt("This removes all settings, recordings and your own password. The box goes back to first-time setup and the password on the sticker works again.\n\nType RESET to confirm:");
+  if(t===null) return;
+  await act(async()=>{ await api("/api/factory-reset",{confirm:t.trim().toUpperCase()}); location.reload(); });
+}
+function boxCardHTML(){
+  if(!SESSION.box) return "";
+  return `<div class="card"><h2>Password and reset</h2>
+    <p class="muted" style="margin-top:-6px">Anyone on your network can open this page at <b>http://azan.local</b>. Viewing the prayer times is open; changing settings needs the password.
+    ${SESSION.custom_password?"You're using your own password.":"You're using the password on the sticker."}</p>
+    <div class="grid3">
+      <div class="field"><label>Current password</label><input type="password" id="pw-cur" autocomplete="current-password"></div>
+      <div class="field"><label>New password</label><input type="password" id="pw-new" autocomplete="new-password"><div class="hint">At least 8 characters.</div></div>
+      <div class="field"><label>Type it again</label><input type="password" id="pw-again" autocomplete="new-password"></div>
+    </div>
+    <div class="row"><button class="btn primary" onclick="changePassword()">Change password</button><button class="btn" onclick="signOut()">Sign out</button></div>
+    <div class="toggle-row" style="margin-top:14px"><div><div class="t">Factory reset</div><div class="d">Removes all settings, recordings and your own password. The sticker password works again.</div></div>
+      <button class="btn danger" onclick="factoryReset()">Factory reset…</button></div>
+  </div>`;
 }
 let toastTimer;
 function toast(msg, kind="ok"){ const t=$("#toast"); t.textContent=msg; t.className="toast "+kind; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.hidden=true, kind==="bad"?7000:3500); }
@@ -677,10 +754,11 @@ function pageSettings(){
     <div class="field"><label>Network card to use</label><select data-path="network.local_ip">${opt("","Automatic",CFG.network.local_ip)}${(META.ips||[]).map(ip=>opt(ip,ip,CFG.network.local_ip)).join("")}${CFG.network.local_ip&&!(META.ips||[]).includes(CFG.network.local_ip)?opt(CFG.network.local_ip,CFG.network.local_ip+" (not found)",CFG.network.local_ip):""}</select><div class="hint">Choose the one on the phones' network if this PC has more than one (e.g. Wi-Fi and cable).</div></div>
     <div class="field"><label>Multicast hops (TTL)</label><input type="number" min="1" max="32" data-path="network.multicast_ttl" data-kind="int" value="${val("network.multicast_ttl")||4}"><div class="hint">Raise only if phones are on other routed subnets.</div></div>
   </div></div>
+  ${boxCardHTML()}
   <div class="card" id="upd"><h2>Updates</h2><p class="muted">Loading…</p></div>
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Activity log</h2><span class="muted">Also saved to azan.log</span></div><div class="log" id="fulllog" style="margin-top:12px"></div></div>
-  <div class="card"><h2>About</h2><p class="muted">Azan SIP ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
-    <button class="btn danger" onclick="quitApp()">Quit Azan SIP</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`;
+  <div class="card"><h2>About</h2><p class="muted">Azan SIP ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>${SESSION.box?"Control panel: open <b>http://azan.local</b> on any computer or phone on this network.</p></div>":`Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
+    <button class="btn danger" onclick="quitApp()">Quit Azan SIP</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`}`;
   renderLog(true);
   loadUpdate();
 }
@@ -752,6 +830,7 @@ window.addEventListener("beforeunload", e=>{ if(isDirty()){ e.preventDefault(); 
 window.addEventListener("hashchange", ()=>{ const p=location.hash.slice(1); if(p&&p!==page){ page=p; editing=null; render(); if(p==="times") schedulePreview(0); } });
 (async function init(){
   render();
+  await loadSession();
   await poll();
   for(let i=0;i<100 && !CFG;i++){ try{ await loadConfig(); }catch(e){ await new Promise(r=>setTimeout(r,2000)); } }
   render(); if(page==="times") schedulePreview(0);

@@ -2,11 +2,17 @@
 
 Runs the scheduler in the background and serves a local web page to manage everything:
 location, calculation, audio, phones, tests and logs. Only reachable from this computer.
+
+Box mode (`azan-sip run --box`, used on the Azan SIP Box): the panel is also reachable from the
+network (port 8765 and port 80, e.g. http://azan.local) and changing anything needs the box's
+password. Viewing the prayer times does not.
 """
 from __future__ import annotations
 
 import collections
 import copy
+import http.cookies
+import ipaddress
 import json
 import logging
 import logging.handlers
@@ -26,6 +32,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__, rtp, tomlw, updater
+from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import FROZEN, app_dir
 from .sipreg import RegistrationManager
 from .app import ADHAN_PRAYERS, AzanApp, Clip, Shared, build_targets, load_config
@@ -186,6 +193,9 @@ class Service:
         self.update_lock = threading.Lock()
         self.restarting = False
         self.started = time.time()
+        self.box = False
+        self.auth = Auth(self.base / "auth")
+        self.extra_servers: list[ThreadingHTTPServer] = []
         self.load()
 
     # -- config
@@ -225,6 +235,37 @@ class Service:
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
                 self.thread.start()
+
+    def configured(self) -> bool:
+        return bool(self.cfg.get("general", {}).get("configured", True))
+
+    def start_box(self):
+        """Box mode: until first-time setup is done, a one-time code (QR on the screen) lets a phone in."""
+        self.box = True
+        if not self.configured():
+            self.auth.new_setup_code()
+        if not self.auth.has_password():
+            log.warning("No password is set on this box - set one with: python -m azan_sip box-password --factory")
+
+    def factory_reset(self):
+        """Back to how the box left the factory: settings, recordings, timetable and own password removed."""
+        with self.lock:
+            if self.app and self.app.now_playing:
+                self.app.stop_audio()
+            self._stop_scheduler()
+            self.regs.stop_all()
+            for name in ("config.toml", "config.toml.bak", "config.tmp", "timetable.csv"):
+                (self.base / name).unlink(missing_ok=True)
+            if self.audio_dir.is_dir():
+                for f in self.audio_dir.iterdir():
+                    if f.is_file() and f.name != ".gitkeep":
+                        f.unlink(missing_ok=True)
+            self.auth.reset_to_factory()
+            self.app, self.cfg, self.error = None, {}, None
+            self.load()
+            if self.box:
+                self.auth.new_setup_code()
+        log.warning("Factory reset done - settings, recordings and the owner's password were removed")
 
     def _stop_scheduler(self, halt_audio: bool = True):
         if self.app:
@@ -439,8 +480,42 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- security: local panel only, no cross-site requests
     def _host_ok(self) -> bool:
-        host = (self.headers.get("Host") or "").split(":")[0].strip("[]").lower()
-        return host in ("127.0.0.1", "localhost", "::1")
+        raw = (self.headers.get("Host") or "").strip().lower()
+        host = raw[1:raw.index("]")] if raw.startswith("[") and "]" in raw else raw.split(":")[0]
+        if host in ("127.0.0.1", "localhost", "::1"):
+            return True
+        if not self.service.box:
+            return False
+        # Box mode: only names that can't point a web page somewhere else (DNS rebinding):
+        # the box's IP addresses, and .local names (mDNS, only answered on this network).
+        try:
+            ipaddress.ip_address(host)
+            return True
+        except ValueError:
+            pass
+        return host.endswith(".local") or host == socket.gethostname().lower()
+
+    def _token(self) -> str | None:
+        try:
+            c = http.cookies.SimpleCookie(self.headers.get("Cookie") or "")
+        except http.cookies.CookieError:
+            return None
+        return c[COOKIE].value if COOKIE in c else None
+
+    def _authed(self) -> bool:
+        return not self.service.box or self.service.auth.valid(self._token())
+
+    def _client_local(self) -> bool:
+        return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+
+    def _need_login(self):
+        return self._json({"ok": False, "login": True, "error": "Please enter the password to change settings"}, 401)
+
+    def _session_info(self) -> dict:
+        svc = self.service
+        return {"box": svc.box, "logged_in": self._authed(), "has_password": svc.auth.has_password() if svc.box else False,
+                "custom_password": svc.auth.custom_password() if svc.box else False,
+                "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code)}
 
     def _send(self, code: int, body: bytes, ctype: str = "application/json", extra: dict | None = None):
         self.send_response(code)
@@ -475,8 +550,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             if p == "/api/ping":
                 return self._json({"app": "azan-sip", "version": __version__})
+            if p == "/api/session":
+                return self._json(self._session_info())
             if p == "/api/state":
-                return self._json(svc.state())
+                st = svc.state()
+                if not self._authed():  # prayer times are public, the log is not
+                    st.update(log=[], history=[])
+                return self._json(st)
+            if p == "/api/setup-code":  # for the QR code on the box's own screen only
+                if not (svc.box and self._client_local() and svc.auth.setup_code):
+                    return self._send(404, b"Not found", "text/plain")
+                hostport = "" if svc.extra_servers else f":{svc.server.server_address[1]}"
+                code = svc.auth.setup_code
+                return self._json({"code": code, "urls": [f"http://{ip}{hostport}/?setup={code}"
+                                                          for ip in local_ips()]})
+            if not self._authed():
+                return self._need_login()
             if p == "/api/config":
                 return self._json({"config": svc.cfg, "meta": svc.meta()})
             if p == "/api/update":
@@ -499,6 +588,21 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         p = url.path
         try:
+            if p == "/api/login":
+                if not svc.box:
+                    return self._json({"ok": True})
+                req = json.loads(self._body(10_000) or b"{}")
+                token = svc.auth.login(self.client_address[0], str(req.get("password") or ""),
+                                       str(req.get("setup_code") or ""))
+                log.info("Signed in to the control panel from %s", self.client_address[0])
+                return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (
+                    f"{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_SECONDS}")})
+            if p == "/api/logout":
+                svc.auth.logout(self._token())
+                return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (
+                    f"{COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0")})
+            if not self._authed():
+                return self._need_login()
             if p == "/api/upload":
                 q = parse_qs(url.query)
                 name = Path(q.get("name", ["audio.wav"])[0]).name
@@ -525,8 +629,26 @@ class Handler(BaseHTTPRequestHandler):
                 cfg = req["config"]
                 cfg.setdefault("general", {})["configured"] = True
                 svc.apply(cfg, save=True)
+                svc.auth.end_setup()  # setup is finished: the QR setup code stops working
                 log.info("Settings saved")
                 return self._json({"ok": True, "config": svc.cfg})
+            if p == "/api/password":
+                if not svc.box:
+                    raise ValueError("Passwords are only used on the Azan SIP Box")
+                if not svc.auth.setup_code and not svc.auth.verify(str(req.get("current") or "")):
+                    raise ValueError("The current password is wrong")
+                svc.auth.set_password(str(req.get("new") or ""))
+                svc.auth.logout_others(self._token())
+                log.info("Control panel password changed")
+                return self._json({"ok": True})
+            if p == "/api/factory-reset":
+                if not svc.box:
+                    raise ValueError("Factory reset is only available on the Azan SIP Box")
+                if req.get("confirm") != "RESET":
+                    raise ValueError("Type RESET to confirm")
+                svc.factory_reset()
+                return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (
+                    f"{COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0")})
             if p == "/api/preview":
                 return self._json({"ok": True, **svc.preview(req["config"], req.get("days", 7), req.get("start"))})
             if p == "/api/test":
@@ -576,11 +698,15 @@ class Handler(BaseHTTPRequestHandler):
                 f.unlink(missing_ok=True)
                 return self._json({"ok": True, "files": svc.meta()["audio_files"]})
             if p == "/api/quit":
+                if svc.box:
+                    raise ValueError("The box can't be quit from the control panel")
                 self._json({"ok": True})
                 log.info("Quit requested from the control panel")
                 threading.Thread(target=svc.server.shutdown, daemon=True).start()
                 return
             return self._json({"ok": False, "error": "unknown action"}, 404)
+        except LoginError as exc:
+            return self._json({"ok": False, "login": True, "error": str(exc)}, 403)
         except Exception as exc:
             if not isinstance(exc, (ValueError, KeyError, RuntimeError, FileNotFoundError)):
                 log.exception("panel error")
@@ -607,7 +733,8 @@ def _already_running(port: int) -> bool:
         return False
 
 
-def serve(config_path: str | Path = "config.toml", open_browser: bool = True, verbose: bool = False):
+def serve(config_path: str | Path = "config.toml", open_browser: bool = True, verbose: bool = False,
+          box: bool = False):
     config_path = Path(config_path).resolve()
     setup_logging(config_path.parent, verbose)
     port = DEFAULT_PORT
@@ -624,7 +751,7 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
     deadline = time.monotonic() + (45 if wait_for_port else 0)
     while server is None:
         try:
-            server = PanelServer(("127.0.0.1", port), Handler)
+            server = PanelServer(("0.0.0.0" if box else "127.0.0.1", port), Handler)
         except OSError:
             if time.monotonic() < deadline:
                 time.sleep(0.5)
@@ -643,6 +770,16 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
     svc = Service(config_path)
     svc.server = server
     Handler.service = svc
+    if box:
+        svc.start_box()
+        try:  # port 80 as well, so http://azan.local works without a port number
+            web = PanelServer(("0.0.0.0", 80), Handler)
+            svc.extra_servers.append(web)
+            threading.Thread(target=web.serve_forever, kwargs={"poll_interval": 0.5}, name="http-80",
+                             daemon=True).start()
+        except OSError as exc:
+            log.warning("Could not open port 80 (%s) - the panel is on port %d only", exc, port)
+        log.info("Box mode: control panel open to the network, password needed to change settings")
     log.info("Azan SIP %s - control panel at %s", __version__, url)
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
@@ -658,6 +795,9 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
     except KeyboardInterrupt:
         pass
     finally:
+        for extra in svc.extra_servers:
+            extra.shutdown()
+            extra.server_close()
         svc.shutdown()
         server.server_close()
         log.info("Azan SIP stopped")

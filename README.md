@@ -66,3 +66,14 @@ Go to **Settings → Updates** and press **Check for updates**, then **Update no
   - `python -m azan_sip times` prints the prayer times.
   - `python -m azan_sip test --tone` plays a test chime.
   - `python -m azan_sip run` runs without opening a browser, for example as a Linux service. `azan-sip.service` is an example systemd unit.
+
+## Azan SIP Box (in development)
+
+The Azan SIP Box is a small Debian computer that runs Azan SIP on its own. The Windows and source installs above work exactly as before; nothing here changes them.
+
+- `python -m azan_sip run --box` opens the control panel to the local network, on port 8765 and port 80, so it is reachable at **http://azan.local**.
+- Viewing the prayer times needs no password. Changing anything needs the box's password: the factory one on the sticker, or the owner's own.
+- Passwords are stored hashed in `auth/`, which updates never touch. `python -m azan_sip box-password --factory` sets the sticker password.
+- **Settings → Password and reset** changes the password, signs out, or does a factory reset (removes settings, recordings and the owner's password).
+- Until first-time setup is saved, a one-time setup code lets a phone sign in by scanning the QR code on the box's screen.
+- To try it on a Debian machine: `sudo sh packaging/box/install.sh`. This installs `packaging/box/azan-sip-box.service` and names the machine `azan` on the network.
