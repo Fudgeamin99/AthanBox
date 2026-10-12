@@ -16,9 +16,9 @@ services:
       TZ: Europe/London       # used while the time zone setting is "this computer's time zone"
     volumes:
       - azan-data:/data       # settings, recordings, password and log
-      # Or keep them in a folder of your choice, e.g. on a NAS (it must belong to user 1000:
-      # sudo chown -R 1000:1000 /volume1/docker/azan-sip). Use this line instead of the one above:
-      # - /volume1/docker/azan-sip:/data
+      # Or keep them in a folder of your choice, e.g. on a NAS. Use this line instead of the one
+      # above (./data is a folder next to this file; Docker creates it if needed):
+      # - ./data:/data
 
 volumes:
   azan-data:

@@ -16,7 +16,8 @@ COPY packaging/docker/entrypoint.sh /usr/local/bin/azan-sip-entrypoint
 
 # AZAN_DOCKER: Settings > Updates explains how to pull a new image instead of updating in place.
 ENV AZAN_DOCKER=1 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-USER azan
+# No USER line: the entrypoint starts as root only to give /data to user azan (1000), then
+# runs Azan SIP as that user.
 VOLUME /data
 EXPOSE 8765
 ENTRYPOINT ["/usr/local/bin/azan-sip-entrypoint"]

@@ -19,8 +19,14 @@ jobs:
       - name: Build the image
         run: docker build -t azan-sip-box:test .
 
-      - name: Start it and check the panel
+      - name: Start it with a new storage folder and check the panel
         run: |
-          docker run -d --name azan -e AZAN_PASSWORD=ci-password-123 -p 8765:8765 azan-sip-box:test
+          # A folder owned by root, like one Docker or a NAS creates: the container must take it over.
+          sudo mkdir "$RUNNER_TEMP/data"
+          docker run -d --name azan -e AZAN_PASSWORD=ci-password-123 -p 8765:8765 \
+                     -v "$RUNNER_TEMP/data:/data" azan-sip-box:test
           sh packaging/docker/smoke-test.sh http://127.0.0.1:8765 ci-password-123 || { docker logs azan; exit 1; }
+          [ "$(stat -c %u "$RUNNER_TEMP/data/config.toml")" = 1000 ] \
+              || { echo "FAIL: the settings file isn't owned by user 1000"; ls -lan "$RUNNER_TEMP/data"; exit 1; }
+          echo "ok: the storage folder was given to user 1000"
           docker logs azan
