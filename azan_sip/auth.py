@@ -5,7 +5,8 @@ Only used in box mode: the desktop app keeps its panel on 127.0.0.1 with no pass
 - Each box has a factory password (printed on the sticker). Its hash is in auth/factory.json,
   written when the box is prepared; a factory reset goes back to it.
 - The owner can choose their own password; its hash is in auth/password.json.
-- Logging in gives a session cookie. Sessions live in memory, so a restart logs everyone out.
+- Logging in gives a session cookie that lasts 30 days. Only a hash of each session is kept, in
+  auth/sessions.json, so phones stay signed in when the box restarts or updates.
 - Until first-time setup is finished there is also a one-time setup code (shown as a QR code
   on the box's screen) that signs a phone in without the sticker password.
 """
@@ -23,7 +24,7 @@ from pathlib import Path
 
 ITERATIONS = 200_000
 MIN_LENGTH = 8
-SESSION_SECONDS = 7 * 24 * 3600
+SESSION_SECONDS = 30 * 24 * 3600
 COOKIE = "azan_session"
 
 
@@ -72,10 +73,18 @@ class Auth:
     def __init__(self, folder: Path):
         self.folder = Path(folder)
         self.lock = threading.Lock()
-        self.sessions: dict[str, float] = {}  # token -> expiry (monotonic)
         self.failures: dict[str, tuple[int, float]] = {}  # client ip -> (count, locked until)
         self.setup_code: str | None = None
-        self.setup_sessions: set[str] = set()  # signed in with the setup code (ended with setup)
+        self.setup_sessions: set[str] = set()  # signed in with the setup code (ended with setup, never saved)
+        now = time.time()
+        saved = _read(self.sessions_file) or {}
+        self.sessions: dict[str, float] = {}  # sha256(token) -> expiry (wall clock)
+        for k, v in saved.items():
+            try:
+                if float(v) > now:
+                    self.sessions[str(k)] = float(v)
+            except (TypeError, ValueError):
+                pass
 
     @property
     def factory_file(self) -> Path:
@@ -84,6 +93,21 @@ class Auth:
     @property
     def password_file(self) -> Path:
         return self.folder / "password.json"
+
+    @property
+    def sessions_file(self) -> Path:
+        return self.folder / "sessions.json"
+
+    @staticmethod
+    def _key(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def _save_sessions(self):
+        """Call with self.lock held. Sessions opened with the setup code are left out."""
+        try:
+            _write(self.sessions_file, {k: e for k, e in self.sessions.items() if k not in self.setup_sessions})
+        except OSError:
+            pass
 
     # -- passwords
     def has_password(self) -> bool:
@@ -117,6 +141,7 @@ class Auth:
             self.sessions.clear()
             self.setup_sessions.clear()
             self.failures.clear()
+            self._save_sessions()
 
     # -- brute-force protection: after 5 wrong tries, wait 30 s, doubling up to 15 min
     def wait_seconds(self, ip: str) -> int:
@@ -147,32 +172,39 @@ class Auth:
         with self.lock:
             self.failures.pop(ip, None)
             token = secrets.token_urlsafe(32)
-            now = time.monotonic()
-            self.sessions = {t: e for t, e in self.sessions.items() if e > now}
-            self.sessions[token] = now + SESSION_SECONDS
+            now = time.time()
+            self.sessions = {k: e for k, e in self.sessions.items() if e > now}
+            self.sessions[self._key(token)] = now + SESSION_SECONDS
             if setup_code:
-                self.setup_sessions.add(token)
+                self.setup_sessions.add(self._key(token))
+            self._save_sessions()
         return token
 
     def valid(self, token: str | None) -> bool:
         if not token:
             return False
+        key = self._key(token)
         with self.lock:
-            exp = self.sessions.get(token)
+            exp = self.sessions.get(key)
             if exp is None:
                 return False
-            if exp < time.monotonic():
-                self.sessions.pop(token, None)
+            if exp < time.time():
+                self.sessions.pop(key, None)
                 return False
             return True
 
     def logout(self, token: str | None):
+        if not token:
+            return
         with self.lock:
-            self.sessions.pop(token or "", None)
+            self.sessions.pop(self._key(token), None)
+            self._save_sessions()
 
     def logout_others(self, keep: str | None):
+        key = self._key(keep) if keep else None
         with self.lock:
-            self.sessions = {t: e for t, e in self.sessions.items() if t == keep}
+            self.sessions = {k: e for k, e in self.sessions.items() if k == key}
+            self._save_sessions()
 
     # -- one-time setup code for the first-run QR code
     def new_setup_code(self) -> str:
@@ -183,7 +215,9 @@ class Auth:
         """Setup is finished: the code stops working, and so do the sessions it opened, except
         `keep` (the phone or PC that finished setup carries on without typing the password)."""
         self.setup_code = None
+        key = self._key(keep) if keep else None
         with self.lock:
-            for token in self.setup_sessions - {keep}:
-                self.sessions.pop(token, None)
+            for k in self.setup_sessions - {key}:
+                self.sessions.pop(k, None)
             self.setup_sessions.clear()
+            self._save_sessions()

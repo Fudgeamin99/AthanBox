@@ -224,7 +224,8 @@ const HANAFI = ["PK", "IN", "BD", "AF"];
 // W is shared through the box, so its screen and a phone show the same step; LOCAL stays on this device.
 const CLIENT = Math.random().toString(36).slice(2, 10);
 let W = null, REV = 0, SESSION = {}, CFG0 = null, META = {}, KIOSK = false, VIA_QR = false;
-const LOCAL = {pw1:"", pw2:"", pwEdit:false, err:"", busy:"", preview:null, previewKey:"", picker:"", nohear:false, guide:false, searching:false, searchErr:"", playing:null};
+const AGAIN = new URLSearchParams(location.search).has("again");  // run again from Settings, after first-time setup
+const LOCAL = {pw0:"", pw1:"", pw2:"", pwEdit:false, err:"", busy:"", preview:null, previewKey:"", picker:"", nohear:false, guide:false, searching:false, searchErr:"", playing:null};
 
 function freshState(){
   return {step:0, pw:{mode:"sticker", done:""},
@@ -234,6 +235,32 @@ function freshState(){
     usb:null,
     phone:{kind:"ucm", host:"", group:"", ext:"", password:"", auth:"", mc_ip:"224.5.6.20", mc_port:"10008", codec:"PCMU", other:"pbx", phones:"", rtp:""},
     test:null};
+}
+
+// Running the guide again starts from the current settings.
+function stateFromConfig(c){
+  const w = freshState(), L = c.location || {}, C = c.calculation || {}, A = c.audio || {}, P = c.prayers || {};
+  w.again = true;
+  if(L.latitude != null && L.longitude != null){
+    const name = L.name || "My masjid";
+    Object.assign(w.loc, {query:name.split(",")[0], sel:0, name, latitude:L.latitude, longitude:L.longitude, timezone:L.timezone || "local", elevation:L.elevation || 0,
+      results:[{name, admin1:"", country:"", cc:"", latitude:L.latitude, longitude:L.longitude, timezone:L.timezone || "", elevation:L.elevation || 0}]});
+  }
+  Object.assign(w.calc, {method:C.method || "MWL", asr:C.asr || "standard", touched:true, timetable:!!C.timetable});
+  Object.assign(w.audio, {azan:A.azan || "tone", fajr:A.fajr || "", reminder:A.reminder && A.reminder !== "tone" ? A.reminder : "", minutes:P.reminder_minutes || 0});
+  const t = (c.targets || [])[0], ph = w.phone;
+  if(t){
+    ph.codec = t.codec || "PCMU";
+    if(t.type === "multicast"){ const [ip, port] = String(t.address || "").split(":"); Object.assign(ph, {kind:"multicast", mc_ip:ip || ph.mc_ip, mc_port:port || ph.mc_port}); }
+    else if(t.type === "unicast_rtp") Object.assign(ph, {kind:"other", other:"rtp", rtp:(t.addresses || []).join("\n")});
+    else if(t.type === "sip" && t.mode === "direct") Object.assign(ph, {kind:"other", other:"direct", phones:(t.uris || []).map(u => u.replace(/^sip:/, "")).join("\n")});
+    else if(t.type === "sip"){
+      const m = /^sip:([^@]+)@(.+)$/.exec(t.uri || "") || [];
+      const kind = /^3CX/.test(t.name || "") ? "3cx" : /^FreePBX/.test(t.name || "") ? "freepbx" : "ucm";
+      Object.assign(ph, {kind, group:m[1] || "", host:m[2] || "", ext:t.username || "", password:t.password || "", auth:t.auth_username || ""});
+    }
+  }
+  return w;
 }
 
 let pushTimer = null;
@@ -260,6 +287,7 @@ async function poll(){
       REV = r.rev; LOCAL.driver = r.driver;
       if(r.driver !== CLIENT && r.state){
         if(r.state.finished) return leave();
+        if(r.state.manual) return location.replace(KIOSK ? "/display" : "/");  // being set up in the control panel
         W = r.state; render();
       }
     }
@@ -268,7 +296,7 @@ async function poll(){
 async function handleLost(e){
   if(e.status !== 401) return;
   try{ SESSION = await api("/api/session"); }catch(_){ return; }
-  if(SESSION.configured) return leave();
+  if(SESSION.configured && !AGAIN) return leave();
   showLogin();
 }
 // The box's screen, and anyone who was only following along, see the prayer times; whoever pressed
@@ -367,7 +395,7 @@ function wantPreview(){
 function header(){
   $("#logo").innerHTML = LOGO + "<span>Azan SIP</span>";
   const s = W ? W.step : 0;
-  if(!W || s === 0){ $("#hdr").innerHTML = W ? '<span class="name">First-time setup</span>' : ""; $("#mbar").hidden = true; return; }
+  if(!W || s === 0){ $("#hdr").innerHTML = W ? `<span class="name">${AGAIN ? "Setup guide" : "First-time setup"}</span>` : ""; $("#mbar").hidden = true; return; }
   const segs = STEPS.map((_, i) => `<i class="${i < s ? "on" : ""}"></i>`).join("");
   $("#hdr").innerHTML = `<span>Step ${s} of 6<span class="name"> · ${STEPS[s - 1]}</span></span><span class="segs">${segs}</span>`;
   $("#mbar").innerHTML = segs; $("#mbar").hidden = false;
@@ -407,28 +435,45 @@ function stepWelcome(){
       <h3>Or set up from your phone</h3>
       <p>Point your phone's camera at the code. ${KIOSK ? "This screen" : "This page"} follows along as you go.</p>
       ${KIOSK ? `<hr><p>On a PC, open <b>http://azan.local</b><br>The password is on the sticker under the box.</p>` : ""}</div>` : "";
+  if(AGAIN) return `<div class="welcome" style="grid-template-columns:1fr;max-width:760px"><div>
+      <span class="pill">${I.check} Connected to the network · ${esc(SESSION.ip || "")}</span>
+      <h1>Let's go through the setup again.</h1>
+      <p class="lead">Your current settings are filled in, so you only change what you need. Nothing is saved until you press Finish at the end.</p>
+      <ul class="have">${[[I.pin, "Location and prayer times"], [I.music, "Azan recordings"], [I.server, "Phone system, with a test chime at the end"]]
+        .map(([i, t]) => `<li><span class="icbox">${i}</span>${t}</li>`).join("")}</ul>
+      <div class="start"><button class="btn primary" onclick="go(1)">Start ${I.arrow}</button>
+        <button class="link" onclick="location.assign('/')">Back to Settings</button></div>
+    </div></div>`;
   return `<div class="welcome" ${qr ? "" : 'style="grid-template-columns:1fr;max-width:760px"'}><div>
       <span class="pill">${I.check} Connected to the network · ${esc(SESSION.ip || "")}</span>
       <h1>Assalamu alaikum.<br>Let's get the azan playing on your phones.</h1>
       <p class="lead">Setup takes about five minutes. Have these ready:</p>
       <ul class="have">${have.map(([i, t]) => `<li><span class="icbox">${i}</span>${t}</li>`).join("")}</ul>
       <div class="start"><button class="btn primary" onclick="go(1)">${KIOSK ? "Start setup on this screen" : "Start setup"} ${I.arrow}</button>
-        ${KIOSK ? '<span class="muted" style="font-size:15px">With a mouse and keyboard plugged into the box</span>' : ""}</div>
+        ${KIOSK ? '<span class="muted" style="font-size:15px">With a mouse and keyboard plugged into the box</span>' : ""}
+        <button class="link" onclick="setUpMyself()">I'll set it up myself</button></div>
     </div>${qr}</div>`;
+}
+// Skip the guide and set everything up in the control panel (the guide can be opened from there)
+async function setUpMyself(){
+  try{ await api("/api/setup/state", {client:CLIENT, state:{manual:true}}); location.assign("/"); }
+  catch(e){ handleLost(e); }
 }
 
 // ------------------------------------------------------------------ 1. password
 function stepPassword(){
   const own = W.pw.mode === "own", isSet = W.pw.done === "own" && !LOCAL.pwEdit;
   footer({action:"savePassword()", disabled: own && !isSet && !pwOk()});
-  const keepT = SESSION.docker ? "Keep the password from compose.yaml" : "Keep the password on the sticker";
-  const keepD = SESSION.docker ? "The AZAN_PASSWORD you set when you started the box." : "It's printed under the box, next to the serial number.";
+  const keepT = AGAIN ? "Keep the current password" : SESSION.docker ? "Keep the password from compose.yaml" : "Keep the password on the sticker";
+  const keepD = AGAIN ? (SESSION.custom_password ? "Your own password stays as it is." : SESSION.docker ? "The password from compose.yaml stays as it is." : "The password on the sticker stays as it is.")
+    : SESSION.docker ? "The AZAN_PASSWORD you set when you started the box." : "It's printed under the box, next to the serial number.";
   return `<div class="wrap" style="max-width:770px">${banner()}
     <h1>Protect the settings with a password</h1>
     <p class="lead">Anyone on your network can open this box's settings, so a password is needed to change them. Viewing the prayer times never needs it.</p>
     <label class="opt ${own ? "" : "on"}"><input type="radio" name="pw" ${own ? "" : "checked"} onchange="set(w=>w.pw.mode='sticker')"><div class="body"><div class="t">${keepT}</div><div class="d">${keepD}</div></div></label>
-    <label class="opt ${own ? "on" : ""}"><input type="radio" name="pw" ${own ? "checked" : ""} onchange="set(w=>w.pw.mode='own')"><div class="body"><div class="t">Choose my own</div>
+    <label class="opt ${own ? "on" : ""}"><input type="radio" name="pw" ${own ? "checked" : ""} onchange="set(w=>w.pw.mode='own')"><div class="body"><div class="t">${AGAIN ? "Choose a new password" : "Choose my own"}</div>
       ${own ? (isSet ? `<div class="okline" style="margin-top:10px">${I.check} Your own password is set. <button class="link" onclick="event.preventDefault();LOCAL.pwEdit=true;render()">Change it</button></div>` : `
+      ${AGAIN ? `<div class="field" style="margin:14px 0 0"><label for="pw0">Current password</label><input type="password" id="pw0" autocomplete="current-password" value="${esc(LOCAL.pw0)}" oninput="LOCAL.pw0=this.value;pwHint()"></div>` : ""}
       <div class="grid2" style="margin-top:14px">
         <div class="field" style="margin:0"><label for="pw1">New password</label><input type="password" id="pw1" autocomplete="new-password" value="${esc(LOCAL.pw1)}" oninput="LOCAL.pw1=this.value;pwHint()"></div>
         <div class="field" style="margin:0"><label for="pw2">Type it again</label><input type="password" id="pw2" autocomplete="new-password" value="${esc(LOCAL.pw2)}" oninput="LOCAL.pw2=this.value;pwHint()"></div>
@@ -436,12 +481,13 @@ function stepPassword(){
     </div></label>
     ${LOCAL.err ? `<p class="err">${esc(LOCAL.err)}</p>` : ""}</div>`;
 }
-const pwOk = () => LOCAL.pw1.length >= 8 && LOCAL.pw1 === LOCAL.pw2;
+const pwOk = () => LOCAL.pw1.length >= 8 && LOCAL.pw1 === LOCAL.pw2 && (!AGAIN || LOCAL.pw0.length > 0);
 function pwHintHTML(){
   if(!LOCAL.pw1) return '<span class="hint">At least 8 characters.</span>';
   if(LOCAL.pw1.length < 8) return '<span class="hint">At least 8 characters.</span>';
   if(!LOCAL.pw2) return '<span class="hint">Type it again to check.</span>';
   if(LOCAL.pw1 !== LOCAL.pw2) return `<span class="err" style="font-size:15px">The passwords don't match yet</span>`;
+  if(AGAIN && !LOCAL.pw0) return '<span class="hint">Enter the current password too.</span>';
   return `<span class="okline">${I.check} Passwords match · at least 8 characters</span>`;
 }
 function pwHint(){ const h = $("#pwhint"); if(h) h.innerHTML = pwHintHTML(); const n = $("#next"); if(n) n.disabled = !pwOk(); }
@@ -450,8 +496,9 @@ async function savePassword(){
   if(own && W.pw.done === "own" && !LOCAL.pwEdit) return go(2);
   LOCAL.busy = "pw"; LOCAL.err = "";
   try{
-    await api("/api/setup/password", own ? {new:LOCAL.pw1} : {sticker:true});
-    W.pw.done = own ? "own" : "sticker"; LOCAL.pw1 = LOCAL.pw2 = ""; LOCAL.pwEdit = false; LOCAL.busy = "";
+    if(AGAIN){ if(own){ await api("/api/password", {current:LOCAL.pw0, new:LOCAL.pw1}); SESSION.custom_password = true; } }
+    else await api("/api/setup/password", own ? {new:LOCAL.pw1} : {sticker:true});
+    W.pw.done = own ? "own" : "sticker"; LOCAL.pw0 = LOCAL.pw1 = LOCAL.pw2 = ""; LOCAL.pwEdit = false; LOCAL.busy = "";
     go(2);
   }catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
 }
@@ -461,7 +508,7 @@ function stepLocation(){
   const L = W.loc;
   footer({disabled: L.latitude == null});
   const results = L.results.length ? `<div class="results">${L.results.map((c, i) => `<button class="${i === L.sel ? "on" : ""}" onclick="pickCity(${i})">
-      <div><div class="n">${esc(c.name)}</div><div class="s">${esc([c.admin1, c.country].filter(Boolean).join(", "))}<span class="ll">${i === L.sel ? ` · ${c.latitude.toFixed(3)}, ${c.longitude.toFixed(3).replace("-", "−")}` : ""}</span></div></div>
+      <div><div class="n">${esc(c.name)}</div><div class="s">${esc([c.admin1, c.country].filter(Boolean).join(", "))}<span class="ll">${i === L.sel ? `${c.admin1 || c.country ? " · " : ""}${c.latitude.toFixed(3)}, ${c.longitude.toFixed(3).replace("-", "−")}` : ""}</span></div></div>
       ${i === L.sel ? `<span class="sel">${I.check}<span>Selected</span></span>` : ""}</button>`).join("")}</div>`
     : LOCAL.searching ? '<p class="muted">Searching…</p>' : L.query.trim().length > 1 && !LOCAL.searchErr ? '<p class="muted">No places found. Try the nearest town, or enter the coordinates instead.</p>' : "";
   const manual = L.manual ? `<div class="panel" style="margin-top:16px">
@@ -791,7 +838,7 @@ function checklist(t){
     C.timetable ? "Your mosque's timetable" : `${esc(method ? method.name : C.method)} · ${C.asr === "hanafi" ? "Hanafi" : "Standard"} Asr`]);
   const az = fileName(A.azan), fj = fileName(A.fajr);
   rows.push([!!az, "Azan recordings", az ? esc(az) + (fj ? ` · Fajr: ${esc(fj)}` : "") + (A.minutes ? ` · Reminder ${A.minutes} min before` : "") : "Built-in chime for now. Add your recording in Settings → Azan sound."]);
-  rows.push([true, "Settings protected", W.pw.done === "own" ? "Your own password" : SESSION.docker ? "The password from compose.yaml" : "The password on the sticker"]);
+  rows.push([true, "Settings protected", W.pw.done === "own" || (AGAIN && SESSION.custom_password) ? "Your own password" : SESSION.docker ? "The password from compose.yaml" : "The password on the sticker"]);
   return `<div class="checks">${rows.map(([ok, ti, s]) => `<div class="c ${ok ? "" : "warn"}">${ok ? I.check : I.warn}<div><div class="t">${ti}</div><div class="s">${s}</div></div></div>`).join("")}</div>`;
 }
 function firstAzan(){
@@ -821,18 +868,18 @@ async function playAgain(){
 async function otherCodec(){ set(w => { w.phone.codec = w.phone.codec === "PCMA" ? "PCMU" : "PCMA"; if(w.test) w.test.target = phoneTarget(); }); await playAgain(); }
 async function finish(){
   LOCAL.busy = "finish"; LOCAL.err = ""; render();
-  try{ await api("/api/setup/finish", {config:buildConfig()}); leave(true); }
+  try{ await api("/api/setup/finish", {config:buildConfig(), again:AGAIN}); leave(true); }
   catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
 }
 
 // ------------------------------------------------------------------ signing in
 function showLogin(){
   header(); footer(null);
-  $("#main").innerHTML = `<form class="login" id="loginform"><h1>Sign in to set up this box</h1>
-    <p class="muted" style="margin-top:0">${SESSION.docker ? "Enter the password you set as AZAN_PASSWORD in compose.yaml." : "Enter the password on the sticker under the box."}</p>
+  $("#main").innerHTML = `<form class="login" id="loginform"><h1>${AGAIN ? "Sign in to change the settings" : "Sign in to set up this box"}</h1>
+    <p class="muted" style="margin-top:0">${AGAIN ? "Enter the password for this box's settings." : SESSION.docker ? "Enter the password you set as AZAN_PASSWORD in compose.yaml." : "Enter the password on the sticker under the box."}</p>
     <div class="field"><label for="lpw">Password</label><input type="password" id="lpw" autocomplete="current-password"></div>
     <p class="err" id="lerr"></p><button class="btn primary" style="width:100%">Sign in</button>
-    ${SESSION.docker ? "" : '<p class="hint" style="margin-bottom:0">Or scan the QR code on the box\'s screen with your phone.</p>'}</form>`;
+    ${SESSION.docker || AGAIN ? "" : '<p class="hint" style="margin-bottom:0">Or scan the QR code on the box\'s screen with your phone.</p>'}</form>`;
   $("#loginform").addEventListener("submit", async e => {
     e.preventDefault();
     try{ await api("/api/login", {password:$("#lpw").value}); start(); }
@@ -843,12 +890,14 @@ function showLogin(){
 
 async function start(){
   SESSION = await api("/api/session");
-  if(SESSION.configured || !SESSION.box) return location.replace("/");
+  if((SESSION.configured && !AGAIN) || !SESSION.box) return location.replace("/");
   if(!SESSION.logged_in) return showLogin();
   const r = await api("/api/config"); CFG0 = r.config; META = r.meta;
   const s = await api("/api/setup/state");
   REV = s.rev; LOCAL.driver = s.driver;
-  W = s.state && !s.state.finished ? s.state : freshState();
+  const st = s.state && !s.state.finished && !s.state.manual && !!s.state.again === AGAIN ? s.state : null;
+  W = st || (AGAIN ? stateFromConfig(CFG0) : freshState());
+  if(!st && (AGAIN || (s.state && s.state.manual))) push(true);  // share it (and the box's screen follows the guide again)
   if(VIA_QR && W.step === 0){ W.step = 1; push(true); }  // chose to set up on the phone
   render(); enter();
   setInterval(poll, 1000);

@@ -49,9 +49,9 @@ A new box opens the **setup wizard** in the browser. It takes about five minutes
 5. **Phone system:** Grandstream UCM, FreePBX, 3CX, phones only (multicast), or something else. *Connect and test* signs in as the extension and plays a test chime through your paging group, so you know it works before anything is saved.
 6. **Test and finish:** check the summary and press *Finish*.
 
-The wizard shows a QR code: scan it to carry on from your phone. Afterwards the control panel opens. Its **Today** page shows the countdown to the next azan and has on/off switches for each prayer, quick test buttons, recent activity and the log.
+The wizard shows a QR code: scan it to carry on from your phone. If you'd rather set everything up yourself, choose *I'll set it up myself*. You can run the guide again later from **Settings**, starting from your current settings. Afterwards the control panel opens. Its **Today** page shows the countdown to the next azan and has on/off switches for each prayer, quick test buttons, recent activity and the log.
 
-**Prayer-times screen:** open `http://<the computer's address>:8765/display` on a TV, tablet or spare monitor for a full-screen clock, the next azan with a countdown, and today's times in English and Arabic. No password is needed to view it.
+**Prayer-times screen:** open `http://<the computer's address>:8765/display` on a TV, tablet or spare monitor for a full-screen clock, the next azan with a countdown, and today's times in English and Arabic. After the last azan of the day it shows tomorrow's times. No password is needed to view it, and *Full screen* fills the screen.
 
 | Ways to reach the phones | Best for |
 |---|---|

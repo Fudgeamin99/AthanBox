@@ -10,6 +10,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 - Azan recordings on a USB stick plugged into the box are copied over and chosen automatically. From a phone or PC you can add them directly.
 - Connect and test signs in to the phone system as the extension and plays a test chime through the paging group before anything is saved, and says what went wrong if it can't.
 - A full-screen prayer-times screen at `/display`: the clock, the next azan with a countdown, today's six times in English and Arabic, and whether the phones are connected. Settings opens after the password. It also works on a TV or tablet pointed at a NAS.
+- After the last azan of the day, the screen shows tomorrow's times with tomorrow's Fajr highlighted. On a PC or TV browser, a Full screen button fills the screen.
+- Prefer to set things up yourself? Choose "I'll set it up myself" on the welcome page and the control panel opens instead. The guide is one click away from there.
+- Run the setup guide again any time from Settings. It starts from your current settings and saves nothing until you press Finish.
+- Phones and PCs stay signed in for 30 days, even when the box restarts or updates. Changing the password signs every other device out.
 
 ## 0.2.0 - Docker
 - The Box software can run in Docker on a Linux computer, such as a home server, NAS or Raspberry Pi. See "Run it with Docker" in the README.

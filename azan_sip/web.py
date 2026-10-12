@@ -283,6 +283,10 @@ class Service:
     def configured(self) -> bool:
         return bool(self.cfg.get("general", {}).get("configured", True))
 
+    def setup_manual(self) -> bool:
+        """First-time setup is being done in the control panel instead of the setup guide."""
+        return not self.configured() and bool((self.wizard.get("state") or {}).get("manual"))
+
     def start_box(self):
         """Box mode: until first-time setup is done, a one-time code (QR on the screen) lets a phone in."""
         self.box = True
@@ -331,31 +335,21 @@ class Service:
             st = {"version": __version__, "error": self.error, "restarting": self.restarting,
                   "update": {"available": bool(ui.get("available")), "latest_version": ui.get("latest_version")}, "running": bool(self.thread and self.thread.is_alive()),
                   "configured": self.cfg.get("general", {}).get("configured", True),
+                  "setup_manual": self.setup_manual(),
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info()}
             if app is None:
                 return st
             now = app.now()
-            today = app.times.for_date(now.date())
-            events = app.events_for(now.date())
             nxt = app.next_event()
-            azan_today = {p: w for w, p, k in events if k == "azan"}
-            rows = []
-            for name in PRAYERS:
-                t = today[name]
-                if name in azan_today:
-                    t = azan_today[name]  # includes Jumu'ah override
-                status = ""
-                if name in ADHAN_PRAYERS:
-                    if (t.date(), name, "azan") in app.fired:
-                        status = "played"
-                    elif t <= now:
-                        status = "passed"
-                if nxt and nxt[1] == name and nxt[0].date() == now.date() and nxt[2] == "azan":
-                    status = "next"
-                rows.append({"name": name, "time": f"{t:%H:%M}", "azan": name in ADHAN_PRAYERS,
-                             "enabled": name in app.enabled, "status": status,
-                             "jumuah": name == "dhuhr" and now.weekday() == 4 and bool(app.jumuah_time)})
+            next_key = (nxt[0].date(), nxt[1]) if nxt and nxt[2] == "azan" else None
+            rows = self.rows_for(app, now.date(), now, next_key)
+            # After the last azan of the day the prayer-times screen shows tomorrow's times
+            na = self.next_info(app, "azan")
+            if na and na["day"] == "tomorrow":
+                day = now.date() + timedelta(days=1)
+                st["tomorrow"] = {"label": f"Tomorrow · {day:%A} {day.day} {day:%B}",
+                                  "rows": self.rows_for(app, day, now, (day, na["prayer"]))}
             st.update({
                 "now": now.isoformat(timespec="seconds"), "date": f"{now:%A %d %B %Y}",
                 "clock": f"{now:%H:%M:%S}", "timezone": app.times.tz_name,
@@ -464,6 +458,27 @@ class Service:
                 "folder": str(self.base)}
 
     @staticmethod
+    def rows_for(app: AzanApp, day, now, next_key: tuple | None) -> list[dict]:
+        """One day's times for the cards: played / passed / next (next_key is (date, prayer))."""
+        times = app.times.for_date(day)
+        azan_times = {p: w for w, p, k in app.events_for(day) if k == "azan"}
+        rows = []
+        for name in PRAYERS:
+            t = azan_times.get(name, times[name])  # includes the Jumu'ah time on Fridays
+            status = ""
+            if name in ADHAN_PRAYERS:
+                if (t.date(), name, "azan") in app.fired:
+                    status = "played"
+                elif t <= now:
+                    status = "passed"
+            if next_key == (t.date(), name):
+                status = "next"
+            rows.append({"name": name, "time": f"{t:%H:%M}", "azan": name in ADHAN_PRAYERS,
+                         "enabled": name in app.enabled, "status": status,
+                         "jumuah": name == "dhuhr" and day.weekday() == 4 and bool(app.jumuah_time)})
+        return rows
+
+    @staticmethod
     def next_info(app: AzanApp, kind: str | None = None) -> dict | None:
         """The next event (azan or reminder), or the next one of `kind`."""
         now = app.now()
@@ -565,6 +580,13 @@ class Service:
         info = None
         if t.get("type") == "sip" and t.get("username") and t.get("register", True):
             _, host, port = parse_uri(t.get("uri", ""))
+            same = (host, port, t["username"], t.get("password", ""), t.get("auth_username") or t["username"])
+            with self.regs.lock:
+                live = [r for r in self.regs.regs.values() if r.status == "registered"
+                        and (r.host, r.port, r.username, r.password, r.auth_username) == same]
+            if live:  # already signed in as this extension (running the guide again): don't sign in twice
+                info = live[0].info()
+        if info is None and t.get("type") == "sip" and t.get("username") and t.get("register", True):
             reg = Registration(t.get("name") or "Phone system", host, port, t["username"], t.get("password", ""),
                                t.get("auth_username", ""), self.cfg.get("network", {}).get("local_ip") or None)
             reg.start()
@@ -681,11 +703,11 @@ class Handler(BaseHTTPRequestHandler):
         p = url.path
         try:
             if p in ("/", "/index.html"):
-                if svc.box and not svc.configured():  # first-time setup (keeps ?setup= from an older QR code)
+                if svc.box and not svc.configured() and not svc.setup_manual():  # first-time setup (keeps ?setup=)
                     return self._send(302, b"", "text/plain", {"Location": "/setup" + (f"?{url.query}" if url.query else "")})
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             if p in PAGES:
-                if p == "/setup" and not (svc.box and not svc.configured()):
+                if p == "/setup" and not (svc.box and (not svc.configured() or "again" in parse_qs(url.query, keep_blank_values=True))):
                     return self._send(302, b"", "text/plain", {"Location": "/display" if self._client_local() else "/"})
                 return self._send(200, (STATIC / PAGES[p]).read_bytes(), "text/html; charset=utf-8")
             if p.startswith("/static/"):
@@ -814,14 +836,15 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/setup/connect":
                 return self._json(svc.setup_connect(req["target"]))
             if p == "/api/setup/finish":
-                if svc.configured():
+                again = svc.configured()
+                if again and not req.get("again"):
                     raise ValueError("Setup is already finished")
                 cfg = req["config"]
                 cfg.setdefault("general", {})["configured"] = True
                 svc.apply(cfg, save=True)
                 svc.auth.end_setup(self._setup_keep())
                 svc.set_wizard({"finished": True}, "")
-                log.info("First-time setup finished")
+                log.info("Setup guide finished" if again else "First-time setup finished")
                 return self._json({"ok": True})
             if p == "/api/preview":
                 return self._json({"ok": True, **svc.preview(req["config"], req.get("days", 7), req.get("start"))})

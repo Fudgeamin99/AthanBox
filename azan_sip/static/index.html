@@ -178,7 +178,7 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
     <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
     <button data-page="phones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
-    <button id="tvbtn" hidden onclick="location.assign('/display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
+    <button id="tvbtn" hidden onclick="SESSION.local ? location.assign('/display') : window.open('/display', '_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
     <div class="spacer"></div>
     <div class="status-mini" id="mini">Connecting…</div>
   </nav>
@@ -267,12 +267,12 @@ async function loadSession(){
     }
   }
   if(SESSION.box && !SESSION.logged_in) await unlock();
+  if(SESSION.box) $("#tvbtn").hidden = false;
   if(SESSION.box && SESSION.local) kioskReturn();
 }
 // On the box's own screen: a way back to the prayer times, and back there by itself after 5 idle
 // minutes with nothing unsaved (the prayer-times screen locks the settings again).
 function kioskReturn(){
-  $("#tvbtn").hidden = false;
   let last = Date.now();
   ["pointerdown","keydown","wheel"].forEach(ev=>addEventListener(ev, ()=>last=Date.now(), {passive:true}));
   setInterval(()=>{ if(Date.now()-last > 300000 && !isDirty()) location.assign("/display"); }, 15000);
@@ -282,6 +282,11 @@ async function changePassword(){
   if(a.value.length<8) return toast("The new password must be at least 8 characters","bad");
   if(a.value!==b.value) return toast("The new passwords don't match","bad");
   await act(async()=>{ await api("/api/password",{current:cur?cur.value:"", new:a.value}); SESSION.custom_password=true; [cur,a,b].forEach(x=>x&&(x.value="")); }, "Password changed. Other devices have been signed out.");
+}
+// The step-by-step setup guide: during first-time setup (instead of setting up here), or again later
+async function openGuide(again){
+  if(again) return location.assign("/setup?again=1");
+  await act(async()=>{ await api("/api/setup/state", {client:"panel", state:null}); location.assign("/setup"); });
 }
 async function signOut(){ try{ await api("/api/logout",{}); }catch(e){} location.reload(); }
 async function factoryReset(){
@@ -300,6 +305,8 @@ function boxCardHTML(){
       <div class="field"><label>Type it again</label><input type="password" id="pw-again" autocomplete="new-password"></div>
     </div>
     <div class="row"><button class="btn primary" onclick="changePassword()">Change password</button><button class="btn" onclick="signOut()">Sign out</button></div>
+    ${S && S.configured!==false?`<div class="toggle-row" style="margin-top:14px"><div><div class="t">Setup guide</div><div class="d">Go through the setup steps again, starting from your current settings.</div></div>
+      <button class="btn" onclick="openGuide(true)">Run the setup guide again</button></div>`:""}
     <div class="toggle-row" style="margin-top:14px"><div><div class="t">Factory reset</div><div class="d">Removes all settings, recordings and your own password. The sticker password works again.</div></div>
       <button class="btn danger" onclick="factoryReset()">Factory reset…</button></div>
   </div>`;
@@ -425,7 +432,7 @@ function renderOverviewLive(){
   } else if(!S.running){
     hero = `<div class="eyebrow">${S.configured===false?"Almost ready":"Paused"}</div><div class="hero-grid"><div><div class="big">${S.configured===false?"Set up, then save":"Automatic azan is off"}</div>
             <div class="when">${S.configured===false?"Check each page in the menu, then press Save changes.":"Nothing will play at prayer times."}</div></div>
-            ${S.configured===false?"":`<button class="btn" onclick="setScheduler(true)">${ICON.play} Switch on</button>`}</div>`;
+            ${S.configured===false?(SESSION.box?`<button class="btn" onclick="openGuide()">Open the setup guide</button>`:""):`<button class="btn" onclick="setScheduler(true)">${ICON.play} Switch on</button>`}</div>`;
   } else if(S.next){
     const n=S.next, title=TITLE[n.prayer]+(n.kind==="reminder"?" reminder":"");
     hero = `<div class="eyebrow">Next azan</div><div class="hero-grid"><div><div class="big">${esc(title)}</div><div class="when">${esc(n.time)} ${esc(n.day)}</div></div>
