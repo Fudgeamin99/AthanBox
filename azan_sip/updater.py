@@ -24,13 +24,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
+from .env import EXE_NAME, FROZEN
 
 log = logging.getLogger("azan-sip")
 
-REPO = "Fudgeamin99/SIP-TO-ATHAN"
+REPO = "Fudgeamin99/ATHAN-TO-SIP"
 BRANCH = "main"
 REPO_URL = f"https://github.com/{REPO}"
-API = f"https://api.github.com/repos/{REPO}"
+API = os.environ.get("AZAN_UPDATE_API") or f"https://api.github.com/repos/{REPO}"  # override only for testing
 UA = {"User-Agent": f"azan-sip/{__version__}", "Accept": "application/vnd.github+json"}
 
 # Never overwritten or deleted by an update.
@@ -70,7 +71,11 @@ def _installed(base: Path) -> dict:
 
 
 def _is_git(base: Path) -> bool:
-    return (base / ".git").is_dir() and shutil.which("git") is not None
+    return not FROZEN and (base / ".git").is_dir() and shutil.which("git") is not None
+
+
+def mode(base: Path) -> str:
+    return "exe" if FROZEN else ("git" if _is_git(base) else "download")
 
 
 def _git(base: Path, *args, timeout=120) -> str:
@@ -82,6 +87,8 @@ def _git(base: Path, *args, timeout=120) -> str:
 
 
 def backups(base: Path) -> list[dict]:
+    if FROZEN:
+        return _exe_backups(Path(base))
     d = base / "backups"
     out = []
     if d.is_dir():
@@ -97,8 +104,10 @@ def check(base: Path) -> dict:
     base = Path(base)
     inst = _installed(base)
     info = {"repo": REPO_URL, "current_version": __version__, "current_commit": inst.get("commit"),
-            "mode": "git" if _is_git(base) else "download", "checked_at": datetime.now().isoformat(timespec="seconds"),
+            "mode": mode(base), "checked_at": datetime.now().isoformat(timespec="seconds"),
             "backups": backups(base)}
+    if FROZEN:
+        return _exe_check(info)
     if info["mode"] == "git":
         try:
             _git(base, "fetch", "--quiet", "origin", BRANCH)
@@ -211,6 +220,8 @@ def _install_tree(src: Path, base: Path):
 
 def apply(base: Path) -> dict:
     base = Path(base)
+    if FROZEN:
+        return _exe_apply(base)
     if _is_git(base):
         before = _git(base, "rev-parse", "HEAD")
         _backup(base, __version__)
@@ -256,6 +267,8 @@ def apply(base: Path) -> dict:
 
 def rollback(base: Path, name: str | None = None) -> dict:
     base = Path(base)
+    if FROZEN:
+        return _exe_rollback(base, name)
     bk = backups(base)
     if not bk:
         raise RuntimeError("There is no previous version to go back to")
@@ -274,6 +287,9 @@ def restart_command(base: Path) -> tuple[list[str], int] | None:
     if os.environ.get("INVOCATION_ID"):  # systemd: just exit, Restart=always brings us back
         return None
     exe = Path(sys.executable)
+    if FROZEN:
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        return [str(exe), "--background"], flags
     launcher = base / "Azan SIP.pyw"
     argv0 = Path(sys.argv[0]).name if sys.argv else ""
     flags = 0
@@ -291,7 +307,7 @@ def spawn_replacement(base: Path) -> bool:
     if cmd is None:
         return False
     args, flags = cmd
-    env = dict(os.environ, AZAN_WAIT_FOR_PORT="1", AZAN_NO_BROWSER="1")
+    env = child_env(AZAN_WAIT_FOR_PORT="1", AZAN_NO_BROWSER="1")
     kw = {"cwd": str(base), "env": env, "close_fds": True, "stdin": subprocess.DEVNULL}
     if os.name == "nt":
         kw["creationflags"] = flags
@@ -299,3 +315,128 @@ def spawn_replacement(base: Path) -> bool:
         kw["start_new_session"] = True
     subprocess.Popen(args, **kw)
     return True
+
+
+# ------------------------------------------------------------ packaged .exe
+# The .exe updates itself from the latest GitHub *release* (each release has AzanSIP.exe attached).
+# Windows lets a running .exe be renamed but not overwritten, so: download as .new.exe, test it,
+# keep a copy of the current one in backups/, rename current -> .old.exe, new -> current, restart.
+
+def child_env(**extra) -> dict:
+    env = {k: v for k, v in os.environ.items() if not (k.startswith("_PYI_") or k == "_MEIPASS2")}
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    env.update(extra)
+    return env
+
+
+def _exe_paths() -> tuple[Path, Path, Path]:
+    exe = Path(sys.executable).resolve()
+    return exe, exe.with_name(exe.stem + ".new" + exe.suffix), exe.with_name(exe.stem + ".old" + exe.suffix)
+
+
+def _exe_check(info: dict) -> dict:
+    r = _get(f"{API}/releases/latest")
+    latest = r.get("tag_name", "").lstrip("v")
+    asset = next((a for a in r.get("assets", []) if a.get("name") == EXE_NAME), None)
+    newer = _vtuple(latest) > _vtuple(__version__)
+    info.update(latest_version=latest, latest_commit=r.get("tag_name"), latest_message=r.get("name") or "",
+                latest_date=r.get("published_at") or "", available=newer and asset is not None,
+                asset_url=asset.get("url") if asset else None, asset_size=asset.get("size") if asset else None)
+    if newer and asset is None:
+        info["note"] = "The new version is still being built on GitHub - check again in a few minutes."
+    return info
+
+
+def _verify_exe(path: Path):
+    try:
+        r = subprocess.run([str(path), "--self-test"], capture_output=True, timeout=180, env=child_env(),
+                           stdin=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        ok = r.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        ok = False
+    if not ok:
+        path.unlink(missing_ok=True)
+        raise RuntimeError("The new version failed its start-up check, so nothing was changed")
+
+
+def _swap_in(new: Path):
+    exe, _, old = _exe_paths()
+    try:
+        old.unlink(missing_ok=True)  # left over from the previous update
+    except OSError:
+        old = exe.with_name(f"{exe.stem}.old-{int(time.time())}{exe.suffix}")
+    os.replace(exe, old)             # allowed while running on Windows
+    try:
+        os.replace(new, exe)
+    except OSError:
+        os.replace(old, exe)         # put the working one back
+        raise
+
+
+def _backup_exe(base: Path, version: str):
+    exe = Path(sys.executable).resolve()
+    d = base / "backups"
+    d.mkdir(exist_ok=True)
+    shutil.copy2(exe, d / f"AzanSIP-v{version}.exe")
+    olds = sorted(d.glob("AzanSIP-v*.exe"), key=lambda p: p.stat().st_mtime)
+    for p in olds[:-KEEP_BACKUPS]:
+        p.unlink(missing_ok=True)
+
+
+def _exe_backups(base: Path) -> list[dict]:
+    d = base / "backups"
+    if not d.is_dir():
+        return []
+    out = []
+    for p in sorted(d.glob("AzanSIP-v*.exe"), key=lambda p: p.stat().st_mtime, reverse=True):
+        m = re.search(r"AzanSIP-v(.+)\.exe$", p.name)
+        if m and m.group(1) != __version__:
+            out.append({"name": p.name, "version": m.group(1)})
+    return out
+
+
+def _exe_apply(base: Path) -> dict:
+    info = _exe_check({})
+    if not info.get("available"):
+        raise RuntimeError(info.get("note") or f"You already have the latest version ({__version__})")
+    _, new, _ = _exe_paths()
+    log.info("Downloading %s %s", EXE_NAME, info["latest_version"])
+    data = _get(info["asset_url"], timeout=600, raw=True, accept="application/octet-stream")
+    if info.get("asset_size") and len(data) != info["asset_size"]:
+        raise RuntimeError("The download was incomplete - please try again")
+    new.write_bytes(data)
+    if os.name != "nt":
+        new.chmod(0o755)
+    _verify_exe(new)
+    _backup_exe(base, __version__)
+    _swap_in(new)
+    log.info("Updated %s to version %s", EXE_NAME, info["latest_version"])
+    return {"ok": True, "version": info["latest_version"]}
+
+
+def _exe_rollback(base: Path, name: str | None) -> dict:
+    bk = _exe_backups(base)
+    if not bk:
+        raise RuntimeError("There is no previous version to go back to")
+    pick = next((b for b in bk if b["name"] == name), bk[0]) if name else bk[0]
+    _, new, _ = _exe_paths()
+    shutil.copy2(base / "backups" / pick["name"], new)
+    _verify_exe(new)
+    _backup_exe(base, __version__)
+    _swap_in(new)
+    log.info("Restored %s version %s", EXE_NAME, pick["version"])
+    return {"ok": True, "version": pick["version"]}
+
+
+def cleanup_after_update():
+    """Remove the previous .exe left behind by an update (called when the new one starts)."""
+    if not FROZEN:
+        return
+    exe, new, _ = _exe_paths()
+    for p in [new, *exe.parent.glob(f"{exe.stem}.old*{exe.suffix}")]:
+        for _ in range(10):  # the old process may take a moment to exit
+            try:
+                p.unlink(missing_ok=True)
+                break
+            except OSError:
+                time.sleep(0.5)

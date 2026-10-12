@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 - Windows program (AzanSIP.exe)
+- Azan SIP is now available as a single **AzanSIP.exe**. Download it from the release, put it in its own folder and double-click it. No Python is needed.
+- AzanSIP.exe keeps its settings, recordings and log in the folder it's in. Place it in your existing folder to keep your current setup.
+- **Update now** downloads the new AzanSIP.exe, checks that it starts, then swaps it in. The previous version is kept for **Restore**.
+- **Start with Windows** points at AzanSIP.exe automatically.
+- The program has its own crescent-and-star icon.
+
 ## 1.3.1 - More reliable updates
 - The updater now only needs `api.github.com` and `codeload.github.com`. It no longer uses `raw.githubusercontent.com`, which some networks block.
 

@@ -3,16 +3,25 @@
 Azan SIP plays the azan (call to prayer) automatically on VoIP desk phones and IP speakers, much like iAthan SIP.
 Everything is set up in its control panel; no files need editing.
 
-## Install
+## Install on Windows (recommended)
 
-1. Install **Python 3.11 or newer** from python.org. During setup, tick "Add python.exe to PATH".
-2. On this GitHub page, click **Code → Download ZIP**, then extract it somewhere permanent, for example `C:\azan-sip`.
-   - If you have git, you can run `git clone https://github.com/Fudgeamin99/SIP-TO-ATHAN.git` instead. Updates then use `git pull`.
+1. Go to **[Releases](https://github.com/Fudgeamin99/ATHAN-TO-SIP/releases/latest)** and download **AzanSIP.exe**.
+2. Put it in a folder of its own, for example `C:\AzanSIP`. Your settings, recordings and log are kept in that folder.
+3. Double-click **AzanSIP.exe**. It runs in the background and opens the control panel in your browser at http://127.0.0.1:8765. No Python is needed.
+
+Double-clicking it again while it's running just reopens the control panel.
+
+Windows may show "Windows protected your PC" the first time, because the program isn't signed by a paid certificate. Click **More info → Run anyway**.
+
+**Already using the Python version?** Quit it first from **Settings → Quit Azan SIP**. Then put AzanSIP.exe in the same folder as before, so it picks up your existing settings and recordings, and double-click it. If **Start with Windows** was on, it switches over to the .exe automatically.
+
+## Install from source (any OS)
+
+1. Install **Python 3.11 or newer** from python.org. On Windows, tick "Add python.exe to PATH" during setup.
+2. On this GitHub page, click **Code → Download ZIP**, then extract it somewhere permanent.
+   - If you have git, you can run `git clone https://github.com/Fudgeamin99/ATHAN-TO-SIP.git` instead. Updates then use `git pull`.
 3. Double-click **Azan SIP** (`Azan SIP.pyw`).
-   - It starts in the background and opens the control panel in your browser at http://127.0.0.1:8765.
    - If double-clicking does nothing, run `run-azan.bat` instead. It shows a console window with any error messages.
-
-Double-clicking Azan SIP while it's already running just reopens the control panel.
 
 ## First-time setup in the control panel
 
@@ -33,6 +42,8 @@ What's new in each version is listed under **Releases** on this page, and in `CH
 Go to **Settings → Updates** and press **Check for updates**, then **Update now**. Azan SIP is also checked for updates once a day automatically, and a notice appears on the Today page when one is available.
 
 - The new version is downloaded from this repository and checked to make sure it starts before anything is replaced. Then Azan SIP restarts itself.
+  - **AzanSIP.exe** updates to the latest release's AzanSIP.exe.
+  - The source version updates to the latest code.
 - Your settings (`config.toml`), recordings (`audio/`), timetable and logs are never touched.
 - The previous version is kept in `backups/`. If an update causes a problem, use **Restore** on the same page to go back.
 

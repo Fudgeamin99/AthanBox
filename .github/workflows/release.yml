@@ -3,6 +3,7 @@
 #   so bumping __version__ and pushing is all it takes to publish a release.
 # - Any v* tag without a release gets one (this also back-fills older versions).
 # Release notes come from the matching "## x.y.z" section of CHANGELOG.md.
+# A Windows job then builds AzanSIP.exe, starts it to check it works, and attaches it to the release.
 name: Release
 
 on:
@@ -36,10 +37,12 @@ jobs:
             ' CHANGELOG.md > notes.md
             {
               echo
-              echo "### Install"
-              echo "1. Install Python 3.11 or newer from python.org. During setup, tick \"Add python.exe to PATH\"."
-              echo "2. Download **Source code (zip)** below and extract it somewhere permanent, for example \`C:\\azan-sip\`."
-              echo "3. Double-click **Azan SIP**. The control panel opens in your browser."
+              echo "### Install on Windows"
+              echo "1. Download **AzanSIP.exe** below. It appears a few minutes after the release is published, once it has been built and tested."
+              echo "2. Put it in a folder of its own, for example \`C:\\AzanSIP\`. Your settings and recordings are kept in that folder."
+              echo "3. Double-click **AzanSIP.exe**. The control panel opens in your browser. No Python is needed."
+              echo
+              echo "To run from source instead, install Python 3.11 or newer, download **Source code (zip)**, and double-click **Azan SIP**."
               echo
               echo "### Already installed?"
               echo "In the control panel, go to **Settings → Updates** and press **Check for updates**, then **Update now**. Your settings, recordings and timetable are kept."
@@ -77,3 +80,84 @@ jobs:
               --notes-file notes.md $flag
             echo "Released $tag"
           done
+
+  exe:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Does this version still need AzanSIP.exe?
+        id: need
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          v=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' azan_sip/__init__.py | tr -d '\r')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" -R "$REPO" --json assets --jq '.assets[].name' | grep -qx 'AzanSIP.exe'; then
+            echo "AzanSIP.exe is already attached to v$v"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.need.outputs.build == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Build AzanSIP.exe
+        if: steps.need.outputs.build == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pyinstaller>=6.10" tzdata
+          python -m PyInstaller --noconfirm --clean --onefile --noconsole --name AzanSIP `
+            --icon packaging/azan.ico --paths . `
+            --add-data "azan_sip/static;azan_sip/static" `
+            --collect-data tzdata --hidden-import tzdata `
+            packaging/azan_sip_app.py
+          Get-Item dist/AzanSIP.exe | Format-List Name, Length
+
+      - name: Test AzanSIP.exe
+        if: steps.need.outputs.build == 'true'
+        env:
+          EXPECTED: ${{ steps.need.outputs.version }}
+        run: |
+          $p = Start-Process -FilePath dist\AzanSIP.exe -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Self-test failed (exit code $($p.ExitCode))" }
+
+          Start-Process -FilePath dist\AzanSIP.exe -ArgumentList "--background"
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 1
+            try { $r = Invoke-RestMethod -Uri http://127.0.0.1:8765/api/ping -TimeoutSec 2; if ($r.app -eq "azan-sip") { $ok = $true; break } } catch {}
+          }
+          if (-not $ok) { Get-Content dist\azan.log -ErrorAction SilentlyContinue; throw "AzanSIP.exe did not start" }
+
+          $state = Invoke-RestMethod -Uri http://127.0.0.1:8765/api/state
+          if ($state.version -ne $env:EXPECTED) { throw "Started version $($state.version), expected $env:EXPECTED" }
+          $page = Invoke-WebRequest -Uri http://127.0.0.1:8765/ -UseBasicParsing
+          if ($page.Content -notmatch "<title>Azan SIP</title>") { throw "Control panel page is missing" }
+          $upd = Invoke-RestMethod -Uri http://127.0.0.1:8765/api/update
+          if ($upd.mode -ne "exe") { throw "Expected exe update mode, got $($upd.mode)" }
+          $cfg = Invoke-RestMethod -Uri http://127.0.0.1:8765/api/config
+          if ($cfg.meta.zones.Count -lt 100) { throw "Time zone list is missing (tzdata not bundled)" }
+          Write-Host "AzanSIP.exe $($state.version) started; control panel, updater and time zones OK"
+
+          Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/api/quit -Headers @{ "X-Azan-Panel" = "1" } -ContentType "application/json" -Body "{}" | Out-Null
+          Start-Sleep -Seconds 4
+          if (-not (Test-Path dist\config.toml)) { throw "config.toml was not created next to the exe" }
+          Get-Content dist\azan.log
+
+      - name: Attach AzanSIP.exe to the release
+        if: steps.need.outputs.build == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release upload "${{ steps.need.outputs.tag }}" dist/AzanSIP.exe --clobber -R "$REPO"
+          echo "Attached AzanSIP.exe to ${{ steps.need.outputs.tag }}"

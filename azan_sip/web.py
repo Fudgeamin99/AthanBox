@@ -26,6 +26,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__, rtp, tomlw, updater
+from .env import FROZEN, app_dir
 from .sipreg import RegistrationManager
 from .app import ADHAN_PRAYERS, AzanApp, Clip, Shared, build_targets, load_config
 from .praytimes import METHODS, PRAYERS, SHAFAQ, get_zone
@@ -141,15 +142,18 @@ def set_windows_startup(enabled: bool, base: Path):
     if not enabled:
         path.unlink(missing_ok=True)
         return
-    exe = Path(sys.executable)
-    pyw = exe.with_name("pythonw.exe")
-    exe = pyw if pyw.exists() else exe
-    launcher = base / "Azan SIP.pyw"
     q = lambda s: str(s).replace('"', '""')  # noqa: E731
+    if FROZEN:  # AzanSIP.exe
+        cmd = f'"""{q(Path(sys.executable).resolve())}"" --background"'
+    else:       # Python + "Azan SIP.pyw"
+        exe = Path(sys.executable)
+        pyw = exe.with_name("pythonw.exe")
+        exe = pyw if pyw.exists() else exe
+        cmd = f'"""{q(exe)}"" ""{q(base / "Azan SIP.pyw")}"" --background"'
     path.write_text(
         'Set sh = CreateObject("WScript.Shell")\r\n'
         f'sh.CurrentDirectory = "{q(base)}"\r\n'
-        f'sh.Run """{q(exe)}"" ""{q(launcher)}"" --background", 0, False\r\n', encoding="utf-8")
+        f'sh.Run {cmd}, 0, False\r\n', encoding="utf-8")
 
 
 def message_box(text: str, title: str = "Azan SIP"):
@@ -294,7 +298,7 @@ class Service:
         info = dict(self.update_info or {"current_version": __version__, "repo": updater.REPO_URL,
                                          "current_commit": updater._installed(self.base).get("commit")})
         info["backups"] = updater.backups(self.base)
-        info["mode"] = "git" if updater._is_git(self.base) else "download"
+        info["mode"] = updater.mode(self.base)
         info["auto"] = self.cfg.get("general", {}).get("check_updates", True)
         return info
 
@@ -643,6 +647,12 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     threading.Thread(target=svc.auto_update_checker, name="update-check", daemon=True).start()
+    threading.Thread(target=updater.cleanup_after_update, name="cleanup", daemon=True).start()
+    try:  # if Start with Windows is on, keep it pointing at this copy (e.g. after switching to the .exe)
+        if windows_startup_path() and windows_startup_path().exists():
+            set_windows_startup(True, svc.base)
+    except Exception:
+        pass
     try:
         server.serve_forever(poll_interval=0.5)
     except KeyboardInterrupt:
@@ -661,7 +671,7 @@ def main(argv=None):
     ap.add_argument("--background", action="store_true", help="don't open the browser (used at Windows start-up)")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args(argv)
-    cfg = args.config or str(Path(__file__).resolve().parent.parent / "config.toml")
+    cfg = args.config or str(app_dir() / "config.toml")
     try:
         sys.exit(serve(cfg, open_browser=not args.background, verbose=args.verbose))
     except Exception as exc:
