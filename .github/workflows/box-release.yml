@@ -5,8 +5,8 @@
 #   app updates into this repository never publishes anything. The app's own release workflow
 #   (with the Windows AzanSIP.exe build) lives only in Fudgeamin99/ATHAN-TO-SIP.
 # - Each new release also publishes the Docker image (see compose.yaml).
-# - To release from a branch before it's merged, push the tag box-vX.Y.Z on it by hand, where X.Y.Z
-#   is the newest version in that branch's BOX_CHANGELOG.md.
+# - To release from a branch before it's merged, push it as a new branch named release/<anything>
+#   (or push the tag box-vX.Y.Z on it). Its newest BOX_CHANGELOG.md version is published.
 name: Box release
 
 on:
@@ -14,6 +14,7 @@ on:
     branches: [main]
     paths: [BOX_CHANGELOG.md]     # (not checked for tag pushes)
     tags: ["box-v*"]
+  create:                         # a new release/... branch (the job skips any other branch or tag)
   workflow_dispatch:
 
 permissions:
@@ -21,6 +22,7 @@ permissions:
 
 jobs:
   release:
+    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     outputs:
       created: ${{ steps.publish.outputs.created }}
