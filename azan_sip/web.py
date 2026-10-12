@@ -31,7 +31,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, rtp, tomlw, updater
+from . import __version__, live, look, rtp, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import FROZEN, app_dir
 from .sipreg import Registration, RegistrationManager
@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {
     "prayers": {"enabled": list(ADHAN_PRAYERS), "reminder_minutes": 0, "skip_days": []},
     "audio": {"azan": "tone", "volume_db": 0, "lead_in_ms": 400},
     "network": {"local_ip": "", "multicast_ttl": 4},
+    "live": {"url": ""},   # Makkah live stream (empty = Saudi Quran TV)
     "targets": [{"name": "All phones (multicast)", "type": "multicast", "address": "224.5.6.20:10008",
                  "codec": "PCMU", "enabled": True}],
 }
@@ -240,6 +241,7 @@ class Service:
         self.auth = Auth(self.base / "auth")
         self.extra_servers: list[ThreadingHTTPServer] = []
         self.wizard = {"rev": 0, "state": None, "driver": ""}  # first-time setup, shared by the screen and phones
+        self.live = live.LiveRelay(lambda: self.live_url)
         self.load()
 
     # -- config
@@ -268,6 +270,8 @@ class Service:
         os.replace(tmp, self.config_path)
 
     def apply(self, cfg: dict, save: bool = True):
+        live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
+        look.check(cfg)
         with self.lock:
             app = AzanApp(self.config_path, cfg, require_targets=False, shared=self.shared)  # raises if invalid
             if save:
@@ -279,6 +283,10 @@ class Service:
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
                 self.thread.start()
+
+    @property
+    def live_url(self) -> str:
+        return ((self.cfg.get("live") or {}).get("url") or "").strip() or live.DEFAULT_URL
 
     def configured(self) -> bool:
         return bool(self.cfg.get("general", {}).get("configured", True))
@@ -338,6 +346,7 @@ class Service:
                   "update": {"available": bool(ui.get("available")), "latest_version": ui.get("latest_version")}, "running": bool(self.thread and self.thread.is_alive()),
                   "configured": self.cfg.get("general", {}).get("configured", True),
                   "setup_manual": self.setup_manual(),
+                  "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info()}
             if app is None:
@@ -467,6 +476,7 @@ class Service:
                 "zones": zones, "audio_files": files, "ips": local_ips(),
                 "windows": os.name == "nt", "startup": bool(sp and sp.exists()),
                 "ffmpeg": bool(shutil.which("ffmpeg")), "config_path": str(self.config_path),
+                "live_default": live.DEFAULT_URL,
                 "folder": str(self.base)}
 
     @staticmethod
@@ -668,7 +678,8 @@ class Handler(BaseHTTPRequestHandler):
         return {"box": svc.box, "logged_in": self._authed(), "has_password": svc.auth.has_password() if svc.box else False,
                 "custom_password": svc.auth.custom_password() if svc.box else False,
                 "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code),
-                "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": __version__}
+                "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": __version__,
+                "panel": look.panel(svc.cfg)}
 
     def _setup_urls(self) -> list[str]:
         """Links for the setup QR code: the address this page was opened on first, then the box's own."""
@@ -685,13 +696,13 @@ class Handler(BaseHTTPRequestHandler):
         return bool(svc.box and svc.auth.setup_code and (self._client_local() or self._authed()))
 
     def _send(self, code: int, body: bytes, ctype: str = "application/json", extra: dict | None = None,
-              cache: bool = False):
+              cache: bool = False, frame: str = "DENY"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "max-age=86400" if cache else "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Frame-Options", frame)  # the Display page previews the prayer-times screen in a frame
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -721,7 +732,8 @@ class Handler(BaseHTTPRequestHandler):
             if p in PAGES:
                 if p == "/setup" and not (svc.box and (not svc.configured() or "again" in parse_qs(url.query, keep_blank_values=True))):
                     return self._send(302, b"", "text/plain", {"Location": "/display" if self._client_local() else "/"})
-                return self._send(200, (STATIC / PAGES[p]).read_bytes(), "text/html; charset=utf-8")
+                return self._send(200, (STATIC / PAGES[p]).read_bytes(), "text/html; charset=utf-8",
+                                  frame="SAMEORIGIN" if p == "/display" else "DENY")
             if p.startswith("/static/"):
                 f = STATIC / Path(unquote(p[8:])).name
                 if f.suffix.lower() in STATIC_TYPES and f.is_file():
@@ -736,6 +748,22 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._authed():  # prayer times are public, the log is not
                     st.update(log=[], history=[])
                 return self._json(st)
+            if p == "/live/stream.m3u8":  # Makkah live, relayed so any screen can play it
+                try:
+                    ctype, body = svc.live.entry(self.client_address[0])
+                except Exception as exc:
+                    return self._json({"ok": False, "error": live.friendly(exc)}, 502)
+                return self._send(200, body, ctype)
+            if p == "/live/x":  # only links the relay signed itself
+                q = parse_qs(url.query)
+                target, sig = q.get("u", [""])[0], q.get("k", [""])[0]
+                if not svc.live.allowed(target, sig):
+                    return self._send(403, b"Forbidden", "text/plain")
+                try:
+                    ctype, body = svc.live.get(target)
+                except Exception as exc:
+                    return self._json({"ok": False, "error": live.friendly(exc)}, 502)
+                return self._send(200, body, ctype)
             if p == "/api/setup-code":  # for the setup QR code (box's own screen, or signed in)
                 if not self._may_see_setup_code():
                     return self._send(404, b"Not found", "text/plain")
@@ -858,6 +886,8 @@ class Handler(BaseHTTPRequestHandler):
                 svc.set_wizard({"finished": True}, "")
                 log.info("Setup guide finished" if again else "First-time setup finished")
                 return self._json({"ok": True})
+            if p == "/api/live/test":
+                return self._json({"ok": True, **svc.live.test(str(req.get("url") or ""))})
             if p == "/api/preview":
                 return self._json({"ok": True, **svc.preview(req["config"], req.get("days", 7), req.get("start"))})
             if p == "/api/test":

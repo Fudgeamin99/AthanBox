@@ -60,6 +60,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0
 .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:600;background:var(--panel-2);color:var(--muted)}
 .pill.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
 .pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
 .pill.brand{background:var(--brand);color:var(--brand-ink)}
 .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
 .banner{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--warn-bg);color:var(--warn);margin-bottom:12px;font-weight:500}
@@ -67,7 +68,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0
 .banner svg{flex:none;width:18px;height:18px;margin-top:2px}
 /* hero */
 .hero{background:linear-gradient(135deg,var(--brand-2),var(--brand));color:#fff;border:0;position:relative;overflow:hidden;padding:26px 28px}
-:root[data-theme=dark] .hero{background:linear-gradient(135deg,#123d35,#18584b)}
+:root[data-theme=dark] .hero{background:linear-gradient(135deg,var(--hero-a,#123d35),var(--hero-b,#18584b))}
 .hero .pattern{position:absolute;right:-40px;top:-40px;opacity:.12;width:300px;height:300px}
 .hero .eyebrow{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;opacity:.85;font-weight:600}
 .hero .big{font-size:44px;font-weight:700;line-height:1.1;margin:6px 0 2px;letter-spacing:-.5px}
@@ -159,6 +160,27 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
 .lock .foot{font-size:13px;color:var(--muted);margin:18px 0 0}
 .spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;margin:0 auto 14px;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* ---------- Display page and Appearance */
+.dprev{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0d4a3f}
+.dprev iframe{position:absolute;left:0;top:0;width:1280px;height:720px;border:0;transform-origin:0 0;pointer-events:none}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.themes label{position:relative;display:flex;flex-direction:column;gap:8px;padding:10px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;font-weight:600;font-size:14px}
+.themes label:hover{border-color:var(--brand)}
+.themes label:has(input:checked){border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 20%,transparent)}
+.themes label:has(input:focus-visible),.accents label:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}
+.themes input,.accents input{position:absolute;opacity:0;pointer-events:none}
+.swatch{height:56px;border-radius:8px;display:flex;align-items:flex-end;gap:5px;padding:9px;border:1px solid rgba(0,0,0,.08)}
+.swatch i{height:9px;border-radius:5px;flex:1;opacity:.35}
+.swatch i:first-child{flex:2;opacity:1}
+.accents{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.accents label{position:relative;width:34px;height:34px;border-radius:50%;cursor:pointer;box-shadow:0 0 0 1px var(--line)}
+.accents label:has(input:checked){box-shadow:0 0 0 3px var(--panel),0 0 0 5px var(--ink)}
+.accents .custom{background:conic-gradient(#e5484d,#f5d90a,#30a46c,#00a2c7,#3e63dd,#8e4ec6,#e5484d)}
+input[type=color]{width:54px;height:36px;padding:3px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer}
+.parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
+.parts .toggle-row:nth-last-child(2):nth-child(odd){border-bottom:0}
+input[type=range]{width:100%;max-width:420px}
+@media (max-width:900px){ .parts{grid-template-columns:1fr} .seg{flex-wrap:wrap} }
 @media (max-width:900px){
   .layout{grid-template-columns:1fr} nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}
   nav .spacer,.status-mini{display:none} .logo{padding:6px 10px}
@@ -178,7 +200,9 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
     <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
     <button data-page="phones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
-    <button id="tvbtn" hidden onclick="SESSION.local ? location.assign('/display') : window.open('/display', '_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
+    <button data-page="display" title="Theme and layout of the prayer-times screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>Display</button>
+    <button id="tvbtn" hidden onclick="openScreen('/display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
+    <button onclick="openScreen('/display?live=1')" title="Makkah live with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Makkah live</button>
     <div class="spacer"></div>
     <div class="status-mini" id="mini">Connecting…</div>
   </nav>
@@ -218,6 +242,7 @@ const ICON = {
   server:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
   speaker:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
   file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  screen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
 };
 const pattern = '<svg class="pattern" viewBox="0 0 100 100"><g fill="none" stroke="#fff" stroke-width="1.2"><rect x="20" y="20" width="60" height="60"/><rect x="20" y="20" width="60" height="60" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="18"/><circle cx="50" cy="50" r="42"/></g></svg>';
 
@@ -259,6 +284,7 @@ $("#lockform").addEventListener("submit", async e=>{
 });
 async function loadSession(){
   try{ SESSION = await api("/api/session"); }catch(e){ return; }
+  if(SESSION.panel) applyPanelLook(SESSION.panel);  // the panel's own colours, even behind the lock
   const code = new URLSearchParams(location.search).get("setup");
   if(code){  // scanned the QR code on the box's screen during first-time setup
     history.replaceState(null, "", location.pathname + location.hash);
@@ -270,6 +296,8 @@ async function loadSession(){
   if(SESSION.box) $("#tvbtn").hidden = false;
   if(SESSION.box && SESSION.local) kioskReturn();
 }
+// The prayer-times screen: in place on the box's own screen, in a new tab on a phone or PC
+function openScreen(path){ if(SESSION.box && SESSION.local) location.assign(path); else window.open(path, "_blank"); }
 // On the box's own screen: a way back to the prayer times, and back there by itself after 5 idle
 // minutes with nothing unsaved (the prayer-times screen locks the settings again).
 function kioskReturn(){
@@ -316,8 +344,34 @@ function toast(msg, kind="ok"){ const t=$("#toast"); t.textContent=msg; t.classN
 async function act(fn, okMsg){ try{ const r=await fn(); if(okMsg) toast(okMsg); return r; }catch(e){ toast(e.message,"bad"); } }
 function fmtDur(s){ s=Math.max(0,Math.floor(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   return h ? `${h} h ${String(m).padStart(2,"0")} min` : m ? `${m} min ${String(x).padStart(2,"0")} s` : `${x} s`; }
-function themeSync(){ document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark":"light"; }
-themeSync(); matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeSync);
+// ---- appearance of this control panel: light/dark and a colour, from Settings → Appearance
+const ACCENTS = {green:["Green","#146356"], blue:["Blue","#1f5fa8"], navy:["Navy","#23395d"], maroon:["Maroon","#7a2335"], purple:["Purple","#5b3f8c"], brown:["Brown","#8a5a14"]};
+let PANEL_LOOK = (()=>{ try{ return JSON.parse(localStorage.getItem("azanPanelLook")) || {}; }catch(e){ return {}; } })();
+function lum(hex){
+  const n = parseInt(String(hex).slice(1), 16) || 0;
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+  return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+}
+function themeSync(){
+  const m = PANEL_LOOK.mode;
+  document.documentElement.dataset.theme = m === "light" ? "light" : m === "dark" ? "dark" : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function applyPanelLook(p){
+  PANEL_LOOK = Object.assign({mode:"auto", accent:"green", color:"#146356"}, p || {});
+  try{ localStorage.setItem("azanPanelLook", JSON.stringify(PANEL_LOOK)); }catch(e){}
+  themeSync();
+  const r = document.documentElement.style;
+  ["--brand","--brand-2","--brand-ink","--hero-a","--hero-b"].forEach(n => r.removeProperty(n));
+  if(PANEL_LOOK.accent === "green") return;
+  const c = PANEL_LOOK.accent === "custom" ? PANEL_LOOK.color : (ACCENTS[PANEL_LOOK.accent] || ACCENTS.green)[1];
+  const dark = document.documentElement.dataset.theme === "dark";
+  r.setProperty("--brand", dark ? `color-mix(in srgb,${c} 62%,#fff)` : c);
+  r.setProperty("--brand-2", dark ? `color-mix(in srgb,${c} 48%,#fff)` : `color-mix(in srgb,${c} 80%,#000)`);
+  r.setProperty("--brand-ink", dark ? "#0b0f0e" : (lum(c) > .45 ? "#111" : "#fff"));
+  r.setProperty("--hero-a", `color-mix(in srgb,${c} 62%,#000)`); r.setProperty("--hero-b", `color-mix(in srgb,${c} 85%,#000)`);
+}
+applyPanelLook(PANEL_LOOK);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyPanelLook(PANEL_LOOK));
 
 // ---------------------------------------------------------------- state
 let S = null, stateAt = 0, CFG = null, SAVED = "", META = null, page = location.hash.slice(1) || "overview";
@@ -327,10 +381,10 @@ async function loadConfig(){
   const r = await api("/api/config");
   CFG = r.config; META = r.meta; SAVED = JSON.stringify(CFG);
   normalize(CFG); SAVED = JSON.stringify(CFG);
-  dirty();
+  dirty(); applyPanelLook(CFG.panel);
 }
 function normalize(c){
-  for(const k of ["general","location","calculation","offsets","prayers","audio","network"]) c[k] = c[k] || {};
+  for(const k of ["general","location","calculation","offsets","prayers","audio","network","live","display","panel"]) c[k] = c[k] || {};
   c.targets = c.targets || [];
   c.prayers.enabled = c.prayers.enabled || PRAYERS.slice();
   c.prayers.skip_days = c.prayers.skip_days || [];
@@ -344,7 +398,7 @@ async function save(){
   catch(e){ toast(e.message,"bad"); }
   b.disabled=false;
 }
-function discard(){ CFG = JSON.parse(SAVED); editing=null; dirty(); render(); schedulePreview(); }
+function discard(){ CFG = JSON.parse(SAVED); editing=null; dirty(); applyPanelLook(CFG.panel); render(); schedulePreview(); }
 // apply a change that the server already saved, without disturbing other unsaved edits
 function applySaved(path, value){ const s=JSON.parse(SAVED); setPath(s,path,value); SAVED=JSON.stringify(s); setPath(CFG,path,clone(value)); dirty(); }
 
@@ -386,9 +440,12 @@ function onField(e){
   else if(kind==="int"){ v = el.value.trim()==="" ? 0 : parseInt(el.value,10); if(Number.isNaN(v)) return; }
   else if(kind==="bool"){ v = el.checked; }
   else if(kind==="member"){ const list=(getPath(root,p)||[]).filter(x=>x!==el.value); if(el.checked) list.push(el.value); v=list; }
+  else if(kind==="hide"){ const list=(getPath(root,p)||[]).filter(x=>x!==el.value); if(!el.checked) list.push(el.value); v=list; }   // switch on = shown
   else { v = el.value; }
   setPath(root, p, v);
   if(root===CFG) dirty();
+  if(root===CFG && p.startsWith("display.")) postLook();
+  if(root===CFG && p.startsWith("panel.")){ applyPanelLook(CFG.panel); const pc=$("#pcolor"); if(pc) pc.hidden = CFG.panel.accent!=="custom"; }
   if(el.dataset.preview!==undefined) schedulePreview();
   if(el.dataset.rerender!==undefined && e.type==="change") render();
 }
@@ -403,7 +460,7 @@ function go(p){ page=p; location.hash=p; editing=null; render(); window.scrollTo
 function render(){
   document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
-  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, settings:pageSettings}[page]||pageOverview)();
+  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, settings:pageSettings}[page]||pageOverview)();
 }
 function stoppedHTML(){ return `<div class="stopped card"><h1>Azan SIP is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
 
@@ -756,6 +813,7 @@ function pageSettings(){
     <div class="toggle-row"><div><div class="t">Days with no azan</div><div class="d">For example weekends, if the office is closed.</div></div>
       <div class="row">${days.map(([v,l])=>`<label class="pill" style="cursor:pointer"><input type="checkbox" data-path="prayers.skip_days" data-kind="member" value="${v}" ${(CFG.prayers.skip_days||[]).includes(v)?"checked":""}> ${l}</label>`).join("")}</div></div>
   </div>
+  ${appearanceCardHTML()}
   <div class="card"><h2>Testing and calls</h2><div class="grid2">
     <div class="field"><label>Azan test length</label><select data-path="general.test_azan_seconds" data-kind="num">
       ${[10,20,30,45,60,90,120,180,0].map(n=>opt(n, n?`${n} seconds`:"Whole recording", CFG.general.test_azan_seconds??20)).join("")}</select>
@@ -779,6 +837,93 @@ function pageSettings(){
   renderLog(true);
   loadUpdate();
 }
+function appearanceCardHTML(){
+  const P = Object.assign({mode:"auto", accent:"green", color:"#146356"}, CFG.panel);
+  const r = (name, path, v, cur, label) => `<label><input type="radio" name="${name}" data-path="${path}" value="${v}" ${cur===v?"checked":""}>${label}</label>`;
+  return `<div class="card" id="appearance"><h2>Appearance</h2>
+    <div class="toggle-row" style="padding-top:0"><div><div class="t">Light or dark</div><div class="d">For this control panel. Automatic follows the computer or phone it's opened on.</div></div>
+      <div class="seg">${r("pmode","panel.mode","auto",P.mode,"Automatic")}${r("pmode","panel.mode","light",P.mode,"Light")}${r("pmode","panel.mode","dark",P.mode,"Dark")}</div></div>
+    <div class="toggle-row"><div><div class="t">Colour</div><div class="d">Buttons, switches and highlights.</div></div>
+      <div class="accents">${Object.entries(ACCENTS).map(([id,[name,c]]) => `<label title="${name}" style="background:${c}"><input type="radio" name="pacc" data-path="panel.accent" value="${id}" aria-label="${name}" ${P.accent===id?"checked":""}></label>`).join("")}
+        <label class="custom" title="Your own colour"><input type="radio" name="pacc" data-path="panel.accent" value="custom" aria-label="Your own colour" ${P.accent==="custom"?"checked":""}></label>
+        <input type="color" id="pcolor" data-path="panel.color" value="${esc(P.color)}" aria-label="Your own colour" ${P.accent==="custom"?"":"hidden"}></div></div>
+    <div class="toggle-row"><div><div class="t">Prayer-times screen</div><div class="d">Its theme, layout, masjid name and notice are on the Display page.</div></div>
+      <button class="btn small" onclick="go('display')">Open the Display page</button></div>
+  </div>`;
+}
+
+// ---- Display page: theme and layout of the prayer-times screen, with a live preview
+const DDEF = {theme:"green", background:"#0d4a3f", accent:"#f3e2b4", layout:"cards", scale:100, title:"", message:"", hide:[],
+              buttons:"always", live_layout:"list", live_side:"left", live_width:75, live_start:false};
+const DTHEMES = [["green","Masjid green","#0d4a3f","#f3e2b4"],["night","Night","#0b0f0e","#e2bf6e"],["navy","Navy and gold","#0f2340","#e8c36a"],
+                 ["maroon","Maroon","#4a1420","#f2dfb4"],["sand","Sand (light)","#f4ecdc","#146356"],["custom","Your colours",null,null]];
+const DPARTS = [["clock","Clock"],["date","Date"],["arabic","Arabic prayer names"],["countdown","Countdown to the azan"],
+                ["sunrise","Sunrise"],["status","Phone status line"],["pattern","Background pattern"]];
+const DP = {live:false};
+function dlook(){
+  const L = Object.assign({}, DDEF, CFG.display || {});
+  L.hide = Array.isArray(L.hide) ? L.hide : []; L.scale = +L.scale || 100; L.live_width = +L.live_width || 75;
+  return L;
+}
+function postLook(){
+  const L = dlook(), f = $("#dprev");
+  if(f && f.contentWindow) f.contentWindow.postMessage({type:"azan-look", look:L, live:DP.live}, location.origin);
+  const cc = $("#custom-colors"); if(cc) cc.hidden = L.theme !== "custom";
+  const cs = $("#sw-custom"); if(cs){ cs.style.background = L.background; cs.querySelectorAll("i").forEach(i => i.style.background = L.accent); }
+  const a = $("#scale-v"); if(a) a.textContent = L.scale + "%";
+  const b = $("#lw-v"); if(b) b.textContent = L.live_width + "%";
+}
+addEventListener("message", e => { if(e.origin === location.origin && e.data && e.data.type === "azan-preview-ready") postLook(); });
+function fitPreview(){ const box = $(".dprev"), f = $("#dprev"); if(box && f) f.style.transform = `scale(${box.clientWidth / 1280})`; }
+let previewObserver = null;
+function pageDisplay(){
+  const L = dlook();
+  const r = (name, path, v, cur, label) => `<label><input type="radio" name="${name}" data-path="${path}" value="${v}" ${String(cur)===String(v)?"checked":""}>${label}</label>`;
+  const icon = svg => svg.replace("<svg", '<svg style="width:16px;height:16px"');
+  $("#main").innerHTML = `<h1>Display</h1><p class="sub">How the prayer-times screen looks, on the box's own screen and on any TV or tablet that opens it. Changes show in the preview straight away. Press Save changes to update every screen.</p>
+  <div class="row" style="margin-bottom:16px"><button class="btn primary" onclick="openScreen('/display')">${icon(ICON.screen)} Open the prayer-times screen</button>
+    <button class="btn" onclick="openScreen('/display?live=1')">${icon(ICON.broadcast)} Open with Makkah live</button></div>
+  <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Preview</h2>
+      <div class="seg"><label><input type="radio" name="pv" ${DP.live?"":"checked"} onchange="DP.live=false;postLook()">Prayer times</label><label><input type="radio" name="pv" ${DP.live?"checked":""} onchange="DP.live=true;postLook()">With Makkah live</label></div></div>
+    <div class="dprev"><iframe id="dprev" src="/display?preview=1" title="Preview of the prayer-times screen" tabindex="-1" aria-hidden="true"></iframe></div></div>
+  <div class="card"><h2>Theme</h2>
+    <div class="themes">${DTHEMES.map(([id,name,bg,ac]) => `<label><input type="radio" name="dtheme" data-path="display.theme" value="${id}" ${L.theme===id?"checked":""}>
+      <span class="swatch" ${id==="custom"?'id="sw-custom"':""} style="background:${bg||L.background}"><i style="background:${ac||L.accent}"></i><i style="background:${ac||L.accent}"></i><i style="background:${ac||L.accent}"></i></span>${name}</label>`).join("")}</div>
+    <div class="row" id="custom-colors" style="margin-top:14px;gap:22px" ${L.theme==="custom"?"":"hidden"}>
+      <label class="row" style="gap:10px;font-weight:600">Background <input type="color" data-path="display.background" value="${esc(L.background)}"></label>
+      <label class="row" style="gap:10px;font-weight:600">Highlight <input type="color" data-path="display.accent" value="${esc(L.accent)}"></label>
+      <span class="muted">The text colour is picked to stay readable.</span></div></div>
+  <div class="card"><h2>Layout</h2>
+    <div class="field"><label>Prayer times (without Makkah live)</label><div class="seg">${r("dlayout","display.layout","cards",L.layout,"Cards along the bottom")}${r("dlayout","display.layout","list",L.layout,"List at the side")}</div></div>
+    <div class="field"><label for="d-scale">Text size: <span id="scale-v">${L.scale}%</span></label><input type="range" id="d-scale" min="70" max="160" step="5" data-path="display.scale" data-kind="num" value="${L.scale}"><div class="hint">Text shrinks by itself if it wouldn't fit.</div></div>
+    <div class="grid2"><div class="field"><label for="d-title">Masjid name</label><input type="text" id="d-title" data-path="display.title" maxlength="80" placeholder="${esc((CFG.location.name||"").split(",")[0])}" value="${val("display.title")}"><div class="hint">Shown at the top. Leave it empty to show the town.</div></div>
+      <div class="field"><label for="d-msg">Notice</label><input type="text" id="d-msg" data-path="display.message" maxlength="400" placeholder="For example: Jumu'ah khutbah starts at 1:15 pm" value="${val("display.message")}"><div class="hint">A line along the bottom of the screen. A long notice scrolls.</div></div></div></div>
+  <div class="card"><h2>Show on the screen</h2>
+    <div class="parts">${DPARTS.map(([id,name]) => `<div class="toggle-row"><div class="t">${name}</div><label class="switch"><input type="checkbox" data-path="display.hide" data-kind="hide" value="${id}" aria-label="Show ${name.toLowerCase()}" ${L.hide.includes(id)?"":"checked"}><span></span></label></div>`).join("")}</div>
+    <div class="field" style="margin-top:14px"><label>Buttons (Makkah live, Full screen and Settings)</label><div class="seg">${r("dbtn","display.buttons","always",L.buttons,"Always")}${r("dbtn","display.buttons","auto",L.buttons,"When the mouse moves or the screen is tapped")}</div></div></div>
+  <div class="card" id="livecard"><h2>Makkah live</h2>
+    <p class="muted" style="margin-top:0">Live from Masjid al-Haram on Saudi Quran TV, next to the prayer times. Press <b>Makkah live</b> on a screen to show it. The sound starts off, and goes quiet by itself while your azan is playing. The box relays the stream, so screens watching at the same time share one download.</p>
+    <div class="field"><label>Prayer times with Makkah live</label><div class="seg">${r("dllayout","display.live_layout","list",L.live_layout,"List at the side (bigger picture)")}${r("dllayout","display.live_layout","cards",L.live_layout,"Cards along the bottom")}</div></div>
+    <div class="grid2"><div class="field"><label>Picture on the</label><div class="seg">${r("dside","display.live_side","left",L.live_side,"Left")}${r("dside","display.live_side","right",L.live_side,"Right")}</div></div>
+      <div class="field"><label for="d-lw">Picture size: up to <span id="lw-v">${L.live_width}%</span> of the width</label><input type="range" id="d-lw" min="50" max="85" step="1" data-path="display.live_width" data-kind="num" value="${L.live_width}"></div></div>
+    <div class="toggle-row"><div><div class="t">Start new screens with Makkah live</div><div class="d">For screens that haven't been switched yet. Each screen remembers its own choice after that.</div></div>${sw("display.live_start", L.live_start)}</div>
+    <div class="field" style="margin-top:12px"><label for="live-url">IPTV stream link (.m3u8)</label><input type="text" id="live-url" data-path="live.url" spellcheck="false" placeholder="${esc(META.live_default||"")}" value="${val("live.url")}">
+      <div class="hint">Leave it empty for Saudi Quran TV. If the channel moves, or to show another channel (Madinah, say), paste its .m3u8 link here and press Save changes.</div></div>
+    <div class="row"><button class="btn" id="live-check" onclick="checkLive()">Check the stream</button><span id="live-result" class="muted"></span></div></div>`;
+  fitPreview();
+  if(previewObserver) previewObserver.disconnect();
+  previewObserver = new ResizeObserver(fitPreview); previewObserver.observe($(".dprev"));
+}
+async function checkLive(){
+  const b = $("#live-check"), out = $("#live-result"), url = ($("#live-url").value || "").trim();
+  b.disabled = true; out.innerHTML = "Checking…";
+  try{
+    const r = await api("/api/live/test", {url});
+    out.innerHTML = `<span class="pill ${r.working ? "ok" : "bad"}">${r.working ? "OK" : "Not working"}</span> ${esc(r.summary)}`;
+  }catch(e){ out.innerHTML = `<span class="pill bad">Not working</span> ${esc(e.message)}`; }
+  b.disabled = false;
+}
+
 function renderLog(force){
   const el=$("#fulllog"); if(!el||!S) return;
   if(!force && S.log_id===logSeen) return; logSeen=S.log_id;
