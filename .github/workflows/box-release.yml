@@ -39,6 +39,14 @@ jobs:
             echo "$tag is already published"
             exit 0
           fi
+          # Never publish an older version after a newer one, e.g. merging 0.1.0 to main after
+          # 0.2.0 was released from its branch.
+          newest=$(git ls-remote --tags origin 'box-v*' | sed -n 's|.*refs/tags/box-v\([0-9.]*\)$|\1|p' \
+                   | sort -V | tail -n 1)
+          if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$v" "$newest" | sort -V | tail -n 1)" != "$v" ]; then
+            echo "box-v$newest is already out, so $v isn't published"
+            exit 0
+          fi
           awk -v v="$v" '
             $0 ~ "^## " v "( |$)" {found=1; next}
             found && /^## / {exit}
