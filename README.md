@@ -24,6 +24,17 @@ services:
       TZ: Europe/London
     volumes:
       - ./data:/data          # settings, recordings, password and log, in a "data" folder next to this file
+
+  # Optional: the Update button in Settings > Updates (see "Updating" below)
+  updater:
+    image: ghcr.io/fudgeamin99/azan-sip-box:latest
+    container_name: azan-sip-updater
+    network_mode: host
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "azan_sip.dockerupdate"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data:ro
 ```
 
 Then start it:
@@ -53,6 +64,10 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 **Prayer-times screen:** open `http://<the computer's address>:8765/display` on a TV, tablet or spare monitor for a full-screen clock, the next azan with a countdown, and today's times in English and Arabic. After the last azan of the day it shows tomorrow's times. No password is needed to view it, and *Full screen* fills the screen.
 
+**Makkah live:** press *Makkah live* on the prayer-times screen (or open `/display?live=1`) to show the live picture from Masjid al-Haram next to the next azan and today's times. The sound starts off and goes quiet by itself while your own azan plays. The Box relays the stream, so screens watching at the same time share one download. Each screen remembers whether it shows Makkah live.
+
+**Display page:** in the control panel, choose how the prayer-times screen looks, with a live preview: a theme (Masjid green, Night, Navy and gold, Maroon, Sand, or your own colours), cards along the bottom or a list at the side, the text size, the masjid name, a notice line along the bottom, and which parts to show. *Save changes* updates every screen within a few seconds. The Makkah live layout and stream link are there too. **Settings → Appearance** sets light or dark and the colour of the control panel itself.
+
 | Ways to reach the phones | Best for |
 |---|---|
 | Multicast paging | Yealink, Grandstream, Fanvil, Snom, Cisco MPP. Each phone listens on one address; no PBX changes. |
@@ -68,20 +83,24 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 ## Updating
 
-Pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. Your `data` folder is kept. **Update now** in the panel is switched off in Docker, and it explains this.
+**With the Update button:** go to **Settings → Updates** and press **Check for updates**. If there's a new version, press **Update now**. The Box restarts with it in a few seconds, and your `data` folder is kept. If the new version won't start, the old one is put back.
 
-What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](https://github.com/Fudgeamin99/azan-sip-box/blob/box-v0.2.0/BOX_CHANGELOG.md).
+The button needs the `updater` part of the compose file above. It's a small helper, from the same image, that downloads the new image and restarts the `azan-sip` container with it. Because it can control Docker on that computer, it only listens on the computer itself (127.0.0.1, port 8770) and only does what the control panel asks, using a secret key the panel keeps in `data/auth`. If you leave it out, Settings → Updates says how to update by hand.
+
+**By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
+
+What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md).
 
 ## What's next
 
 | Step | What it adds | Status |
 |---|---|---|
-| 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset are in 0.2.0. The Debian installer is [in review](https://github.com/Fudgeamin99/azan-sip-box/pull/1). |
-| Docker | Run it on a NAS or home server | Released in 0.2.0 |
-| 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | In review |
+| 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset in 0.2.0, the Debian installer in 0.3.0 |
+| Docker | Run it on a NAS or home server | Released in 0.2.0. The Update button in Settings came in 0.3.0. |
+| 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | Released in 0.3.0, with Makkah live and the Display page |
 | 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | Planned |
 | 4 | Sticker tool: per-box password and QR code | Planned |
 
 ## About this repository
 
-The Box's code is in pull requests [#1](https://github.com/Fudgeamin99/azan-sip-box/pull/1) (step 1) and [#2](https://github.com/Fudgeamin99/azan-sip-box/pull/2) (Docker) until they're merged, and releases are built from those branches. Until then, `main` holds the desktop app's code the Box started from.
+`main` holds the Box's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. The Box started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand.

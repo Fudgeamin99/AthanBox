@@ -33,6 +33,20 @@ jobs:
           echo "ok: the storage folder was given to user 1000"
           docker logs azan
 
+      - name: Check the updater (the Update button) can see the Box's container
+        run: |
+          docker run -d --name updater --network host -e AZAN_UPDATE_TARGET=azan \
+                     -v /var/run/docker.sock:/var/run/docker.sock -v "$RUNNER_TEMP/data:/data:ro" \
+                     --entrypoint python azan-sip-box:test -m azan_sip.dockerupdate
+          sleep 3
+          token=$(sudo cat "$RUNNER_TEMP/data/auth/updater-token")
+          out=$(curl -s -H "Authorization: Bearer $token" http://127.0.0.1:8770/status)
+          echo "$out"
+          echo "$out" | grep -q '"running": true' || { docker logs updater; exit 1; }
+          [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer wrong' http://127.0.0.1:8770/status)" = 403 ] \
+              || { echo "FAIL: the updater answered without the right key"; exit 1; }
+          echo "ok: the updater answers the panel's key only"
+
   preview:
     needs: build
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository

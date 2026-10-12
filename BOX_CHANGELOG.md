@@ -14,6 +14,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 - Prefer to set things up yourself? Choose "I'll set it up myself" on the welcome page and the control panel opens instead. The guide is one click away from there.
 - Run the setup guide again any time from Settings. It starts from your current settings and saves nothing until you press Finish.
 - Phones and PCs stay signed in for 30 days, even when the box restarts or updates. Changing the password signs every other device out.
+- In Docker, **Settings → Updates** can update the Box itself: **Check for updates**, then **Update now**. It needs the new `updater` part of the compose file, a small helper that downloads the new image and restarts the Box with it. If the new version won't start, the old one is put back.
+- The container now stops in a moment, signing out of the phone system first, instead of being killed after Docker's timeout.
+- **Makkah live** on the prayer-times screen: the live picture from Masjid al-Haram (Saudi Quran TV) next to the next azan, the countdown and the day's times. Press **Makkah live** on the screen or in the menu, or open `/display?live=1`. The sound starts off and goes quiet by itself while your own azan plays. The Box relays the stream, so screens watching at the same time share one download, and it reconnects by itself if the stream drops or freezes.
+- **Display page** in the menu: change how the prayer-times screen looks, with a live preview. Themes (Masjid green, Night, Navy and gold, Maroon, Sand, or your own colours), cards along the bottom or a list at the side, text size from 70% to 160%, a masjid name at the top, a notice line along the bottom that scrolls when it's long, and which parts to show. The buttons can show only when the screen is tapped or the mouse moves. Makkah live has its own layout, side and size, and a stream link with **Check the stream**. **Save changes** updates every screen within a few seconds.
+- **Settings → Appearance:** light, dark or automatic for the control panel, and its colour (six colours or your own).
 
 ## 0.2.0 - Docker
 - The Box software can run in Docker on a Linux computer, such as a home server, NAS or Raspberry Pi. See "Run it with Docker" in the README.

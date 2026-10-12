@@ -20,4 +20,7 @@ ENV AZAN_DOCKER=1 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 # runs Azan SIP as that user.
 VOLUME /data
 EXPOSE 8765
+# Python runs as process 1, which ignores SIGTERM: stop with Ctrl+C's signal, so the Box signs out
+# of the phone system and stops in a moment instead of being killed after Docker's timeout.
+STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/local/bin/azan-sip-entrypoint"]
