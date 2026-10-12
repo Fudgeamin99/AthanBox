@@ -90,4 +90,5 @@ The same Box software can run in Docker on any Linux computer that stays on, suc
 - **Your data is kept.** Settings, recordings, the password and the log are kept in the `azan-data` volume. To keep them in a folder you choose, such as a NAS share, use the folder line in `compose.yaml` instead. Docker creates the folder if needed, and the container gives it to its own user (1000) when it starts, so there's nothing to set up.
 - **No ports to add.** The container uses the computer's own network, so the panel is simply on port 8765.
 - **Updates come from the image.** Run `docker compose pull && docker compose up -d`. **Update now** in the panel is switched off in Docker.
+- **Trying a change before it's released.** Each pull request publishes a test image. Put `image: ghcr.io/fudgeamin99/azan-sip-box:pr-<number>` in `compose.yaml` and remove the `build:` line.
 - **Address.** The panel is on port 8765. `azan.local` isn't set up in Docker, so use the computer's address or its own `.local` name.
