@@ -19,6 +19,14 @@ systemctl restart avahi-daemon
 id azan >/dev/null 2>&1 || useradd --system --home /opt/azan-sip --shell /usr/sbin/nologin azan
 mkdir -p /opt/azan-sip
 cp -r azan_sip audio CHANGELOG.md README.md /opt/azan-sip/
+# Record which commit this is, so Settings > Updates can tell when a newer one is on GitHub.
+# (safe.directory: the clone usually belongs to the user who ran sudo, not root.)
+commit=$(git -c safe.directory="$(pwd)" rev-parse HEAD 2>/dev/null || true)
+if [ -n "$commit" ]; then
+    version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' azan_sip/__init__.py)
+    printf '{"commit": "%s", "version": "%s", "installed_at": "%s", "source": "https://github.com/Fudgeamin99/azan-sip-box/commit/%s"}\n' \
+        "$commit" "$version" "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" "$commit" > /opt/azan-sip/.installed.json
+fi
 chown -R azan:azan /opt/azan-sip
 
 if [ ! -f /opt/azan-sip/auth/factory.json ]; then

@@ -170,11 +170,13 @@ def _verify(root: Path):
     for need in ("azan_sip/__init__.py", "azan_sip/web.py", "azan_sip/static/index.html"):
         if not (root / need).is_file():
             raise RuntimeError(f"The download looks incomplete ({need} missing) - update cancelled")
+    if not (root / "azan_sip/auth.py").is_file():  # Box mode lives there; without it the box can't start
+        raise RuntimeError("That version doesn't include Azan SIP Box support - update cancelled")
     exe = sys.executable
     if exe.lower().endswith("pythonw.exe") and Path(exe[:-5] + ".exe").exists():
         exe = exe[:-5] + ".exe"  # pythonw has no output to read
     r = subprocess.run([exe, "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); "
-                        "import azan_sip.web, azan_sip.praytimes, azan_sip.sip; print(azan_sip.__version__)", str(root)],
+                        "import azan_sip.web, azan_sip.praytimes, azan_sip.sip, azan_sip.auth; print(azan_sip.__version__)", str(root)],
                        capture_output=True, text=True, timeout=60, cwd=str(root),
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0:
