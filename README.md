@@ -89,18 +89,18 @@ The button needs the `updater` part of the compose file above. It's a small help
 
 **By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 
-What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](https://github.com/Fudgeamin99/azan-sip-box/blob/box-v0.2.0/BOX_CHANGELOG.md).
+What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md).
 
 ## What's next
 
 | Step | What it adds | Status |
 |---|---|---|
-| 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset are in 0.2.0. The Debian installer is [in review](https://github.com/Fudgeamin99/azan-sip-box/pull/1). |
-| Docker | Run it on a NAS or home server | Released in 0.2.0 |
-| 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | In review |
+| 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset in 0.2.0, the Debian installer in 0.3.0 |
+| Docker | Run it on a NAS or home server | Released in 0.2.0. The Update button in Settings came in 0.3.0. |
+| 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | Released in 0.3.0, with Makkah live and the Display page |
 | 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | Planned |
 | 4 | Sticker tool: per-box password and QR code | Planned |
 
 ## About this repository
 
-The Box's code is in pull requests [#1](https://github.com/Fudgeamin99/azan-sip-box/pull/1) (step 1) and [#2](https://github.com/Fudgeamin99/azan-sip-box/pull/2) (Docker) until they're merged, and releases are built from those branches. Until then, `main` holds the desktop app's code the Box started from.
+`main` holds the Box's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. The Box started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand.
