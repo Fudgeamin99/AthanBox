@@ -34,7 +34,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from . import __version__, rtp, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import FROZEN, app_dir
-from .sipreg import RegistrationManager
+from .sipreg import Registration, RegistrationManager
 from .app import ADHAN_PRAYERS, AzanApp, Clip, Shared, build_targets, load_config
 from .praytimes import METHODS, PRAYERS, SHAFAQ, get_zone
 
@@ -43,6 +43,10 @@ log = logging.getLogger("azan-sip")
 DEFAULT_PORT = 8765
 AUDIO_EXT = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".wma", ".mp4"}
 STATIC = Path(__file__).with_name("static")
+STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+                ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png"}
+PAGES = {"/setup": "setup.html", "/display": "display.html"}
+USB_ROOTS = ("/media", "/run/media")  # where Debian mounts USB sticks
 
 DEFAULT_CONFIG = {
     "general": {"configured": False, "scheduler_enabled": True, "port": DEFAULT_PORT},
@@ -109,6 +113,45 @@ def local_ips() -> list[str]:
         pass
     ips.add(rtp.local_ip_for())
     return sorted(ip for ip in ips if not ip.startswith("127."))
+
+
+def box_ip() -> str:
+    """The address phones and PCs reach this box on (the one with the default route)."""
+    ip = rtp.local_ip_for()
+    return ip if not ip.startswith("127.") else (local_ips() or ["127.0.0.1"])[0]
+
+
+def qr_svg(text: str) -> bytes:
+    from .qrcodegen import QrCode
+    qr = QrCode.encode_text(text, QrCode.Ecc.MEDIUM)
+    n, b = qr.get_size(), 2
+    d = "".join(f"M{x + b},{y + b}h1v1h-1z" for y in range(n) for x in range(n) if qr.get_module(x, y))
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {n + 2 * b} {n + 2 * b}" '
+            f'shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/>'
+            f'<path d="{d}" fill="#1d2622"/></svg>').encode()
+
+
+def find_usb_audio(roots=USB_ROOTS, max_depth: int = 4, limit: int = 20) -> list[Path]:
+    """Audio files on mounted USB sticks, leaving out hidden folders and files over 100 MB."""
+    found: list[Path] = []
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        base_depth = root.rstrip("/").count("/")
+        for folder, dirs, files in os.walk(root):
+            depth = folder.rstrip("/").count("/") - base_depth
+            dirs[:] = sorted(d for d in dirs if not d.startswith(".")) if depth < max_depth else []
+            for f in sorted(files):
+                path = Path(folder) / f
+                if not f.startswith(".") and path.suffix.lower() in AUDIO_EXT:
+                    try:
+                        if 0 < path.stat().st_size <= 100_000_000:
+                            found.append(path)
+                    except OSError:
+                        pass
+                if len(found) >= limit:
+                    return found
+    return found
 
 
 def deep_merge(base: dict, extra: dict) -> dict:
@@ -196,6 +239,7 @@ class Service:
         self.box = False
         self.auth = Auth(self.base / "auth")
         self.extra_servers: list[ThreadingHTTPServer] = []
+        self.wizard = {"rev": 0, "state": None, "driver": ""}  # first-time setup, shared by the screen and phones
         self.load()
 
     # -- config
@@ -261,6 +305,7 @@ class Service:
                     if f.is_file() and f.name != ".gitkeep":
                         f.unlink(missing_ok=True)
             self.auth.reset_to_factory()
+            self.wizard = {"rev": self.wizard["rev"] + 1, "state": None, "driver": ""}
             self.app, self.cfg, self.error = None, {}, None
             self.load()
             if self.box:
@@ -317,10 +362,7 @@ class Service:
                 "method": METHODS.get(app.settings.method, {}).get("name", app.settings.method),
                 "asr": app.settings.asr, "today": rows, "playing": app.now_playing,
                 "skip_today": now.strftime("%a").lower()[:3] in app.skip_days,
-                "next": {"prayer": nxt[1], "kind": nxt[2], "time": f"{nxt[0]:%H:%M}",
-                         "day": "today" if nxt[0].date() == now.date() else
-                         ("tomorrow" if nxt[0].date() == now.date() + timedelta(days=1) else f"{nxt[0]:%A}"),
-                         "seconds": int((nxt[0] - now).total_seconds())} if nxt else None,
+                "next": self.next_info(app), "next_azan": self.next_info(app, "azan"),
                 "history": app.history[::-1],
                 "warnings": self.warnings(app),
                 "targets": len(app.targets),
@@ -421,6 +463,19 @@ class Service:
                 "ffmpeg": bool(shutil.which("ffmpeg")), "config_path": str(self.config_path),
                 "folder": str(self.base)}
 
+    @staticmethod
+    def next_info(app: AzanApp, kind: str | None = None) -> dict | None:
+        """The next event (azan or reminder), or the next one of `kind`."""
+        now = app.now()
+        nxt = next((e for d in range(8) for e in app.events_for(now.date() + timedelta(days=d))
+                    if e[0] > now and kind in (None, e[2])), None)
+        if not nxt:
+            return None
+        return {"prayer": nxt[1], "kind": nxt[2], "time": f"{nxt[0]:%H:%M}",
+                "day": "today" if nxt[0].date() == now.date() else
+                ("tomorrow" if nxt[0].date() == now.date() + timedelta(days=1) else f"{nxt[0]:%A}"),
+                "seconds": int((nxt[0] - now).total_seconds())}
+
     def preview(self, cfg: dict, days: int = 7, start: str | None = None) -> dict:
         app = AzanApp(self.config_path, cfg, require_targets=False)
         first = date.fromisoformat(start) if start else app.now().date()
@@ -431,7 +486,7 @@ class Service:
                 break
             t = app.times.for_date(d)
             rows.append({"date": f"{d:%a %d %b}", "iso": d.isoformat(), **{k: f"{v:%H:%M}" for k, v in t.items()}})
-        return {"week": rows, "timezone": app.times.tz_name}
+        return {"week": rows, "timezone": app.times.tz_name, "next": self.next_info(app, "azan")}
 
     def test(self, req: dict) -> dict:
         app = self.app
@@ -467,9 +522,66 @@ class Service:
             targets = build_targets({"network": self.cfg.get("network", {}), "targets": [t]})
         if app.now_playing:
             raise RuntimeError(f"Already playing: {app.now_playing}")
+        if req.get("wait"):  # play it now and say whether it worked (setup wizard)
+            first = RING.counter
+            if not app.broadcast(clip, req.get("label") or "Test", targets):
+                problems = [x["msg"] for x in list(RING.lines) if x["id"] > first and x["level"] in ("WARNING", "ERROR")]
+                raise RuntimeError(problems[-1] if problems else "the test chime didn't play")
+            return {"ok": True}
         threading.Thread(target=app.broadcast, args=(clip, req.get("label") or "Test", targets),
                          daemon=True).start()
         return {"ok": True}
+
+    # -- first-time setup wizard (setup.html)
+    def set_wizard(self, state, driver: str) -> int:
+        with self.lock:
+            self.wizard = {"rev": self.wizard["rev"] + 1, "state": state, "driver": driver}
+            return self.wizard["rev"]
+
+    def setup_usb(self) -> dict:
+        """Copy azan recordings from a USB stick plugged into the box."""
+        if not self.box or updater.DOCKER:
+            return {"available": False, "found": [], "copied": []}
+        found, copied = find_usb_audio(), []
+        if found:
+            self.audio_dir.mkdir(exist_ok=True)
+        for src in found:
+            name = re.sub(r"[^\w\-. ()]+", "_", src.name).strip() or "azan.mp3"
+            dest = self.audio_dir / name
+            try:
+                if not (dest.is_file() and dest.stat().st_size == src.stat().st_size):
+                    shutil.copyfile(src, dest)
+                    log.info("Copied %s from the USB stick", name)
+                copied.append(name)
+            except OSError as exc:
+                log.warning("Couldn't copy %s from the USB stick: %s", src, exc)
+        return {"available": True, "found": [str(f) for f in found], "copied": copied,
+                "files": self.meta()["audio_files"]}
+
+    def setup_connect(self, target: dict) -> dict:
+        """Sign in to the phone system as the extension (if it has one), then play the test chime."""
+        from .sip import parse_uri
+        t = dict(target, enabled=True)
+        info = None
+        if t.get("type") == "sip" and t.get("username") and t.get("register", True):
+            _, host, port = parse_uri(t.get("uri", ""))
+            reg = Registration(t.get("name") or "Phone system", host, port, t["username"], t.get("password", ""),
+                               t.get("auth_username", ""), self.cfg.get("network", {}).get("local_ip") or None)
+            reg.start()
+            deadline = time.monotonic() + 12
+            while reg.status == "starting" and time.monotonic() < deadline:
+                time.sleep(0.2)
+            info = reg.info()
+            reg.stop()  # signs out again; Finish keeps it signed in for good
+            if info["status"] != "registered":
+                return {"ok": False, "registration": info,
+                        "error": info["detail"] or f"No reply from {host} - check the address"}
+        try:
+            self.test({"source": "tone", "target": t, "label": "Test chime", "wait": True})
+        except RuntimeError as exc:
+            return {"ok": False, "registration": info, "error": (f"Signed in, but the test call didn't work: {exc}"
+                                                                 if info else str(exc))}
+        return {"ok": True, "registration": info}
 
 
 # ------------------------------------------------------------------ HTTP
@@ -510,6 +622,10 @@ class Handler(BaseHTTPRequestHandler):
     def _client_local(self) -> bool:
         return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 
+    def _setup_keep(self) -> str | None:
+        """Whose setup-code session survives the end of setup: a phone or PC, never the box's own screen."""
+        return None if self._client_local() else self._token()
+
     def _need_login(self):
         return self._json({"ok": False, "login": True, "error": "Please enter the password to change settings"}, 401)
 
@@ -517,13 +633,29 @@ class Handler(BaseHTTPRequestHandler):
         svc = self.service
         return {"box": svc.box, "logged_in": self._authed(), "has_password": svc.auth.has_password() if svc.box else False,
                 "custom_password": svc.auth.custom_password() if svc.box else False,
-                "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code)}
+                "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code),
+                "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": __version__}
 
-    def _send(self, code: int, body: bytes, ctype: str = "application/json", extra: dict | None = None):
+    def _setup_urls(self) -> list[str]:
+        """Links for the setup QR code: the address this page was opened on first, then the box's own."""
+        svc = self.service
+        hostport = "" if svc.extra_servers else f":{svc.server.server_address[1]}"
+        raw = (self.headers.get("Host") or "").split(":")[0]
+        ips = [raw] if raw and raw != "127.0.0.1" and re.fullmatch(r"[\d.]+", raw) else []
+        return [f"http://{ip}{hostport}/setup?setup={svc.auth.setup_code}"
+                for ip in dict.fromkeys(ips + [box_ip(), *local_ips()])]
+
+    def _may_see_setup_code(self) -> bool:
+        """The box's own screen, or someone already signed in (to carry on from their phone)."""
+        svc = self.service
+        return bool(svc.box and svc.auth.setup_code and (self._client_local() or self._authed()))
+
+    def _send(self, code: int, body: bytes, ctype: str = "application/json", extra: dict | None = None,
+              cache: bool = False):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "max-age=86400" if cache else "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         for k, v in (extra or {}).items():
@@ -549,7 +681,18 @@ class Handler(BaseHTTPRequestHandler):
         p = url.path
         try:
             if p in ("/", "/index.html"):
+                if svc.box and not svc.configured():  # first-time setup (keeps ?setup= from an older QR code)
+                    return self._send(302, b"", "text/plain", {"Location": "/setup" + (f"?{url.query}" if url.query else "")})
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
+            if p in PAGES:
+                if p == "/setup" and not (svc.box and not svc.configured()):
+                    return self._send(302, b"", "text/plain", {"Location": "/display" if self._client_local() else "/"})
+                return self._send(200, (STATIC / PAGES[p]).read_bytes(), "text/html; charset=utf-8")
+            if p.startswith("/static/"):
+                f = STATIC / Path(unquote(p[8:])).name
+                if f.suffix.lower() in STATIC_TYPES and f.is_file():
+                    return self._send(200, f.read_bytes(), STATIC_TYPES[f.suffix.lower()], cache=True)
+                return self._send(404, b"Not found", "text/plain")
             if p == "/api/ping":
                 return self._json({"app": "azan-sip", "version": __version__})
             if p == "/api/session":
@@ -559,17 +702,20 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._authed():  # prayer times are public, the log is not
                     st.update(log=[], history=[])
                 return self._json(st)
-            if p == "/api/setup-code":  # for the QR code on the box's own screen only
-                if not (svc.box and self._client_local() and svc.auth.setup_code):
+            if p == "/api/setup-code":  # for the setup QR code (box's own screen, or signed in)
+                if not self._may_see_setup_code():
                     return self._send(404, b"Not found", "text/plain")
-                hostport = "" if svc.extra_servers else f":{svc.server.server_address[1]}"
-                code = svc.auth.setup_code
-                return self._json({"code": code, "urls": [f"http://{ip}{hostport}/?setup={code}"
-                                                          for ip in local_ips()]})
+                return self._json({"code": svc.auth.setup_code, "urls": self._setup_urls()})
+            if p == "/api/setup-qr.svg":
+                if not self._may_see_setup_code():
+                    return self._send(404, b"Not found", "text/plain")
+                return self._send(200, qr_svg(self._setup_urls()[0]), "image/svg+xml")
             if not self._authed():
                 return self._need_login()
             if p == "/api/config":
                 return self._json({"config": svc.cfg, "meta": svc.meta()})
+            if p == "/api/setup/state":
+                return self._json(svc.wizard)
             if p == "/api/update":
                 return self._json(svc.update_status())
             if p.startswith("/audio/"):
@@ -631,7 +777,7 @@ class Handler(BaseHTTPRequestHandler):
                 cfg = req["config"]
                 cfg.setdefault("general", {})["configured"] = True
                 svc.apply(cfg, save=True)
-                svc.auth.end_setup()  # setup is finished: the QR setup code stops working
+                svc.auth.end_setup(self._setup_keep())  # setup is finished: the QR setup code stops working
                 log.info("Settings saved")
                 return self._json({"ok": True, "config": svc.cfg})
             if p == "/api/password":
@@ -651,6 +797,32 @@ class Handler(BaseHTTPRequestHandler):
                 svc.factory_reset()
                 return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (
                     f"{COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0")})
+            if p == "/api/setup/state":
+                return self._json({"ok": True, "rev": svc.set_wizard(req.get("state"), str(req.get("client") or ""))})
+            if p == "/api/setup/password":
+                if not (svc.box and svc.auth.setup_code):
+                    raise ValueError("Setup is already finished - change the password under Settings")
+                if req.get("sticker"):
+                    svc.auth.use_factory_password()
+                else:
+                    svc.auth.set_password(str(req.get("new") or ""))
+                log.info("First-time setup: %s", "keeping the factory password" if req.get("sticker")
+                         else "own password chosen")
+                return self._json({"ok": True})
+            if p == "/api/setup/usb":
+                return self._json({"ok": True, **svc.setup_usb()})
+            if p == "/api/setup/connect":
+                return self._json(svc.setup_connect(req["target"]))
+            if p == "/api/setup/finish":
+                if svc.configured():
+                    raise ValueError("Setup is already finished")
+                cfg = req["config"]
+                cfg.setdefault("general", {})["configured"] = True
+                svc.apply(cfg, save=True)
+                svc.auth.end_setup(self._setup_keep())
+                svc.set_wizard({"finished": True}, "")
+                log.info("First-time setup finished")
+                return self._json({"ok": True})
             if p == "/api/preview":
                 return self._json({"ok": True, **svc.preview(req["config"], req.get("days", 7), req.get("start"))})
             if p == "/api/test":

@@ -178,6 +178,7 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
     <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
     <button data-page="phones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    <button id="tvbtn" hidden onclick="location.assign('/display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
     <div class="spacer"></div>
     <div class="status-mini" id="mini">Connecting…</div>
   </nav>
@@ -266,6 +267,15 @@ async function loadSession(){
     }
   }
   if(SESSION.box && !SESSION.logged_in) await unlock();
+  if(SESSION.box && SESSION.local) kioskReturn();
+}
+// On the box's own screen: a way back to the prayer times, and back there by itself after 5 idle
+// minutes with nothing unsaved (the prayer-times screen locks the settings again).
+function kioskReturn(){
+  $("#tvbtn").hidden = false;
+  let last = Date.now();
+  ["pointerdown","keydown","wheel"].forEach(ev=>addEventListener(ev, ()=>last=Date.now(), {passive:true}));
+  setInterval(()=>{ if(Date.now()-last > 300000 && !isDirty()) location.assign("/display"); }, 15000);
 }
 async function changePassword(){
   const cur=$("#pw-cur"), a=$("#pw-new"), b=$("#pw-again");

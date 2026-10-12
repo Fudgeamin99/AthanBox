@@ -31,23 +31,27 @@ Then start it:
 - **UGREEN, Synology and other NAS Docker apps:** create a new project (or stack), paste the file above, and deploy it.
 - **Command line:** run `docker compose up -d` in that folder.
 
-Open `http://<the computer's address>:8765` and sign in with your password.
+Open `http://<the computer's address>:8765`, sign in with your password, and the setup wizard starts.
 
 - **Linux only.** Host networking doesn't work in Docker Desktop on Windows or Mac.
 - **No ports to add.** The panel is always on port 8765 of the computer it runs on.
 - **Nothing to set up for the folder.** Docker creates `data` on first start, and the container takes it over itself.
 - **The image** is for 64-bit PCs (amd64) and ARM boards (arm64), and includes ffmpeg for MP3 recordings.
 
-## First-time setup in the control panel
+## First-time setup
 
-1. **Prayer times:** search for your town, then pick the calculation method and Asr setting your mosque uses.
-   - Methods include Moonsighting Committee Worldwide (with the General, Ahmer or Abyad shafaq), MWL, ISNA, Umm al-Qura, Karachi, Egypt and others.
-   - For an exact match with your masjid, switch on *Use my mosque's timetable*. Then download the template, fill it in with Excel, and upload it.
-2. **Azan sound:** use *Add recording…* to add your azan, and optionally a separate Fajr azan. MP3 files are converted automatically.
-3. **Phones:** choose how the azan reaches your phones, then press *Test now*. The setup guide on that page shows exactly what to set on Yealink, Grandstream, Fanvil, Snom, Cisco, Poly, FreePBX and 3CX.
-4. Press **Save changes**.
+A new box opens the **setup wizard** in the browser. It takes about five minutes:
 
-The **Today** page shows the countdown to the next azan and has on/off switches for each prayer. It also has quick test buttons, recent activity and the log.
+1. **Password:** keep `AZAN_PASSWORD`, or choose your own.
+2. **Location:** search for your town. The time zone is set for you.
+3. **Prayer times:** pick the calculation method and Asr setting your mosque uses, and compare today's times. For an exact match with your masjid, use *Use a timetable*: download the template, fill it in with Excel, and upload it.
+4. **Azan sound:** add your azan, and optionally a separate Fajr azan and a reminder before each prayer. MP3 files are converted automatically.
+5. **Phone system:** Grandstream UCM, FreePBX, 3CX, phones only (multicast), or something else. *Connect and test* signs in as the extension and plays a test chime through your paging group, so you know it works before anything is saved.
+6. **Test and finish:** check the summary and press *Finish*.
+
+The wizard shows a QR code: scan it to carry on from your phone. Afterwards the control panel opens. Its **Today** page shows the countdown to the next azan and has on/off switches for each prayer, quick test buttons, recent activity and the log.
+
+**Prayer-times screen:** open `http://<the computer's address>:8765/display` on a TV, tablet or spare monitor for a full-screen clock, the next azan with a countdown, and today's times in English and Arabic. No password is needed to view it.
 
 | Ways to reach the phones | Best for |
 |---|---|
@@ -74,7 +78,7 @@ What's new in each version is under [Releases](https://github.com/Fudgeamin99/az
 |---|---|---|
 | 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset are in 0.2.0. The Debian installer is [in review](https://github.com/Fudgeamin99/azan-sip-box/pull/1). |
 | Docker | Run it on a NAS or home server | Released in 0.2.0 |
-| 2 | Six-step setup wizard, with phone setup by QR code | Next |
+| 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | In review |
 | 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | Planned |
 | 4 | Sticker tool: per-box password and QR code | Planned |
 

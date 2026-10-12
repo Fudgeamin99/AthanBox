@@ -75,6 +75,7 @@ class Auth:
         self.sessions: dict[str, float] = {}  # token -> expiry (monotonic)
         self.failures: dict[str, tuple[int, float]] = {}  # client ip -> (count, locked until)
         self.setup_code: str | None = None
+        self.setup_sessions: set[str] = set()  # signed in with the setup code (ended with setup)
 
     @property
     def factory_file(self) -> Path:
@@ -105,11 +106,16 @@ class Auth:
             raise ValueError(f"The password must be at least {MIN_LENGTH} characters")
         _write(self.factory_file, dict(hash_password(password), serial=serial))
 
+    def use_factory_password(self):
+        """During first-time setup: keep the sticker password (forget one chosen a moment ago)."""
+        self.password_file.unlink(missing_ok=True)
+
     def reset_to_factory(self):
         """Forget the owner's password (the sticker password works again) and log everyone out."""
         self.password_file.unlink(missing_ok=True)
         with self.lock:
             self.sessions.clear()
+            self.setup_sessions.clear()
             self.failures.clear()
 
     # -- brute-force protection: after 5 wrong tries, wait 30 s, doubling up to 15 min
@@ -144,6 +150,8 @@ class Auth:
             now = time.monotonic()
             self.sessions = {t: e for t, e in self.sessions.items() if e > now}
             self.sessions[token] = now + SESSION_SECONDS
+            if setup_code:
+                self.setup_sessions.add(token)
         return token
 
     def valid(self, token: str | None) -> bool:
@@ -171,5 +179,11 @@ class Auth:
         self.setup_code = secrets.token_urlsafe(12)
         return self.setup_code
 
-    def end_setup(self):
+    def end_setup(self, keep: str | None = None):
+        """Setup is finished: the code stops working, and so do the sessions it opened, except
+        `keep` (the phone or PC that finished setup carries on without typing the password)."""
         self.setup_code = None
+        with self.lock:
+            for token in self.setup_sessions - {keep}:
+                self.sessions.pop(token, None)
+            self.setup_sessions.clear()

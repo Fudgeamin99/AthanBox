@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azan SIP · First-time setup</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/box.css">
+<style>
+/* Designed at 1280x720 (the box's screen); phones get one column with Back/Next at the bottom. */
+.top{height:72px;background:var(--head);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 42px;position:sticky;top:0;z-index:5}
+.top .right{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:15.5px;font-weight:500}
+.segs{display:flex;gap:5px}
+.segs i{width:38px;height:5px;border-radius:3px;background:var(--line)}
+.segs i.on{background:var(--brand)}
+.mbar{display:none}
+main{padding:44px 42px 140px;min-height:calc(100vh - 72px)}
+.wrap{margin:0 auto}
+h1{font-size:34px;line-height:1.2;font-weight:800;margin:0 0 14px;letter-spacing:-.2px}
+.lead{font-size:18px;color:var(--muted);margin:0 0 22px}
+.foot{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;padding:18px 42px 22px;background:linear-gradient(rgba(244,241,232,0),var(--bg) 30%);z-index:5}
+.foot .nav{display:flex;gap:12px;margin-left:auto}
+.foot .nav .btn{min-width:90px;padding:13px 26px}
+.qrmini{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:14.5px;line-height:1.35}
+.qrmini img{width:56px;height:56px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:3px}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--ok-soft);color:#17573c;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;margin-bottom:18px}
+.banner svg{flex:none;width:18px;height:18px;margin-top:1px}
+
+/* welcome */
+.welcome{display:grid;grid-template-columns:1fr 376px;gap:56px;align-items:center;max-width:1100px;margin:0 auto;padding-top:20px}
+.welcome h1{font-size:41px;line-height:1.18;margin:22px 0 22px}
+.have{list-style:none;padding:0;margin:0 0 30px}
+.have li{display:flex;align-items:center;gap:14px;font-size:18px;margin-bottom:12px}
+.icbox{width:36px;height:36px;border-radius:9px;background:var(--gold-soft);color:var(--gold-ink);display:flex;align-items:center;justify-content:center;flex:none}
+.icbox svg{width:18px;height:18px}
+.start{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.start .btn{padding:15px 26px;font-size:18px}
+.qrcard{background:var(--card-2);border:1px solid var(--line);border-radius:18px;padding:28px 28px 26px;text-align:center;box-shadow:0 2px 14px rgba(60,45,10,.06)}
+.qrcard .qr{width:226px;height:226px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px;margin:0 auto 22px;display:block}
+.qrcard h3{font-size:21px;margin:0 0 12px}
+.qrcard p{color:var(--muted);margin:0;font-size:15.5px}
+.qrcard hr{border:0;border-top:1px solid var(--line);margin:18px 0 14px}
+
+/* step 2: search results */
+.search{position:relative}
+.search svg{position:absolute;left:17px;top:50%;transform:translateY(-50%);width:19px;height:19px;color:var(--muted)}
+.search input{padding-left:48px;border:1.5px solid var(--brand)}
+.results{border:1px solid var(--line);border-radius:var(--r);background:var(--card-2);overflow:hidden;margin-top:16px}
+.results button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;padding:13px 20px;border-bottom:1px solid var(--line);cursor:pointer}
+.results button:last-child{border-bottom:0}
+.results button:hover{background:#f8f5ec}
+.results button.on{background:var(--brand-soft)}
+.results .n{font-weight:600;font-size:17.5px}
+.results .s{color:var(--muted);font-size:14.5px}
+.results .sel{margin-left:auto;color:var(--brand);font-weight:600;font-size:15.5px;display:flex;gap:7px;align-items:center}
+.results .sel svg{width:17px;height:17px}
+.tzline{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:16px;color:var(--muted);font-size:15px}
+.tzline .t{display:flex;gap:10px;align-items:flex-start}
+.tzline svg{width:16px;height:16px;flex:none;margin-top:3px}
+.tzline .link{white-space:nowrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* step 3 */
+.two{display:grid;grid-template-columns:1fr 356px;gap:38px;align-items:center;max-width:1096px;margin:0 auto}
+.asr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.asr .opt{margin:0;padding:13px 16px;align-items:center}
+.asr .opt .t{font-size:16.5px;font-weight:600}
+.today{background:var(--card-2);border:1px solid var(--line);border-radius:18px;padding:22px 26px 20px;box-shadow:0 2px 14px rgba(60,45,10,.06)}
+.today .k{font-size:13px;font-weight:700;letter-spacing:1.3px;color:var(--muted);text-transform:uppercase}
+.today .d{font-size:19px;font-weight:700;margin:2px 0 10px}
+.today .r{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:18px;font-weight:600}
+.today .r b{font-weight:700;font-variant-numeric:tabular-nums}
+.today .r.dim{color:var(--muted);font-weight:400}.today .r.dim b{font-weight:400}
+.today .r:last-of-type{border-bottom:0}
+.today .f{font-size:13.5px;color:var(--muted);margin-top:10px}
+.tt{background:var(--note);color:var(--note-ink);border-radius:12px;padding:16px 18px;font-size:15px}
+.tt ol{margin:6px 0 12px;padding-left:20px}
+.tt .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* step 4 */
+.list{border:1px solid var(--line);border-radius:var(--r);background:var(--card-2)}
+.item{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .icbox{width:44px;height:44px;border-radius:10px}
+.item .icbox svg{width:20px;height:20px}
+.item .grow{flex:1;min-width:0}
+.item .l{font-size:14.5px;color:var(--muted)}
+.item .v{font-size:18px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .v.off{color:var(--muted)}
+.item .acts{display:flex;gap:10px}
+.item .acts .btn{padding:10px 16px;font-size:16px;font-weight:600}
+.item .acts .btn svg{width:13px;height:13px}
+.picker{padding:4px 20px 18px 80px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.picker .choice{display:flex;align-items:center;gap:10px;font-size:16px;cursor:pointer}
+.picker .choice input{width:18px;height:18px}
+.picker .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.usbnote{display:flex;gap:10px;align-items:center;background:var(--ok-soft);color:#17573c;border-radius:12px;padding:12px 16px;font-size:15.5px;font-weight:600;margin-bottom:16px}
+.usbnote svg{width:18px;height:18px;flex:none}
+
+/* step 5 */
+.kinds{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.kind{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);background:var(--card-2);border-radius:12px;padding:16px 16px 18px;min-height:86px}
+.kind .t{font-weight:700;font-size:17px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.kind .t svg{width:17px;height:17px;color:var(--brand);flex:none}
+.kind .d{color:var(--muted);font-size:13.5px;margin-top:3px;line-height:1.3}
+.kind.on{border:1.5px solid var(--brand);background:var(--brand-soft)}
+.panel{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 24px 18px}
+.panel .ph{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.panel .ph b{font-size:17px}
+.panel .field{margin-bottom:12px}
+.panel input,.panel select,.panel textarea{font-size:16.5px;padding:11px 14px}
+.guide{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:15px}
+.guide ol{margin:6px 0;padding-left:20px}
+.guide li{margin-bottom:5px}
+.kbd{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:#f2efe6;border:1px solid var(--line);border-radius:5px;padding:0 5px}
+.others{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.others label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.others input{margin-top:4px}
+
+/* step 6 */
+.done{display:grid;grid-template-columns:1fr 488px;gap:60px;align-items:center;max-width:930px;margin:0 auto}
+.bigok{width:80px;height:80px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:24px}
+.bigok.warn{background:#b7832f}
+.bigok svg{width:38px;height:38px}
+.done h1{font-size:38px}
+.done .acts{display:flex;gap:12px;flex-wrap:wrap}
+.done .acts .btn{font-size:16.5px;font-weight:600;padding:11px 20px}
+.checks{border:1px solid var(--line);border-radius:var(--r);background:var(--card-2)}
+.checks .c{display:flex;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line)}
+.checks .c:last-child{border-bottom:0}
+.checks .c svg{width:18px;height:18px;color:var(--ok);flex:none;margin-top:4px}
+.checks .c.warn svg{color:#b7832f}
+.checks .t{font-weight:700;font-size:16.5px}
+.checks .s{color:var(--muted);font-size:14px}
+.first{background:var(--brand);color:#fff;border-radius:var(--r);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.first .k{font-size:12.5px;font-weight:700;letter-spacing:1.3px;color:rgba(255,255,255,.75)}
+.first .v{font-size:20px;font-weight:700}
+.first .u{font-weight:700;font-size:17px}
+.trouble{background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:15px;margin-top:6px}
+.trouble ul{margin:6px 0 12px;padding-left:20px}
+.trouble li{margin-bottom:5px}
+.done .trouble .acts .btn{font-size:14.5px;padding:7px 13px;border-radius:10px}
+
+/* sign in (from a PC or phone without the QR code) */
+.login{max-width:440px;margin:60px auto 0;background:var(--card-2);border:1px solid var(--line);border-radius:18px;padding:30px 32px}
+.login h1{font-size:26px}
+
+@media (max-width:980px){
+  .welcome,.two,.done{grid-template-columns:1fr;gap:28px}
+  .kinds{grid-template-columns:repeat(3,1fr)}
+  .grid4{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .top{height:auto;flex-wrap:wrap;padding:12px 18px 0;border-bottom:0}
+  .top .logo{font-size:17px}.top .logo svg{width:28px;height:28px}
+  .top .right .segs,.top .right .name{display:none}
+  .mbar{display:flex;gap:6px;width:100%;padding:12px 0 12px;border-bottom:1px solid var(--line);margin-top:10px}
+  .mbar i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+  .mbar i.on{background:var(--brand)}
+  main{padding:18px 18px 120px}
+  h1{font-size:25px}
+  .welcome h1{font-size:28px}
+  .lead{font-size:16px}
+  .qrcard,.qrmini{display:none}
+  .foot{background:var(--head);border-top:1px solid var(--line);padding:14px 18px}
+  .foot .nav{width:100%}
+  .foot .nav .btn{flex:1}
+  .foot .note-left{display:none}
+  .grid2,.grid4,.asr{grid-template-columns:1fr}
+  .kinds{grid-template-columns:1fr 1fr}
+  .item{flex-wrap:wrap}
+  .item .acts{width:100%;padding-left:60px}
+  .picker{padding-left:20px}
+  .tzline{flex-direction:column;align-items:flex-start}
+  .results .s .ll{display:none}
+  .results .sel span{display:none}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo" id="logo"></div>
+  <div class="right" id="hdr"></div>
+  <div class="mbar" id="mbar" hidden></div>
+</header>
+<main id="main"><p class="muted" style="text-align:center;margin-top:80px">Loading…</p></main>
+<footer class="foot" id="foot" hidden></footer>
+
+<script src="/static/box.js"></script>
+<script>
+// ------------------------------------------------------------------ icons
+const I = {
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  music:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+  server:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
+  usb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="9" width="10" height="13" rx="2"/><path d="M9 9V3h6v6M11 5.5h.01M13 5.5h.01"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg>',
+  stop:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>',
+};
+const STEPS = ["Password", "Location", "Prayer times", "Azan sound", "Phone system", "Test and finish"];
+const PBX = {
+  ucm: {t:"Grandstream UCM", d:"UCM6300 and similar", short:"UCM", group:"Paging group number"},
+  freepbx: {t:"FreePBX", d:"or Asterisk", short:"FreePBX", group:"Paging group number"},
+  "3cx": {t:"3CX", d:"On-site or hosted", short:"3CX", group:"Paging group number"},
+  multicast: {t:"Phones only", d:"Yealink, Grandstream… (multicast)"},
+  other: {t:"Something else", d:"We'll guide you"},
+};
+// A sensible first choice of method for the country picked in step 2 (the mosque's own choice wins).
+const COUNTRY_METHOD = {GB:"MoonsightingCommittee", IE:"MoonsightingCommittee", US:"ISNA", CA:"ISNA", SA:"Makkah", AE:"Gulf", OM:"Gulf", BH:"Gulf",
+  KW:"Kuwait", QA:"Qatar", EG:"Egypt", PK:"Karachi", IN:"Karachi", BD:"Karachi", AF:"Karachi", TR:"Turkey", SG:"Singapore", MY:"Singapore",
+  ID:"Singapore", BN:"Singapore", FR:"France", IR:"Tehran"};
+const HANAFI = ["PK", "IN", "BD", "AF"];
+
+// ------------------------------------------------------------------ state
+// W is shared through the box, so its screen and a phone show the same step; LOCAL stays on this device.
+const CLIENT = Math.random().toString(36).slice(2, 10);
+let W = null, REV = 0, SESSION = {}, CFG0 = null, META = {}, KIOSK = false, VIA_QR = false;
+const LOCAL = {pw1:"", pw2:"", pwEdit:false, err:"", busy:"", preview:null, previewKey:"", picker:"", nohear:false, guide:false, searching:false, searchErr:"", playing:null};
+
+function freshState(){
+  return {step:0, pw:{mode:"sticker", done:""},
+    loc:{query:"", results:[], sel:-1, manual:false, name:"", latitude:null, longitude:null, timezone:"", elevation:0, cc:""},
+    calc:{method:"MWL", asr:"standard", touched:false, timetable:false, ttOpen:false},
+    audio:{azan:"tone", fajr:"", reminder:"", minutes:0},
+    usb:null,
+    phone:{kind:"ucm", host:"", group:"", ext:"", password:"", auth:"", mc_ip:"224.5.6.20", mc_port:"10008", codec:"PCMU", other:"pbx", phones:"", rtp:""},
+    test:null};
+}
+
+let pushTimer = null;
+function push(now){
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async () => {
+    pushTimer = null;
+    try{ const r = await api("/api/setup/state", {client:CLIENT, state:W}); REV = Math.max(REV, r.rev); LOCAL.driver = CLIENT; }catch(e){ handleLost(e); }
+  }, now ? 0 : 300);
+}
+function set(fn, rerender = true){ fn(W); if(rerender) render(); push(); }
+function go(step){
+  LOCAL.err = ""; LOCAL.picker = ""; LOCAL.nohear = false; LOCAL.guide = false;
+  W.step = step; render(); push(true); window.scrollTo(0, 0); enter();
+}
+// things to do when a step opens (on whichever screen is in charge)
+function enter(){ if(W.step === 4 && !W.usb) checkUsb(false); }
+
+async function poll(){
+  if(pushTimer) return;  // our own change is on its way
+  try{
+    const r = await api("/api/setup/state");
+    if(r.rev > REV){
+      REV = r.rev; LOCAL.driver = r.driver;
+      if(r.driver !== CLIENT && r.state){
+        if(r.state.finished) return leave();
+        W = r.state; render();
+      }
+    }
+  }catch(e){ handleLost(e); }
+}
+async function handleLost(e){
+  if(e.status !== 401) return;
+  try{ SESSION = await api("/api/session"); }catch(_){ return; }
+  if(SESSION.configured) return leave();
+  showLogin();
+}
+// The box's screen, and anyone who was only following along, see the prayer times; whoever pressed
+// Finish on a phone or PC goes on to the control panel.
+function leave(finisher){ location.replace(finisher && !KIOSK ? "/" : "/display"); }
+
+// ------------------------------------------------------------------ helpers
+const phoneW = () => matchMedia("(max-width:640px)").matches;
+const sticker = () => SESSION.docker ? "the password from compose.yaml" : "the password on the sticker";
+const fileName = v => v && v !== "tone" ? v.replace(/^audio\//, "") : "";
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+const TZ = {};
+function tzInfo(zone){  // a friendly name, and the months in which the clocks change this year
+  if(TZ[zone]) return TZ[zone];
+  let name = zone, months = [];
+  if(zone === "Europe/London") name = "UK time";
+  else try{ name = new Intl.DateTimeFormat("en-GB", {timeZone:zone, timeZoneName:"longGeneric"}).formatToParts(new Date()).find(p => p.type === "timeZoneName").value; }catch(e){}
+  try{
+    const f = new Intl.DateTimeFormat("en-GB", {timeZone:zone, timeZoneName:"shortOffset"});
+    const off = d => f.formatToParts(d).find(p => p.type === "timeZoneName").value;
+    const y = new Date().getFullYear();
+    let prev = off(new Date(Date.UTC(y, 0, 1, 12)));
+    for(let d = 1; d < 365; d++){
+      const day = new Date(Date.UTC(y, 0, 1 + d, 12)), o = off(day);
+      if(o !== prev){ months.push(day.toLocaleDateString("en-GB", {month:"long", timeZone:"UTC"})); prev = o; }
+    }
+  }catch(e){}
+  return TZ[zone] = {name, months};
+}
+function tzText(zone){
+  if(!zone || zone === "local") return "";
+  const {name, months} = tzInfo(zone);
+  const changes = months.length ? (phoneW() ? "Clock changes happen automatically." : `Clock changes in ${months.join(" and ")} happen automatically.`) : "The clocks don't change here.";
+  return `Time zone set to <b>${esc(name)}</b>. ${changes}`;
+}
+
+function phoneTarget(){
+  const p = W.phone, codec = p.codec || "PCMU";
+  const lines = s => String(s || "").split(/[\n,;]+/).map(x => x.trim()).filter(Boolean);
+  if(p.kind === "multicast"){
+    if(!/^(22[4-9]|23\d)\.\d+\.\d+\.\d+$/.test(p.mc_ip.trim())) throw new Error("A multicast address starts with 224 to 239, for example 224.5.6.20");
+    return {name:"All phones (multicast)", type:"multicast", address:`${p.mc_ip.trim()}:${parseInt(p.mc_port) || 10008}`, codec, enabled:true};
+  }
+  if(p.kind === "other" && p.other === "direct"){
+    const a = lines(p.phones); if(!a.length) throw new Error("Enter at least one phone's IP address");
+    return {name:"Phones (direct calls)", type:"sip", mode:"direct", uris:a.map(x => x.startsWith("sip:") ? x : "sip:" + x), auto_answer:true, codec, enabled:true};
+  }
+  if(p.kind === "other" && p.other === "rtp"){
+    const a = lines(p.rtp); if(!a.length) throw new Error("Enter at least one speaker as IP:port, for example 192.168.1.50:5004");
+    return {name:"IP speakers", type:"unicast_rtp", addresses:a, codec, enabled:true};
+  }
+  const label = PBX[p.kind] && PBX[p.kind].short ? PBX[p.kind].t : "Phone system";
+  if(!p.host.trim()) throw new Error(`Enter the ${label === "Phone system" ? "phone system" : label}'s address`);
+  if(!p.group.trim()) throw new Error("Enter the paging group number");
+  if(!p.ext.trim()) throw new Error("Enter the extension for the azan");
+  if(!p.password) throw new Error("Enter the extension's password");
+  const t = {name:`${label} paging group ${p.group.trim()}`, type:"sip", mode:"pbx", uri:`sip:${p.group.trim()}@${p.host.trim()}`,
+    username:p.ext.trim(), password:p.password, auto_answer:false, register:true, codec, enabled:true};
+  if(p.kind === "3cx" && p.auth.trim()) t.auth_username = p.auth.trim();
+  return t;
+}
+
+function buildConfig(withPhones = true){
+  const c = clone(CFG0);
+  c.general = {...(c.general || {}), configured:true};
+  if(W.loc.latitude != null){
+    c.location = {...c.location, name:W.loc.name, latitude:W.loc.latitude, longitude:W.loc.longitude,
+      timezone:W.loc.timezone || "local", elevation:W.loc.elevation || 0};
+  }
+  c.calculation = {...c.calculation, method:W.calc.method, asr:W.calc.asr};
+  if(W.calc.timetable) c.calculation.timetable = "timetable.csv"; else delete c.calculation.timetable;
+  c.audio = {...c.audio, azan:W.audio.azan || "tone"};
+  if(W.audio.fajr) c.audio.fajr = W.audio.fajr; else delete c.audio.fajr;
+  c.prayers = {...c.prayers, reminder_minutes:W.audio.minutes || 0};
+  if(W.audio.minutes) c.audio.reminder = W.audio.reminder || "tone"; else delete c.audio.reminder;
+  if(withPhones){ try{ c.targets = [phoneTarget()]; }catch(e){} }
+  return c;
+}
+
+let previewTimer = null;
+function wantPreview(){
+  if(W.loc.latitude == null) return;
+  const cfg = buildConfig(false), key = JSON.stringify([cfg.location, cfg.calculation, cfg.prayers]);
+  if(key === LOCAL.previewKey) return;
+  LOCAL.previewKey = key;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    try{ LOCAL.preview = await api("/api/preview", {config:cfg, days:1}); }
+    catch(e){ LOCAL.preview = {error:e.message}; }
+    if(W.step === 3 || W.step === 6) render();
+  }, 150);
+}
+
+// ------------------------------------------------------------------ chrome
+function header(){
+  $("#logo").innerHTML = LOGO + "<span>Azan SIP</span>";
+  const s = W ? W.step : 0;
+  if(!W || s === 0){ $("#hdr").innerHTML = W ? '<span class="name">First-time setup</span>' : ""; $("#mbar").hidden = true; return; }
+  const segs = STEPS.map((_, i) => `<i class="${i < s ? "on" : ""}"></i>`).join("");
+  $("#hdr").innerHTML = `<span>Step ${s} of 6<span class="name"> · ${STEPS[s - 1]}</span></span><span class="segs">${segs}</span>`;
+  $("#mbar").innerHTML = segs; $("#mbar").hidden = false;
+}
+function footer(o){
+  const f = $("#foot");
+  if(!o){ f.hidden = true; return; }
+  const elsewhere = KIOSK && LOCAL.driver && LOCAL.driver !== CLIENT;
+  const left = o.left !== undefined ? o.left : (KIOSK || !phoneW()) && SESSION.setup ?
+    `<div class="qrmini"><img src="/api/setup-qr.svg" alt=""><div>${elsewhere ? "Being set up from a phone.<br>You can carry on here too." : "Easier on your phone?<br>Scan to carry on there."}</div></div>` : "<span></span>";
+  f.innerHTML = `${left}<div class="nav">${o.back !== false ? `<button class="btn" onclick="go(${W.step - 1})">Back</button>` : ""}
+    <button class="btn primary" id="next" onclick="${o.action || `go(${W.step + 1})`}" ${o.disabled || LOCAL.busy ? "disabled" : ""}>${o.next || "Next"}</button></div>`;
+  f.hidden = false;
+}
+function banner(){
+  return VIA_QR && !SESSION.docker && phoneW() ? `<div class="banner">${I.check}<span>Connected to your Azan SIP box. Its screen follows along as you go.</span></div>` : "";
+}
+
+function render(){
+  const a = document.activeElement, id = a && a.id;
+  const sel = id && typeof a.selectionStart === "number" ? [a.selectionStart, a.selectionEnd] : null;
+  header();
+  const fn = [stepWelcome, stepPassword, stepLocation, stepTimes, stepAudio, stepPhones, stepFinish][W.step] || stepWelcome;
+  $("#main").innerHTML = fn();
+  if(W.step === 3 || W.step === 6) wantPreview();
+  if(id){ const el = document.getElementById(id); if(el && el !== document.activeElement){ el.focus(); if(sel) try{ el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
+}
+
+// ------------------------------------------------------------------ welcome
+function stepWelcome(){
+  footer(null);
+  const have = [
+    [I.pin, "Your town or city"],
+    [I.music, SESSION.docker ? "Your azan recording (MP3), on this computer or your phone" : "Your azan recording (MP3), on a USB stick or your phone"],
+    [I.server, "Your phone system's address, an extension number and its password"]];
+  const qr = SESSION.setup && !phoneW() ? `<div class="qrcard"><img class="qr" src="/api/setup-qr.svg" alt="QR code to set up from your phone">
+      <h3>Or set up from your phone</h3>
+      <p>Point your phone's camera at the code. ${KIOSK ? "This screen" : "This page"} follows along as you go.</p>
+      ${KIOSK ? `<hr><p>On a PC, open <b>http://azan.local</b><br>The password is on the sticker under the box.</p>` : ""}</div>` : "";
+  return `<div class="welcome" ${qr ? "" : 'style="grid-template-columns:1fr;max-width:760px"'}><div>
+      <span class="pill">${I.check} Connected to the network · ${esc(SESSION.ip || "")}</span>
+      <h1>Assalamu alaikum.<br>Let's get the azan playing on your phones.</h1>
+      <p class="lead">Setup takes about five minutes. Have these ready:</p>
+      <ul class="have">${have.map(([i, t]) => `<li><span class="icbox">${i}</span>${t}</li>`).join("")}</ul>
+      <div class="start"><button class="btn primary" onclick="go(1)">${KIOSK ? "Start setup on this screen" : "Start setup"} ${I.arrow}</button>
+        ${KIOSK ? '<span class="muted" style="font-size:15px">With a mouse and keyboard plugged into the box</span>' : ""}</div>
+    </div>${qr}</div>`;
+}
+
+// ------------------------------------------------------------------ 1. password
+function stepPassword(){
+  const own = W.pw.mode === "own", isSet = W.pw.done === "own" && !LOCAL.pwEdit;
+  footer({action:"savePassword()", disabled: own && !isSet && !pwOk()});
+  const keepT = SESSION.docker ? "Keep the password from compose.yaml" : "Keep the password on the sticker";
+  const keepD = SESSION.docker ? "The AZAN_PASSWORD you set when you started the box." : "It's printed under the box, next to the serial number.";
+  return `<div class="wrap" style="max-width:770px">${banner()}
+    <h1>Protect the settings with a password</h1>
+    <p class="lead">Anyone on your network can open this box's settings, so a password is needed to change them. Viewing the prayer times never needs it.</p>
+    <label class="opt ${own ? "" : "on"}"><input type="radio" name="pw" ${own ? "" : "checked"} onchange="set(w=>w.pw.mode='sticker')"><div class="body"><div class="t">${keepT}</div><div class="d">${keepD}</div></div></label>
+    <label class="opt ${own ? "on" : ""}"><input type="radio" name="pw" ${own ? "checked" : ""} onchange="set(w=>w.pw.mode='own')"><div class="body"><div class="t">Choose my own</div>
+      ${own ? (isSet ? `<div class="okline" style="margin-top:10px">${I.check} Your own password is set. <button class="link" onclick="event.preventDefault();LOCAL.pwEdit=true;render()">Change it</button></div>` : `
+      <div class="grid2" style="margin-top:14px">
+        <div class="field" style="margin:0"><label for="pw1">New password</label><input type="password" id="pw1" autocomplete="new-password" value="${esc(LOCAL.pw1)}" oninput="LOCAL.pw1=this.value;pwHint()"></div>
+        <div class="field" style="margin:0"><label for="pw2">Type it again</label><input type="password" id="pw2" autocomplete="new-password" value="${esc(LOCAL.pw2)}" oninput="LOCAL.pw2=this.value;pwHint()"></div>
+      </div><div id="pwhint" style="margin-top:12px">${pwHintHTML()}</div>`) : ""}
+    </div></label>
+    ${LOCAL.err ? `<p class="err">${esc(LOCAL.err)}</p>` : ""}</div>`;
+}
+const pwOk = () => LOCAL.pw1.length >= 8 && LOCAL.pw1 === LOCAL.pw2;
+function pwHintHTML(){
+  if(!LOCAL.pw1) return '<span class="hint">At least 8 characters.</span>';
+  if(LOCAL.pw1.length < 8) return '<span class="hint">At least 8 characters.</span>';
+  if(!LOCAL.pw2) return '<span class="hint">Type it again to check.</span>';
+  if(LOCAL.pw1 !== LOCAL.pw2) return `<span class="err" style="font-size:15px">The passwords don't match yet</span>`;
+  return `<span class="okline">${I.check} Passwords match · at least 8 characters</span>`;
+}
+function pwHint(){ const h = $("#pwhint"); if(h) h.innerHTML = pwHintHTML(); const n = $("#next"); if(n) n.disabled = !pwOk(); }
+async function savePassword(){
+  const own = W.pw.mode === "own";
+  if(own && W.pw.done === "own" && !LOCAL.pwEdit) return go(2);
+  LOCAL.busy = "pw"; LOCAL.err = "";
+  try{
+    await api("/api/setup/password", own ? {new:LOCAL.pw1} : {sticker:true});
+    W.pw.done = own ? "own" : "sticker"; LOCAL.pw1 = LOCAL.pw2 = ""; LOCAL.pwEdit = false; LOCAL.busy = "";
+    go(2);
+  }catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
+}
+
+// ------------------------------------------------------------------ 2. location
+function stepLocation(){
+  const L = W.loc;
+  footer({disabled: L.latitude == null});
+  const results = L.results.length ? `<div class="results">${L.results.map((c, i) => `<button class="${i === L.sel ? "on" : ""}" onclick="pickCity(${i})">
+      <div><div class="n">${esc(c.name)}</div><div class="s">${esc([c.admin1, c.country].filter(Boolean).join(", "))}<span class="ll">${i === L.sel ? ` · ${c.latitude.toFixed(3)}, ${c.longitude.toFixed(3).replace("-", "−")}` : ""}</span></div></div>
+      ${i === L.sel ? `<span class="sel">${I.check}<span>Selected</span></span>` : ""}</button>`).join("")}</div>`
+    : LOCAL.searching ? '<p class="muted">Searching…</p>' : L.query.trim().length > 1 && !LOCAL.searchErr ? '<p class="muted">No places found. Try the nearest town, or enter the coordinates instead.</p>' : "";
+  const manual = L.manual ? `<div class="panel" style="margin-top:16px">
+      <div class="grid2">
+        <div class="field"><label for="m-name">Place name</label><input type="text" id="m-name" value="${esc(L.name)}" oninput="set(w=>w.loc.name=this.value,false)"></div>
+        <div class="field"><label for="m-tz">Time zone</label><select id="m-tz" onchange="set(w=>w.loc.timezone=this.value)">${zoneOptions(L.timezone)}</select></div>
+        <div class="field"><label for="m-lat">Latitude</label><input type="text" inputmode="decimal" id="m-lat" placeholder="51.5074" value="${L.latitude ?? ""}" oninput="setCoord('latitude',this.value)"></div>
+        <div class="field"><label for="m-lon">Longitude</label><input type="text" inputmode="decimal" id="m-lon" placeholder="-0.1278" value="${L.longitude ?? ""}" oninput="setCoord('longitude',this.value)"></div>
+      </div><div class="hint">In Google Maps, right-click the masjid and click the numbers at the top to copy them.</div></div>` : "";
+  return `<div class="wrap" style="max-width:770px">${banner()}
+    <h1>Where is the masjid or building?</h1>
+    <div class="field" style="margin-bottom:0"><label for="city">Town or city</label>
+      <div class="search">${I.search}<input type="search" id="city" placeholder="Start typing a town or city" value="${esc(L.query)}" oninput="typeCity(this.value)" onkeydown="if(event.key==='Enter')findCity(true)" autocomplete="off"></div></div>
+    ${LOCAL.searchErr ? `<p class="err">${esc(LOCAL.searchErr)}</p>` : ""}
+    ${L.manual ? "" : results}${manual}
+    <div class="tzline"><div class="t">${L.timezone ? I.clock + `<span>${tzText(L.timezone)}</span>` : ""}</div>
+      <button class="link" onclick="set(w=>w.loc.manual=!w.loc.manual)">${L.manual ? "Search for a town instead" : "Enter coordinates instead"}</button></div></div>`;
+}
+function zoneOptions(cur){
+  const zones = META.zones && META.zones.length ? META.zones : [cur || "Europe/London"];
+  return [`<option value="local" ${cur === "local" ? "selected" : ""}>This box's own time zone</option>`, ...zones.map(z => `<option ${z === cur ? "selected" : ""}>${esc(z)}</option>`)].join("");
+}
+function setCoord(k, v){
+  const n = parseFloat(String(v).replace("−", "-").replace(",", "."));
+  set(w => { w.loc[k] = Number.isFinite(n) ? n : null; if(!w.loc.name) w.loc.name = "My masjid"; if(!w.loc.timezone) w.loc.timezone = guessZone(); w.loc.sel = -1; }, false);
+  const n2 = $("#next"); if(n2) n2.disabled = W.loc.latitude == null || W.loc.longitude == null;
+}
+function guessZone(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || "local"; }catch(e){ return "local"; } }
+let searchTimer = null;
+function typeCity(v){ W.loc.query = v; push(); clearTimeout(searchTimer); searchTimer = setTimeout(() => findCity(false), 450); }
+async function findCity(now){
+  const q = W.loc.query.trim();
+  if(q.length < 2){ if(now) return; set(w => { w.loc.results = []; w.loc.sel = -1; }); return; }
+  LOCAL.searching = true; LOCAL.searchErr = "";
+  try{
+    const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=5&language=en&name=" + encodeURIComponent(q));
+    const j = await r.json();
+    if(W.loc.query.trim() !== q) return;  // typed on since
+    LOCAL.searching = false;
+    set(w => { w.loc.results = (j.results || []).map(c => ({name:c.name, admin1:c.admin1 || "", country:c.country || "", cc:c.country_code || "",
+      latitude:c.latitude, longitude:c.longitude, timezone:c.timezone || "", elevation:c.elevation})); w.loc.sel = -1; });
+  }catch(e){
+    LOCAL.searching = false;
+    LOCAL.searchErr = "Searching needs the internet, which the box can't reach. Enter the coordinates instead.";
+    set(w => w.loc.manual = true);
+  }
+}
+function pickCity(i){
+  set(w => {
+    const c = w.loc.results[i];
+    Object.assign(w.loc, {sel:i, name:[c.name, c.country].filter(Boolean).join(", "), latitude:+c.latitude.toFixed(4), longitude:+c.longitude.toFixed(4),
+      elevation:c.elevation != null ? Math.round(c.elevation) : 0, cc:c.cc,
+      timezone:c.timezone && (!(META.zones || []).length || META.zones.includes(c.timezone)) ? c.timezone : "local"});
+    if(!w.calc.touched){ w.calc.method = COUNTRY_METHOD[c.cc] || "MWL"; w.calc.asr = HANAFI.includes(c.cc) ? "hanafi" : "standard"; }
+  });
+}
+
+// ------------------------------------------------------------------ 3. prayer times
+function stepTimes(){
+  const C = W.calc;
+  footer({});
+  const methods = (META.methods || []).map(m => `<option value="${esc(m.id)}" ${m.id === C.method ? "selected" : ""}>${esc(m.name)}</option>`).join("");
+  const asr = [["standard", "Standard (Shafi'i, Maliki, Hanbali)"], ["hanafi", "Hanafi"]].map(([v, t]) =>
+    `<label class="opt ${C.asr === v ? "on" : ""}"><input type="radio" name="asr" ${C.asr === v ? "checked" : ""} onchange="set(w=>{w.calc.asr='${v}';w.calc.touched=true})"><div class="body"><div class="t">${t}</div></div></label>`).join("");
+  let tt;
+  if(C.timetable) tt = `<div class="tt"><div class="okline" style="color:var(--note-ink)">${I.check} Using your mosque's timetable (timetable.csv). The times on the right come from it.</div>
+      <div class="row" style="margin-top:10px">${KIOSK ? "" : `<label class="btn small">Upload a new one<input type="file" accept=".csv,text/csv" hidden onchange="uploadTimetable(this.files[0])"></label>`}
+      <button class="btn small" onclick="set(w=>w.calc.timetable=false)">Stop using it</button></div></div>`;
+  else if(C.ttOpen) tt = `<div class="tt"><b>Use your mosque's timetable</b>
+      ${KIOSK ? `<p style="margin:6px 0 10px">This is easiest from a PC or phone: scan the code below and carry on there.</p>` : `<ol><li>Download the template. It has this year's times worked out the way chosen above.</li>
+        <li>Change the times to your mosque's, in Excel or similar, and save it as CSV.</li><li>Upload it here.</li></ol>`}
+      <div class="row">${KIOSK ? "" : `<button class="btn small" onclick="downloadTemplate()">Download the template</button>
+        <label class="btn small">Upload timetable (CSV)<input type="file" accept=".csv,text/csv" hidden onchange="uploadTimetable(this.files[0])"></label>`}
+        <button class="btn small" onclick="set(w=>w.calc.ttOpen=false)">Cancel</button></div>
+      ${LOCAL.err ? `<p class="err">${esc(LOCAL.err)}</p>` : ""}</div>`;
+  else tt = `<div class="note">${I.doc}<div class="grow">Have your mosque's printed timetable? Use it instead and the times will match exactly.</div>
+      <button class="btn small" style="color:var(--note-ink)" onclick="set(w=>w.calc.ttOpen=true)">Use a timetable</button></div>`;
+  return `${banner()}<div class="two"><div>
+      <h1>How are prayer times worked out?</h1>
+      <div class="field"><label for="method">Calculation method</label><select id="method" onchange="set(w=>{w.calc.method=this.value;w.calc.touched=true})">${methods}</select>
+        <span class="hint">Not sure? Ask your mosque which timetable they follow.</span></div>
+      <div class="field"><span class="lbl">Asr time</span><div class="asr">${asr}</div></div>
+      ${tt}
+    </div>${todayCard()}</div>`;
+}
+function todayCard(){
+  const p = LOCAL.preview, place = (W.loc.name || "").split(",")[0];
+  if(!p) return `<div class="today"><div class="k">Today in ${esc(place)}</div><p class="muted">Working out the times…</p></div>`;
+  if(p.error) return `<div class="today"><div class="k">Today in ${esc(place)}</div><p class="err">${esc(p.error)}</p></div>`;
+  const d = p.week[0], date = new Date(d.iso + "T12:00:00").toLocaleDateString("en-GB", {weekday:"long", day:"numeric", month:"long"});
+  return `<div class="today"><div class="k">Today in ${esc(place)}</div><div class="d">${esc(date)}</div>
+    ${["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"].map(k => `<div class="r ${k === "sunrise" ? "dim" : ""}"><span>${TITLE[k]}</span><b>${esc(d[k])}</b></div>`).join("")}
+    <div class="f">Compare with your mosque's timetable. Small differences can be adjusted later in Settings.</div></div>`;
+}
+async function uploadTimetable(f){
+  if(!f) return;
+  LOCAL.err = "";
+  try{ await api("/api/upload?kind=timetable&name=timetable.csv", await f.arrayBuffer(), true); LOCAL.previewKey = ""; set(w => { w.calc.timetable = true; w.calc.ttOpen = false; }); }
+  catch(e){ LOCAL.err = e.message; render(); }
+}
+async function downloadTemplate(){
+  const cfg = buildConfig(false); delete cfg.calculation.timetable;
+  const y = new Date().getFullYear();
+  const r = await api("/api/preview", {config:cfg, days:366, start:`${y}-01-01`});
+  const rows = ["date,fajr,sunrise,dhuhr,asr,maghrib,isha", ...r.week.map(x => [x.iso, x.fajr, x.sunrise, x.dhuhr, x.asr, x.maghrib, x.isha].join(","))];
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.join("\r\n") + "\r\n"], {type:"text/csv"})); a.download = `timetable-${y}.csv`; a.click();
+}
+
+// ------------------------------------------------------------------ 4. azan sound
+function stepAudio(){
+  const A = W.audio, tested = W.test && W.test.ok;
+  footer({});
+  const copied = W.usb && W.usb.copied && W.usb.copied.length;
+  const usb = copied ? `<div class="usbnote">${I.usb}<span>USB stick found with ${W.usb.copied.length} recording${W.usb.copied.length > 1 ? "s" : ""}. ${W.usb.copied.length > 1 ? "They've" : "It's"} been copied to the box, so you can unplug it.</span></div>` : "";
+  const play = (key, src) => {
+    const on = LOCAL.playing === key;
+    return `<button class="btn" onclick="playSound('${key}','${esc(src)}')">${on ? I.stop + " Stop" : I.play + (tested ? " Play on phones" : " Listen")}</button>`;
+  };
+  const row = (key, icon, label, value, off, acts) => `<div class="item"><span class="icbox">${icon}</span><div class="grow"><div class="l">${label}</div>
+      <div class="v ${off ? "off" : ""}">${esc(value)}</div></div><div class="acts">${acts}</div></div>${LOCAL.picker === key ? picker(key) : ""}`;
+  const azanName = fileName(A.azan), fajrName = fileName(A.fajr);
+  const rem = A.minutes ? `${A.minutes} minutes before · ${fileName(A.reminder) || "chime"}` : "Off";
+  let after;
+  if(KIOSK) after = `<p class="muted" style="font-size:15px">${copied ? "Want a different recording? Plug in another USB stick and press Change, or" : "No USB stick? Plug one in and press Change, or"} scan the code below and add the recording from your phone instead.</p>`;
+  else after = `<p class="muted" style="font-size:15px">Press Change to add your recording from this ${phoneW() ? "phone" : "computer"}. MP3 and most other formats work.</p>`;
+  return `<div class="wrap" style="max-width:845px">${banner()}
+    <h1>Which azan should play?</h1>${usb}
+    <div class="list">
+      ${row("azan", I.music, "Azan for every prayer", azanName || "Built-in chime (add your recording)", !azanName, play("azan", A.azan || "tone") + `<button class="btn" onclick="openPicker('azan')">Change</button>`)}
+      ${row("fajr", I.moon, "Fajr azan (optional)", fajrName || "Same as the others", !fajrName, (fajrName ? play("fajr", A.fajr) : "") + `<button class="btn" onclick="openPicker('fajr')">Change</button>`)}
+      ${row("reminder", I.bell, "Reminder before each prayer", rem, !A.minutes, (A.minutes ? play("reminder", A.reminder || "tone") : "") + `<button class="btn" onclick="openPicker('reminder')">${A.minutes ? "Change" : "Set up"}</button>`)}
+    </div>${LOCAL.err ? `<p class="err">${esc(LOCAL.err)}</p>` : ""}${after}</div>`;
+}
+function picker(key){
+  const files = META.audio_files || [], cur = key === "reminder" ? (W.audio.reminder || "tone") : W.audio[key];
+  const opts = [...(key === "fajr" ? [["", "Same as the others"]] : []), ["tone", "Built-in chime"], ...files.map(f => ["audio/" + f, f])];
+  const radios = opts.map(([v, t]) => `<label class="choice"><input type="radio" name="pick-${key}" ${v === cur ? "checked" : ""} onchange="choose('${key}','${esc(v)}')">${esc(t)}</label>`).join("");
+  const mins = key === "reminder" ? `<div class="field" style="max-width:260px;margin:4px 0 6px"><label for="remmin">Minutes before the azan</label>
+      <select id="remmin" onchange="set(w=>w.audio.minutes=+this.value)">${[0, 5, 10, 15, 20, 30].map(n => `<option value="${n}" ${n === (W.audio.minutes || 0) ? "selected" : ""}>${n ? n + " minutes" : "Off"}</option>`).join("")}</select></div>
+      <span class="lbl">Sound</span>` : "";
+  const add = KIOSK ? `<button class="btn small" onclick="checkUsb(true)">${I.usb} Look on the USB stick again</button>`
+    : `<label class="btn small">Add a recording from this ${phoneW() ? "phone" : "computer"}<input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" hidden onchange="uploadAudio('${key}',this.files[0])"></label>`;
+  return `<div class="picker">${mins}${radios}<div class="row">${add}${LOCAL.busy === "upload" ? '<span class="muted">Adding the recording…</span>' : ""}
+    <button class="btn small" onclick="LOCAL.picker='';render()">Done</button></div></div>`;
+}
+async function openPicker(key){
+  LOCAL.picker = LOCAL.picker === key ? "" : key; LOCAL.err = "";
+  if(key === "reminder" && !W.audio.minutes && LOCAL.picker) set(w => w.audio.minutes = 10);
+  render();
+  const pk = $(".picker"); if(pk) pk.scrollIntoView({block:"nearest", behavior:"smooth"});
+  try{ const r = await api("/api/config"); META = r.meta; if(LOCAL.picker) render(); }catch(e){}
+}
+function choose(key, v){ set(w => { if(key === "reminder") w.audio.reminder = v === "tone" ? "" : v; else w.audio[key] = v; }); }
+async function uploadAudio(key, f){
+  if(!f) return;
+  LOCAL.busy = "upload"; LOCAL.err = ""; render();
+  let body, name;
+  try{ body = await toPhoneWav(f); name = f.name.replace(/\.[^.]+$/, "") + ".wav"; }
+  catch(e){ body = await f.arrayBuffer(); name = f.name; }
+  try{
+    const r = await api("/api/upload?kind=audio&name=" + encodeURIComponent(name), body, true);
+    META.audio_files = r.files; LOCAL.busy = "";
+    choose(key, "audio/" + r.name);
+  }catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
+}
+async function checkUsb(manual){
+  try{
+    const r = await api("/api/setup/usb", {});
+    if(r.files) META.audio_files = r.files;
+    const copied = r.copied || [];
+    set(w => {
+      w.usb = {available:r.available, copied};
+      const fajr = copied.find(n => /fajr/i.test(n)), main = copied.find(n => !/fajr|remind/i.test(n));
+      if(main && (w.audio.azan === "tone" || manual)) w.audio.azan = "audio/" + main;
+      if(fajr && (!w.audio.fajr || manual)) w.audio.fajr = "audio/" + fajr;
+    });
+    if(manual && !copied.length){ LOCAL.err = "No recordings found. Check the USB stick is plugged into the box and has an MP3 on it."; render(); }
+  }catch(e){ if(manual){ LOCAL.err = e.message; render(); } }
+}
+let audioEl = null, toneCtx = null;
+async function playSound(key, src){
+  if(LOCAL.playing === key) return stopSound();
+  stopSound(); LOCAL.err = "";
+  if(W.test && W.test.ok){  // phones are set up: play it on them
+    try{
+      await api("/api/test", {source:src === "tone" ? "tone" : "file:" + fileName(src), seconds:20, target:W.test.target, label:"Recording test"});
+      LOCAL.playing = key; render(); setTimeout(() => { if(LOCAL.playing === key){ LOCAL.playing = null; render(); } }, 20000);
+    }catch(e){ LOCAL.err = e.message; render(); }
+    return;
+  }
+  LOCAL.playing = key; render();
+  if(src === "tone"){  // the built-in chime, roughly
+    toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.6, 1.2].forEach((t, i) => { const o = toneCtx.createOscillator(), g = toneCtx.createGain(); o.frequency.value = [880, 660, 523][i];
+      g.gain.setValueAtTime(0.25, toneCtx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, toneCtx.currentTime + t + 0.55);
+      o.connect(g); g.connect(toneCtx.destination); o.start(toneCtx.currentTime + t); o.stop(toneCtx.currentTime + t + 0.6); });
+    setTimeout(stopSound, 2000); return;
+  }
+  audioEl = new Audio("/audio/" + encodeURIComponent(fileName(src)));
+  audioEl.onended = stopSound;
+  audioEl.play().catch(() => { LOCAL.err = "This browser can't play that file. It will still play on the phones."; stopSound(); });
+}
+function stopSound(){
+  if(audioEl){ audioEl.pause(); audioEl = null; }
+  if(toneCtx){ toneCtx.close(); toneCtx = null; }
+  if(LOCAL.playing && W.test && W.test.ok) api("/api/stop", {}).catch(() => {});
+  if(LOCAL.playing){ LOCAL.playing = null; render(); }
+}
+
+// ------------------------------------------------------------------ 5. phone system
+function stepPhones(){
+  const P = W.phone;
+  footer({next: LOCAL.busy === "connect" ? "Connecting…" : I.play.replace("<svg", '<svg style="width:13px;height:13px"') + " Connect and test", action:"connect()"});
+  const kinds = Object.entries(PBX).map(([k, x]) => `<button class="kind ${P.kind === k ? "on" : ""}" onclick="set(w=>{w.phone.kind='${k}'});LOCAL.err='';LOCAL.guide=false;render()">
+      <div class="t">${esc(x.t)}${P.kind === k ? I.check : ""}</div><div class="d">${esc(x.d)}</div></button>`).join("");
+  return `<div class="wrap" style="max-width:1096px">${banner()}
+    <h1>Which phone system do you have?</h1>
+    <div class="kinds">${kinds}</div>
+    <div class="panel">${phonePanel()}</div>
+    ${LOCAL.err ? `<p class="err">${esc(LOCAL.err)}</p>` : ""}
+    ${LOCAL.err && LOCAL.failed ? `<button class="link" onclick="skipTest()">Keep these details and test later</button>` : ""}
+    ${LOCAL.busy === "connect" ? `<p class="muted">${W.phone.kind === "multicast" || W.phone.other === "direct" || W.phone.other === "rtp" && W.phone.kind === "other" ? "Playing the test chime…" : "Signing in to the phone system as the extension, then playing a test chime on the phones…"}</p>` : ""}</div>`;
+}
+const fld = (id, label, key, ph = "", type = "text", extra = "") => `<div class="field"><label for="${id}">${label}</label>
+  <input type="${type}" id="${id}" placeholder="${esc(ph)}" value="${esc(W.phone[key])}" oninput="set(w=>w.phone.${key}=this.value,false)" autocomplete="off" ${extra}></div>`;
+function phonePanel(){
+  const P = W.phone, x = PBX[P.kind];
+  const guideLink = `<button class="link" onclick="LOCAL.guide=!LOCAL.guide;render()">${LOCAL.guide ? "Hide the guide" : "Where do I find these? Step-by-step guide"}</button>`;
+  const codec = `<div class="field"><label for="codec">Audio codec</label><select id="codec" onchange="set(w=>w.phone.codec=this.value)">
+      <option value="PCMU" ${P.codec !== "PCMA" ? "selected" : ""}>G.711 µ-law (PCMU)</option><option value="PCMA" ${P.codec === "PCMA" ? "selected" : ""}>G.711 A-law (PCMA)</option></select></div>`;
+  if(P.kind === "multicast"){
+    return `<div class="ph"><b>Your phones</b>${guideLink}</div>
+      <div class="grid4">${fld("mcip", "Multicast address", "mc_ip", "224.5.6.20")}${fld("mcport", "Port", "mc_port", "10008", "text", 'inputmode="numeric"')}${codec}</div>
+      <div class="hint">Each phone listens on this address and port (often called Multicast Listening or Multicast Paging). No phone system changes are needed.</div>${LOCAL.guide ? guide("multicast") : ""}`;
+  }
+  let head = "", which = P.kind;
+  if(P.kind === "other"){
+    which = P.other === "pbx" ? "pbx" : P.other;
+    head = `<div class="others">${[["pbx", "Another phone system with a paging group", "Most systems that let a SIP extension call a paging group."],
+      ["direct", "Call each phone directly", "For Poly/Polycom, or when multicast isn't possible. The phones must answer automatically."],
+      ["rtp", "IP paging speakers (RTP)", "Speakers that listen for audio on a fixed IP address and port."]].map(([v, t, d]) =>
+      `<label><input type="radio" name="other" ${P.other === v ? "checked" : ""} onchange="set(w=>w.phone.other='${v}')"><div><b>${t}</b><div class="hint">${d}</div></div></label>`).join("")}</div>`;
+    if(P.other === "direct") return head + `<div class="field"><label for="phones">Phone IP addresses, one per line</label><textarea id="phones" rows="3" placeholder="192.168.10.21&#10;192.168.10.22" oninput="set(w=>w.phone.phones=this.value,false)">${esc(P.phones)}</textarea></div><div class="grid4">${codec}</div>`;
+    if(P.other === "rtp") return head + `<div class="field"><label for="rtp">Speakers as IP:port, one per line</label><textarea id="rtp" rows="3" placeholder="192.168.10.50:5004" oninput="set(w=>w.phone.rtp=this.value,false)">${esc(P.rtp)}</textarea></div><div class="grid4">${codec}</div>`;
+  }
+  const short = x.short || "phone system";
+  const sysName = x.short ? x.short : "Phone system";
+  const hints = {ucm:"Use the extension's SIP password from the UCM, not the user portal password. The extension will show as Idle on the UCM.",
+    freepbx:"Use the extension's secret (Applications → Extensions → the extension). It will show as online in FreePBX.",
+    "3cx":"Use the Authentication ID and password from the extension's settings in 3CX, not the 3CX web login.",
+    pbx:"Use the password the phone system gives the extension (its SIP password), not a web login."};
+  const pw3 = P.kind === "3cx";
+  return `${head}<div class="ph"><b>${P.kind === "other" ? "Your phone system's details" : `Your ${esc(short)}'s details`}</b>${P.kind === "other" ? "" : guideLink}</div>
+    <div class="grid4">${fld("host", `${esc(sysName)} address`, "host", "192.168.10.254")}${fld("group", "Paging group number", "group", "7000", "text", 'inputmode="numeric"')}
+      ${fld("ext", "Extension for the azan", "ext", "1004", "text", 'inputmode="numeric"')}${pw3 ? fld("auth", "Authentication ID", "auth", "") : ""}
+      ${fld("sippw", pw3 ? "Password" : "Extension's SIP password", "password", "", "password")}</div>
+    <div class="hint">${hints[P.kind] || hints.pbx}</div>${LOCAL.guide ? guide(which === "pbx" ? P.kind : which) : ""}`;
+}
+function guide(kind){
+  const P = W.phone, addr = `${P.mc_ip || "224.5.6.20"}:${parseInt(P.mc_port) || 10008}`, ip = esc(SESSION.ip || "this box");
+  const g = {
+    ucm:`<ol><li><b>Extension/Trunk → Extensions</b>: add (or pick) an extension for the azan, for example <span class="kbd">1004</span>, named "Azan". Note its <b>SIP/IAX password</b>, not the user portal password.</li>
+      <li><b>Call Features → Paging/Intercom</b>: add a <b>Paging</b> group, for example <span class="kbd">7000</span>, with the desk phones as members.</li>
+      <li>Enter the UCM's IP address, the paging group, the extension and its SIP password above.</li></ol>
+      <span class="muted">If it won't connect: check UDP 5060 is on (PBX Settings → SIP Settings), and that the extension's Permitted IP list, if it has one, includes this box (${ip}). Several wrong passwords can make the UCM's Fail2ban block the box for a while.</span>`,
+    freepbx:`<ol><li><b>Applications → Extensions</b>: add a PJSIP extension for the azan, for example <span class="kbd">7099</span>, and copy its <b>Secret</b>.</li>
+      <li><b>Applications → Paging and Intercom</b>: create a paging group, for example <span class="kbd">7000</span>, with the phones as members and Duplex off.</li>
+      <li>Enter the FreePBX's address, the paging group, the extension and its secret above.</li></ol>`,
+    "3cx":`<ol><li><b>Users</b>: add a user for the azan. On its <b>IP Phone</b> tab, note the <b>Authentication ID</b> and <b>password</b>.</li>
+      <li><b>Groups → Paging</b>: create a paging group with the phones as members.</li>
+      <li>Enter the 3CX's address, the paging group number, the extension, its Authentication ID and password above.</li></ol>`,
+    multicast:`<p style="margin:0 0 6px">On each phone's web page (type its IP address into a browser), set it to listen on <span class="kbd">${esc(addr)}</span>:</p><ul style="margin:0;padding-left:20px">
+      <li><b>Yealink</b>: Features → General Information → Multicast Listening, label "Azan".</li>
+      <li><b>Grandstream</b>: Settings → Call Features (or Multicast Paging) → Multicast Listening.</li>
+      <li><b>Fanvil</b>: Line → Multicast / Paging.</li><li><b>Snom</b>: Advanced → Audio → Multicast Addresses.</li>
+      <li><b>Cisco MPP</b>: Voice → Phone → Multiple Paging Group Parameters: <span class="kbd">pggrp=${esc(addr)};name=Azan;num=800;listen=yes;</span></li></ul>`};
+  return `<div class="guide">${g[kind] || ""}</div>`;
+}
+async function connect(){
+  let t;
+  LOCAL.err = ""; LOCAL.failed = false;
+  try{ t = phoneTarget(); }catch(e){ LOCAL.err = e.message; return render(); }
+  LOCAL.busy = "connect"; render();
+  try{
+    const r = await api("/api/setup/connect", {target:t});
+    LOCAL.busy = "";
+    W.test = {ok:true, target:t, registration:r.registration || null};
+    go(6);
+  }catch(e){
+    LOCAL.busy = "";
+    const reg = e.body && e.body.registration;
+    LOCAL.err = reg && reg.status !== "registered" ? `Couldn't sign in as extension ${reg.extension}: ${e.message}` : e.message;
+    LOCAL.failed = true;
+    set(w => w.test = null);
+  }
+}
+function skipTest(){ try{ W.test = {ok:false, target:phoneTarget(), registration:null}; LOCAL.failed = false; go(6); }catch(e){ LOCAL.err = e.message; render(); } }
+
+// ------------------------------------------------------------------ 6. test and finish
+function stepFinish(){
+  const T = W.test, P = W.phone;
+  footer({next: LOCAL.busy === "finish" ? "Finishing…" : "Finish", action:"finish()", disabled: !T,
+    left:`<span class="muted note-left" style="font-size:15px">You can change any of this later in Settings.</span>`});
+  let t;
+  try{ t = phoneTarget(); }catch(e){}
+  const where = !t ? "" : t.type === "multicast" ? `on ${t.address}` : t.mode === "pbx" ? `through paging group ${esc(P.group)}` :
+    t.mode === "direct" ? `by calling ${t.uris.length} phone${t.uris.length > 1 ? "s" : ""}` : `on ${t.addresses.length} speaker${t.addresses.length > 1 ? "s" : ""}`;
+  const left = T && !T.ok ? `<div class="bigok warn">${I.warn}</div><h1>Almost done</h1>
+      <p class="lead">The phones haven't been tested yet. After you finish, test them from Settings → Phones, or go back and try again.</p>
+      <div class="acts"><button class="btn" onclick="go(5)">Try the test again</button></div>`
+    : T ? `<div class="bigok">${I.check}</div><h1>You're all set</h1>
+      <p class="lead">A test chime has just played ${where}. Did you hear it on the phones?</p>
+      ${LOCAL.nohear ? trouble(t) : `<div class="acts"><button class="btn" onclick="playAgain()">${I.play.replace("<svg", '<svg style="width:13px;height:13px"')} Play again</button><button class="btn" onclick="LOCAL.nohear=true;render()">I didn't hear it</button></div>`}
+      ${LOCAL.err ? `<p class="err">${esc(LOCAL.err)}</p>` : ""}`
+    : `<div class="bigok warn">${I.warn}</div><h1>Test the phones first</h1><p class="lead">Go back and press Connect and test, so we know the azan reaches the phones.</p>`;
+  return `${banner()}<div class="done"><div>${left}</div><div>${checklist(t)}${firstAzan()}</div></div>`;
+}
+function checklist(t){
+  const T = W.test, reg = T && T.registration, A = W.audio, C = W.calc;
+  const method = (META.methods || []).find(m => m.id === C.method);
+  const rows = [];
+  if(t && t.mode === "pbx") rows.push([!!reg, reg ? "Registered on the phone system" : "Phone system (not tested yet)",
+    `${esc((PBX[W.phone.kind] && PBX[W.phone.kind].short ? PBX[W.phone.kind].t : "Phone system"))} ${esc(W.phone.host)} · extension ${esc(W.phone.ext)}${reg ? ` shows as ${W.phone.kind === "ucm" ? "Idle" : "online"}` : ""}`]);
+  else if(t && t.type === "multicast") rows.push([!!(T && T.ok), "Multicast paging", `Phones listen on ${esc(t.address)} · no phone system needed`]);
+  else if(t) rows.push([!!(T && T.ok), t.type === "unicast_rtp" ? "IP speakers" : "Direct calls to the phones", esc(t.type === "unicast_rtp" ? t.addresses.join(", ") : t.uris.map(u => u.replace(/^sip:/, "")).join(", "))]);
+  rows.push([W.loc.latitude != null, `Prayer times for ${esc((W.loc.name || "").split(",")[0])}`,
+    C.timetable ? "Your mosque's timetable" : `${esc(method ? method.name : C.method)} · ${C.asr === "hanafi" ? "Hanafi" : "Standard"} Asr`]);
+  const az = fileName(A.azan), fj = fileName(A.fajr);
+  rows.push([!!az, "Azan recordings", az ? esc(az) + (fj ? ` · Fajr: ${esc(fj)}` : "") + (A.minutes ? ` · Reminder ${A.minutes} min before` : "") : "Built-in chime for now. Add your recording in Settings → Azan sound."]);
+  rows.push([true, "Settings protected", W.pw.done === "own" ? "Your own password" : SESSION.docker ? "The password from compose.yaml" : "The password on the sticker"]);
+  return `<div class="checks">${rows.map(([ok, ti, s]) => `<div class="c ${ok ? "" : "warn"}">${ok ? I.check : I.warn}<div><div class="t">${ti}</div><div class="s">${s}</div></div></div>`).join("")}</div>`;
+}
+function firstAzan(){
+  const n = LOCAL.preview && LOCAL.preview.next;
+  if(!n) return "";
+  const when = n.day === "today" ? "" : n.day === "tomorrow" ? " tomorrow" : " on " + n.day;
+  return `<div class="first"><div><div class="k">FIRST AZAN</div><div class="v">${esc(TITLE[n.prayer])}${esc(when)} at ${esc(n.time)}</div></div><div class="u">${esc(untilText(n.seconds))}</div></div>`;
+}
+function trouble(t){
+  const other = W.phone.codec === "PCMA" ? "µ-law (PCMU)" : "A-law (PCMA)";
+  const tips = t && t.type === "multicast" ? [
+      `Check each phone is set to listen on <b>${esc(t.address)}</b>. <button class="link" onclick="go(5);LOCAL.guide=true;render()">See where</button>`,
+      "The box and the phones must be on the same network (the same VLAN).",
+      "Phones on a call or on Do Not Disturb may not play paging."]
+    : t && t.mode === "pbx" ? [
+      `Check the phones are members of paging group <b>${esc(W.phone.group)}</b> on the ${esc(PBX[W.phone.kind] && PBX[W.phone.kind].short || "phone system")}.`,
+      "Phones on a call or on Do Not Disturb may not play paging.",
+      "Some phones need intercom or paging allowed in their settings."]
+    : ["Check the phones answer calls automatically (auto-answer or intercom).", "Check the addresses are right."];
+  return `<div class="trouble"><b>Things to check</b><ul>${tips.map(x => `<li>${x}</li>`).join("")}</ul>
+    <div class="acts"><button class="btn small" onclick="otherCodec()">Try ${other}</button><button class="btn small" onclick="playAgain()">Play again</button><button class="btn small" onclick="go(5)">Change the details</button></div></div>`;
+}
+async function playAgain(){
+  LOCAL.err = "";
+  try{ await api("/api/test", {source:"tone", target:phoneTarget(), label:"Test chime"}); }catch(e){ LOCAL.err = e.message; render(); }
+}
+async function otherCodec(){ set(w => { w.phone.codec = w.phone.codec === "PCMA" ? "PCMU" : "PCMA"; if(w.test) w.test.target = phoneTarget(); }); await playAgain(); }
+async function finish(){
+  LOCAL.busy = "finish"; LOCAL.err = ""; render();
+  try{ await api("/api/setup/finish", {config:buildConfig()}); leave(true); }
+  catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
+}
+
+// ------------------------------------------------------------------ signing in
+function showLogin(){
+  header(); footer(null);
+  $("#main").innerHTML = `<form class="login" id="loginform"><h1>Sign in to set up this box</h1>
+    <p class="muted" style="margin-top:0">${SESSION.docker ? "Enter the password you set as AZAN_PASSWORD in compose.yaml." : "Enter the password on the sticker under the box."}</p>
+    <div class="field"><label for="lpw">Password</label><input type="password" id="lpw" autocomplete="current-password"></div>
+    <p class="err" id="lerr"></p><button class="btn primary" style="width:100%">Sign in</button>
+    ${SESSION.docker ? "" : '<p class="hint" style="margin-bottom:0">Or scan the QR code on the box\'s screen with your phone.</p>'}</form>`;
+  $("#loginform").addEventListener("submit", async e => {
+    e.preventDefault();
+    try{ await api("/api/login", {password:$("#lpw").value}); start(); }
+    catch(err){ $("#lerr").textContent = err.message; }
+  });
+  setTimeout(() => $("#lpw").focus(), 50);
+}
+
+async function start(){
+  SESSION = await api("/api/session");
+  if(SESSION.configured || !SESSION.box) return location.replace("/");
+  if(!SESSION.logged_in) return showLogin();
+  const r = await api("/api/config"); CFG0 = r.config; META = r.meta;
+  const s = await api("/api/setup/state");
+  REV = s.rev; LOCAL.driver = s.driver;
+  W = s.state && !s.state.finished ? s.state : freshState();
+  if(VIA_QR && W.step === 0){ W.step = 1; push(true); }  // chose to set up on the phone
+  render(); enter();
+  setInterval(poll, 1000);
+}
+
+(async () => {
+  try{
+    SESSION = await api("/api/session");
+    const code = new URLSearchParams(location.search).get("setup");
+    if(code){
+      history.replaceState(null, "", "/setup");
+      VIA_QR = true;
+      if(!SESSION.logged_in) try{ await api("/api/login", {setup_code:code}); }catch(e){}
+    } else if(SESSION.local && SESSION.box){
+      KIOSK = true;  // the box's own screen signs itself in for setup
+      if(!SESSION.logged_in && SESSION.setup) try{ const c = await api("/api/setup-code"); await api("/api/login", {setup_code:c.code}); }catch(e){}
+    }
+    await start();
+  }catch(e){
+    $("#main").innerHTML = `<p class="err" style="text-align:center;margin-top:80px">${esc(e.message)}</p>`;
+  }
+})();
+window.addEventListener("resize", () => { if(W) render(); });
+</script>
+</body>
+</html>
