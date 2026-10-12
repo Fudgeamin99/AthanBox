@@ -5,12 +5,15 @@
 #   app updates into this repository never publishes anything. The app's own release workflow
 #   (with the Windows AzanSIP.exe build) lives only in Fudgeamin99/ATHAN-TO-SIP.
 # - Each new release also publishes the Docker image (see compose.yaml).
+# - To release from a branch before it's merged, push the tag box-vX.Y.Z on it by hand, where X.Y.Z
+#   is the newest version in that branch's BOX_CHANGELOG.md.
 name: Box release
 
 on:
   push:
     branches: [main]
-    paths: [BOX_CHANGELOG.md]
+    paths: [BOX_CHANGELOG.md]     # (not checked for tag pushes)
+    tags: ["box-v*"]
   workflow_dispatch:
 
 permissions:
@@ -40,8 +43,20 @@ jobs:
           title="${heading#\#\# }"        # "0.1.0 - Control panel on the network"
           v="${title%% *}"                # "0.1.0"
           tag="box-v$v"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::$GITHUB_REF_NAME doesn't match the newest version in BOX_CHANGELOG.md ($v)"
+            exit 1
+          fi
           if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then
             echo "$tag is already published"
+            exit 0
+          fi
+          # Never publish an older version after a newer one, e.g. merging 0.1.0 to main after
+          # 0.2.0 was released from its branch.
+          newest=$(git ls-remote --tags origin 'box-v*' | sed -n 's|.*refs/tags/box-v\([0-9.]*\)$|\1|p' \
+                   | sort -V | tail -n 1)
+          if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$v" "$newest" | sort -V | tail -n 1)" != "$v" ]; then
+            echo "box-v$newest is already out, so $v isn't published"
             exit 0
           fi
           awk -v v="$v" '
@@ -49,7 +64,12 @@ jobs:
             found && /^## / {exit}
             found {print}
           ' BOX_CHANGELOG.md > notes.md
-          gh release create "$tag" -R "$REPO" --target "$GITHUB_SHA" --title "$title" \
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            where=(--verify-tag)                  # the tag pushed by hand
+          else
+            where=(--target "$GITHUB_SHA")
+          fi
+          gh release create "$tag" -R "$REPO" "${where[@]}" --title "$title" \
             --notes-file notes.md --latest
           echo "Released $tag"
           echo "created=true" >> "$GITHUB_OUTPUT"
