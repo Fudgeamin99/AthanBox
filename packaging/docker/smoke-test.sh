@@ -1,6 +1,7 @@
 #!/bin/sh
-# Checks a running Azan SIP Box container: the panel answers, settings need the password,
-# the password works, and Settings > Updates knows it is running in Docker.
+# Checks a running Azan SIP Box container: the panel answers, a new box opens first-time setup,
+# the prayer-times screen is there, settings need the password, the password works, and
+# Settings > Updates knows it is running in Docker.
 #   sh packaging/docker/smoke-test.sh http://127.0.0.1:8765 <password>
 set -eu
 url=${1:-http://127.0.0.1:8765}
@@ -14,6 +15,16 @@ for i in $(seq 1 30); do
     sleep 1
 done
 echo "ok: panel answers - $(curl -fsS "$url/api/ping")"
+
+if curl -fsS "$url/api/session" | grep -q '"configured": false'; then
+    loc=$(curl -s -o /dev/null -w '%{redirect_url}' "$url/")
+    case "$loc" in */setup) ;; *) echo "FAIL: a new box should open first-time setup (went to '$loc')"; exit 1;; esac
+fi
+for page in /display /static/box.css /static/figtree.woff2 /static/naskh-arabic.woff2 /static/hls.min.js; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$url$page")
+    [ "$code" = 200 ] || { echo "FAIL: $page answered $code"; exit 1; }
+done
+echo "ok: the setup wizard and the prayer-times screen are there"
 
 code=$(curl -s -o /dev/null -w '%{http_code}' "$url/api/update")
 [ "$code" = 401 ] || { echo "FAIL: settings answered $code without the password (expected 401)"; exit 1; }
