@@ -1,0 +1,41 @@
+# Azan SIP Box in Docker (Linux only).
+#   1. Set AZAN_PASSWORD below.
+#   2. Start it:  docker compose up -d   (from a copy of this repository: docker compose up -d --build)
+#   3. Open http://<this computer's address>:8765 and sign in with that password.
+# Update to a new version:  Settings > Updates > Update now (with the updater below), or
+#                           docker compose pull && docker compose up -d
+services:
+  azan-sip:
+    image: ghcr.io/fudgeamin99/azan-sip-box:latest
+    build: .
+    container_name: azan-sip
+    network_mode: host        # multicast paging and SIP need the computer's own network, so no
+                              # "ports:" section: the panel is on port 8765 of this computer
+    restart: unless-stopped
+    environment:
+      AZAN_PASSWORD: ""       # the password for changing settings, at least 8 characters
+      TZ: Europe/London       # used while the time zone setting is "this computer's time zone"
+    volumes:
+      - azan-data:/data       # settings, recordings, password and log
+      # Or keep them in a folder of your choice, e.g. on a NAS. Use this line instead of the one
+      # above (./data is a folder next to this file; Docker creates it if needed):
+      # - ./data:/data
+
+  # The Update button in Settings > Updates: this helper downloads the new image and restarts
+  # azan-sip with it. It can control Docker on this computer, so it only listens on 127.0.0.1
+  # and only for the control panel (with a secret key the panel keeps in /data/auth).
+  # Leave this whole section out to update by hand instead.
+  updater:
+    image: ghcr.io/fudgeamin99/azan-sip-box:latest
+    container_name: azan-sip-updater
+    network_mode: host
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "azan_sip.dockerupdate"]
+    environment:
+      AZAN_UPDATE_TARGET: azan-sip   # the container_name of the Box above
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - azan-data:/data:ro      # the same storage as above (use ./data:/data:ro with a folder)
+
+volumes:
+  azan-data:

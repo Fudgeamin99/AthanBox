@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -40,6 +41,68 @@ UA = {"User-Agent": f"azan-sip/{__version__}", "Accept": "application/vnd.github
 USER_FILES = {"config.toml", "config.toml.bak", "config.tmp", "timetable.csv", ".installed.json"}
 USER_DIRS = {"audio", "auth", "backups", ".git", "__pycache__"}
 KEEP_BACKUPS = 3
+
+# The Docker image sets AZAN_DOCKER=1: there the program is replaced by pulling a new image,
+# because files changed inside a container are lost when it is recreated.
+DOCKER = os.environ.get("AZAN_DOCKER") == "1"
+DOCKER_NOTE = ("Running in Docker: to update, pull the new image with 'docker compose pull' and then "
+               "'docker compose up -d'. Your settings, recordings and password are kept. For an Update "
+               "button here, add the updater service from compose.yaml (see \"Update button\" in the README).")
+# The Update button in Docker asks the updater container (azan_sip/dockerupdate.py, the "updater"
+# service in compose.yaml) to pull the new image and replace this container.
+HELPER_URL = os.environ.get("AZAN_UPDATER_URL", "http://127.0.0.1:8770")
+_NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+class HelperMissing(Exception):
+    """The updater container isn't set up (or isn't running)."""
+
+
+def helper_token_file(base: Path) -> Path:
+    return Path(base) / "auth" / "updater-token"
+
+
+def ensure_helper_token(base: Path):
+    """Docker: the secret the updater container checks before it does anything."""
+    f = helper_token_file(base)
+    if f.is_file() and f.read_text(encoding="utf-8").strip():
+        return
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(secrets.token_urlsafe(32), encoding="utf-8")
+    try:
+        os.chmod(f, 0o600)
+    except OSError:
+        pass
+
+
+def _helper(base: Path, method: str, path: str, timeout: float = 10) -> dict:
+    try:
+        token = helper_token_file(base).read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise HelperMissing() from exc
+    req = urllib.request.Request(HELPER_URL + path, method=method, data=b"{}" if method == "POST" else None,
+                                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    try:
+        with _NO_PROXY.open(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            msg = json.loads(exc.read()).get("error")
+        except ValueError:
+            msg = None
+        raise RuntimeError(f"The updater couldn't do that: {msg}" if msg else f"The updater answered {exc.code}") from exc
+    except (urllib.error.URLError, OSError) as exc:
+        raise HelperMissing() from exc
+
+
+def docker_helper(base: Path) -> dict | None:
+    """The updater container's status, or None when it isn't set up."""
+    try:
+        return _helper(base, "GET", "/status", timeout=3)
+    except HelperMissing:
+        return None
+    except RuntimeError as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = None):
@@ -77,6 +140,8 @@ def _is_git(base: Path) -> bool:
 
 
 def mode(base: Path) -> str:
+    if DOCKER:
+        return "docker"
     return "exe" if FROZEN else ("git" if _is_git(base) else "download")
 
 
@@ -108,6 +173,15 @@ def check(base: Path) -> dict:
     info = {"repo": REPO_URL, "current_version": __version__, "current_commit": inst.get("commit"),
             "mode": mode(base), "checked_at": datetime.now().isoformat(timespec="seconds"),
             "backups": backups(base)}
+    if DOCKER:
+        h = docker_helper(base)
+        if not h:
+            return dict(info, available=False, note=DOCKER_NOTE)
+        if not h.get("ok"):
+            raise RuntimeError(h.get("error") or "The updater isn't working")
+        r = _helper(base, "POST", "/check", timeout=1800)
+        return dict(info, helper=True, available=bool(r.get("available")), current_version=r.get("current") or __version__,
+                    latest_version=r.get("latest"), latest_date=r.get("latest_date", ""), image=r.get("image"))
     if FROZEN:
         return _exe_check(info)
     if info["mode"] == "git":
@@ -224,6 +298,15 @@ def _install_tree(src: Path, base: Path):
 
 def apply(base: Path) -> dict:
     base = Path(base)
+    if DOCKER:  # the updater container pulls the image and replaces this container
+        try:
+            r = _helper(base, "POST", "/update", timeout=1800)
+        except HelperMissing as exc:
+            raise RuntimeError(DOCKER_NOTE) from exc
+        if not r.get("updated"):
+            raise RuntimeError(f"Already on the newest image ({r.get('version')})")
+        log.info("Updating the container to %s - it restarts in a moment", r.get("version"))
+        return {"ok": True, "version": r.get("version"), "docker": True}
     if FROZEN:
         return _exe_apply(base)
     if _is_git(base):
@@ -271,6 +354,8 @@ def apply(base: Path) -> dict:
 
 def rollback(base: Path, name: str | None = None) -> dict:
     base = Path(base)
+    if DOCKER:
+        raise RuntimeError(DOCKER_NOTE)
     if FROZEN:
         return _exe_rollback(base, name)
     bk = backups(base)

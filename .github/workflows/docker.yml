@@ -1,0 +1,80 @@
+# Builds the Docker image for pull requests and checks that it starts and asks for the password,
+# so a broken image is caught before a Box release publishes it. Once that passes, a pull request
+# from this repository also publishes a test image, ghcr.io/<owner>/azan-sip-box:pr-<number>, so it
+# can be tried on a NAS or server before it's merged.
+name: Docker image
+
+on:
+  pull_request:
+    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", "azan_sip/**", .github/workflows/docker.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t azan-sip-box:test .
+
+      - name: Start it with a new storage folder and check the panel
+        run: |
+          # A folder owned by root, like one Docker or a NAS creates: the container must take it over.
+          sudo mkdir "$RUNNER_TEMP/data"
+          docker run -d --name azan -e AZAN_PASSWORD=ci-password-123 -p 8765:8765 \
+                     -v "$RUNNER_TEMP/data:/data" azan-sip-box:test
+          sh packaging/docker/smoke-test.sh http://127.0.0.1:8765 ci-password-123 || { docker logs azan; exit 1; }
+          [ "$(stat -c %u "$RUNNER_TEMP/data/config.toml")" = 1000 ] \
+              || { echo "FAIL: the settings file isn't owned by user 1000"; ls -lan "$RUNNER_TEMP/data"; exit 1; }
+          echo "ok: the storage folder was given to user 1000"
+          docker logs azan
+
+      - name: Check the updater (the Update button) can see the Box's container
+        run: |
+          docker run -d --name updater --network host -e AZAN_UPDATE_TARGET=azan \
+                     -v /var/run/docker.sock:/var/run/docker.sock -v "$RUNNER_TEMP/data:/data:ro" \
+                     --entrypoint python azan-sip-box:test -m azan_sip.dockerupdate
+          sleep 3
+          token=$(sudo cat "$RUNNER_TEMP/data/auth/updater-token")
+          out=$(curl -s -H "Authorization: Bearer $token" http://127.0.0.1:8770/status)
+          echo "$out"
+          echo "$out" | grep -q '"running": true' || { docker logs updater; exit 1; }
+          [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer wrong' http://127.0.0.1:8770/status)" = 403 ] \
+              || { echo "FAIL: the updater answered without the right key"; exit 1; }
+          echo "ok: the updater answers the panel's key only"
+
+  preview:
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"   # must be lower case
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.name.outputs.image }}:pr-${{ github.event.pull_request.number }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.event.pull_request.head.sha }}
