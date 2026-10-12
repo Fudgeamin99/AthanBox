@@ -1,27 +1,42 @@
-# Azan SIP (ATHAN-TO-SIP)
+# Azan SIP Box
 
-Azan SIP plays the azan (call to prayer) automatically on VoIP desk phones and IP speakers, much like iAthan SIP.
-Everything is set up in its control panel; no files need editing.
+The Azan SIP Box plays the azan (call to prayer) automatically at every prayer time on your VoIP desk phones and IP speakers. It runs on its own, around the clock, and you set it up from a control panel in your browser on any computer or phone on the same network.
 
-## Install on Windows (recommended)
+Right now it runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-1. Go to **[Releases](https://github.com/Fudgeamin99/ATHAN-TO-SIP/releases/latest)** and download **AzanSIP.exe**.
-2. Put it in a folder of its own, for example `C:\AzanSIP`. Your settings, recordings and log are kept in that folder.
-3. Double-click **AzanSIP.exe**. It runs in the background and opens the control panel in your browser at http://127.0.0.1:8765. No Python is needed.
+**Latest release:** [box-v0.2.0, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
-Double-clicking it again while it's running just reopens the control panel.
+> Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
-Windows may show "Windows protected your PC" the first time, because the program isn't signed by a paid certificate. Click **More info → Run anyway**.
+## Run it with Docker
 
-**Already using the Python version?** Quit it first from **Settings → Quit Azan SIP**. Then put AzanSIP.exe in the same folder as before, so it picks up your existing settings and recordings, and double-click it. If **Start with Windows** was on, it switches over to the .exe automatically.
+Save this as `compose.yaml` in a folder of its own, and change `AZAN_PASSWORD`:
 
-## Install from source (any OS)
+```yaml
+services:
+  azan-sip:
+    image: ghcr.io/fudgeamin99/azan-sip-box:latest
+    container_name: azan-sip
+    network_mode: host        # SIP and multicast paging need the computer's own network: no ports to add
+    restart: unless-stopped
+    environment:
+      AZAN_PASSWORD: "choose-a-password"   # for changing settings, at least 8 characters
+      TZ: Europe/London
+    volumes:
+      - ./data:/data          # settings, recordings, password and log, in a "data" folder next to this file
+```
 
-1. Install **Python 3.11 or newer** from python.org. On Windows, tick "Add python.exe to PATH" during setup.
-2. On this GitHub page, click **Code → Download ZIP**, then extract it somewhere permanent.
-   - If you have git, you can run `git clone https://github.com/Fudgeamin99/ATHAN-TO-SIP.git` instead. Updates then use `git pull`.
-3. Double-click **Azan SIP** (`Azan SIP.pyw`).
-   - If double-clicking does nothing, run `run-azan.bat` instead. It shows a console window with any error messages.
+Then start it:
+
+- **UGREEN, Synology and other NAS Docker apps:** create a new project (or stack), paste the file above, and deploy it.
+- **Command line:** run `docker compose up -d` in that folder.
+
+Open `http://<the computer's address>:8765` and sign in with your password.
+
+- **Linux only.** Host networking doesn't work in Docker Desktop on Windows or Mac.
+- **No ports to add.** The panel is always on port 8765 of the computer it runs on.
+- **Nothing to set up for the folder.** Docker creates `data` on first start, and the container takes it over itself.
+- **The image** is for 64-bit PCs (amd64) and ARM boards (arm64), and includes ffmpeg for MP3 recordings.
 
 ## First-time setup in the control panel
 
@@ -31,38 +46,38 @@ Windows may show "Windows protected your PC" the first time, because the program
 2. **Azan sound:** use *Add recording…* to add your azan, and optionally a separate Fajr azan. MP3 files are converted automatically.
 3. **Phones:** choose how the azan reaches your phones, then press *Test now*. The setup guide on that page shows exactly what to set on Yealink, Grandstream, Fanvil, Snom, Cisco, Poly, FreePBX and 3CX.
 4. Press **Save changes**.
-5. **Settings:** switch on **Start with Windows**, so the azan keeps working after the PC restarts.
 
 The **Today** page shows the countdown to the next azan and has on/off switches for each prayer. It also has quick test buttons, recent activity and the log.
 
-## Updating
-
-What's new in each version is listed under **Releases** on this page, and in `CHANGELOG.md`.
-
-Go to **Settings → Updates** and press **Check for updates**, then **Update now**. Azan SIP is also checked for updates once a day automatically, and a notice appears on the Today page when one is available.
-
-- The new version is downloaded from this repository and checked to make sure it starts before anything is replaced. Then Azan SIP restarts itself.
-  - **AzanSIP.exe** updates to the latest release's AzanSIP.exe.
-  - The source version updates to the latest code.
-- Your settings (`config.toml`), recordings (`audio/`), timetable and logs are never touched.
-- The previous version is kept in `backups/`. If an update causes a problem, use **Restore** on the same page to go back.
-
-## Ways to reach the phones
-
-| Method | Best for |
+| Ways to reach the phones | Best for |
 |---|---|
 | Multicast paging | Yealink, Grandstream, Fanvil, Snom, Cisco MPP. Each phone listens on one address; no PBX changes. |
-| Phone system page group | Grandstream UCM, FreePBX, Asterisk, 3CX and others. Azan SIP stays registered as its own extension (shows as Idle) and calls your paging group. |
+| Phone system page group | Grandstream UCM, FreePBX, Asterisk, 3CX and others. The Box stays registered as its own extension (shows as Idle) and calls your paging group. |
 | Call each phone directly | Poly/Polycom, or when multicast isn't possible. Needs direct IP calls and auto-answer on the phones. |
 | IP speaker (RTP) | Paging speakers that listen on a fixed IP address and port. |
 
-## Good to know
+## Password
 
-- Keep this PC switched on, and on the same network as the phones.
-- Keep the PC's clock correct; Windows time sync does this.
-- Settings are stored in `config.toml`, the log in `azan.log`, and recordings in `audio/`.
-- The control panel only works on this PC; other computers cannot reach it.
-- **Command line, optional:**
-  - `python -m azan_sip times` prints the prayer times.
-  - `python -m azan_sip test --tone` plays a test chime.
-  - `python -m azan_sip run` runs without opening a browser, for example as a Linux service. `azan-sip.service` is an example systemd unit.
+- Anyone on the network can view the prayer times. Changing anything needs the password.
+- `AZAN_PASSWORD` is the box's factory password. Under **Settings → Password and reset** you can choose your own, which then replaces it.
+- **Factory reset** on the same page removes settings, recordings and your own password, and goes back to `AZAN_PASSWORD`.
+
+## Updating
+
+Pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. Your `data` folder is kept. **Update now** in the panel is switched off in Docker, and it explains this.
+
+What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](https://github.com/Fudgeamin99/azan-sip-box/blob/box-v0.2.0/BOX_CHANGELOG.md).
+
+## What's next
+
+| Step | What it adds | Status |
+|---|---|---|
+| 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset are in 0.2.0. The Debian installer is [in review](https://github.com/Fudgeamin99/azan-sip-box/pull/1). |
+| Docker | Run it on a NAS or home server | Released in 0.2.0 |
+| 2 | Six-step setup wizard, with phone setup by QR code | Next |
+| 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | Planned |
+| 4 | Sticker tool: per-box password and QR code | Planned |
+
+## About this repository
+
+The Box's code is in pull requests [#1](https://github.com/Fudgeamin99/azan-sip-box/pull/1) (step 1) and [#2](https://github.com/Fudgeamin99/azan-sip-box/pull/2) (Docker) until they're merged, and releases are built from those branches. Until then, `main` holds the desktop app's code the Box started from.
