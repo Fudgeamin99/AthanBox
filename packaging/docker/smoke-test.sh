@@ -20,7 +20,7 @@ if curl -fsS "$url/api/session" | grep -q '"configured": false'; then
     loc=$(curl -s -o /dev/null -w '%{redirect_url}' "$url/")
     case "$loc" in */setup) ;; *) echo "FAIL: a new box should open first-time setup (went to '$loc')"; exit 1;; esac
 fi
-for page in /display /static/box.css /static/figtree.woff2 /static/naskh-arabic.woff2; do
+for page in /display /static/box.css /static/figtree.woff2 /static/naskh-arabic.woff2 /static/hls.min.js; do
     code=$(curl -s -o /dev/null -w '%{http_code}' "$url$page")
     [ "$code" = 200 ] || { echo "FAIL: $page answered $code"; exit 1; }
 done
