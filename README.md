@@ -87,6 +87,7 @@ The same Box software can run in Docker on any Linux computer that stays on, suc
 3. Open `http://<that computer's address>:8765` and sign in with the password.
 
 - **Linux only.** The container uses the computer's own network (`network_mode: host`), because multicast paging and SIP don't work through Docker's private network. Docker Desktop on Windows or Mac isn't supported.
-- **Your data is kept.** Settings, recordings, the password and the log are kept in the `azan-data` volume.
+- **Your data is kept.** Settings, recordings, the password and the log are kept in the `azan-data` volume. To keep them in a folder you choose, such as a NAS share, use the folder line in `compose.yaml` instead. The folder must belong to user 1000: `sudo chown -R 1000:1000 <folder>`.
+- **No ports to add.** The container uses the computer's own network, so the panel is simply on port 8765.
 - **Updates come from the image.** Run `docker compose pull && docker compose up -d`. **Update now** in the panel is switched off in Docker.
 - **Address.** The panel is on port 8765. `azan.local` isn't set up in Docker, so use the computer's address or its own `.local` name.

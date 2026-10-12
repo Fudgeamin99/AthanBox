@@ -8,13 +8,17 @@ services:
     image: ghcr.io/fudgeamin99/azan-sip-box:latest
     build: .
     container_name: azan-sip
-    network_mode: host        # multicast paging and SIP need the computer's own network
+    network_mode: host        # multicast paging and SIP need the computer's own network, so no
+                              # "ports:" section: the panel is on port 8765 of this computer
     restart: unless-stopped
     environment:
       AZAN_PASSWORD: ""       # the password for changing settings, at least 8 characters
       TZ: Europe/London       # used while the time zone setting is "this computer's time zone"
     volumes:
       - azan-data:/data       # settings, recordings, password and log
+      # Or keep them in a folder of your choice, e.g. on a NAS (it must belong to user 1000:
+      # sudo chown -R 1000:1000 /volume1/docker/azan-sip). Use this line instead of the one above:
+      # - /volume1/docker/azan-sip:/data
 
 volumes:
   azan-data:
