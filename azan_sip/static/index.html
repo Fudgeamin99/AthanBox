@@ -777,7 +777,7 @@ function renderUpdate(){
   const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">Latest on GitHub: version ${esc(UPD.latest_version)} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
       <div class="d">${esc((UPD.latest_date||"").slice(0,10))} · ${esc(UPD.latest_message||"")} · <span class="mono">${esc(short(UPD.latest_commit))}</span></div></div></div>` : "";
   const bk = UPD.backups||[];
-  el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/ATHAN-TO-SIP")}" target="_blank" rel="noopener">GitHub: ATHAN-TO-SIP</a></div>
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box")}" target="_blank" rel="noopener">GitHub: ${esc((UPD.repo||"").split("/").pop()||"azan-sip-box")}</a></div>
     <p class="muted" style="margin:8px 0 10px">Installed: version ${esc(UPD.current_version||S&&S.version||"")}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":""}.
       Your settings, recordings and timetable are kept when updating.</p>
     ${UPD.error?`<div class="banner bad">${ICON.warn}<div>${esc(UPD.error)}</div></div>`:""}

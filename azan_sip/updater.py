@@ -28,7 +28,9 @@ from .env import EXE_NAME, FROZEN
 
 log = logging.getLogger("azan-sip")
 
-REPO = "Fudgeamin99/ATHAN-TO-SIP"
+# The Azan SIP Box updates from its own repository, never from the desktop app's (ATHAN-TO-SIP),
+# so app releases and Box releases can't reach each other's users.
+REPO = "Fudgeamin99/azan-sip-box"
 BRANCH = "main"
 REPO_URL = f"https://github.com/{REPO}"
 API = os.environ.get("AZAN_UPDATE_API") or f"https://api.github.com/repos/{REPO}"  # override only for testing

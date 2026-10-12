@@ -1,0 +1,49 @@
+# Publishes a GitHub Release for each Azan SIP Box version.
+# - The version, title and notes come from the newest "## x.y.z - title" section of BOX_CHANGELOG.md,
+#   so adding a section there and merging it to main is all it takes. Releases are tagged box-vX.Y.Z.
+# - The desktop app's CHANGELOG.md and version (azan_sip/__init__.py) are ignored here, so merging
+#   app updates into this repository never publishes anything. The app's own release workflow
+#   (with the Windows AzanSIP.exe build) lives only in Fudgeamin99/ATHAN-TO-SIP.
+name: Box release
+
+on:
+  push:
+    branches: [main]
+    paths: [BOX_CHANGELOG.md]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish the newest Box version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          heading=$(grep -m1 -E '^## [0-9]+\.[0-9]+\.[0-9]+( |$)' BOX_CHANGELOG.md || true)
+          if [ -z "$heading" ]; then
+            echo "No version in BOX_CHANGELOG.md yet - nothing to publish"
+            exit 0
+          fi
+          title="${heading#\#\# }"        # "0.1.0 - Control panel on the network"
+          v="${title%% *}"                # "0.1.0"
+          tag="box-v$v"
+          if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then
+            echo "$tag is already published"
+            exit 0
+          fi
+          awk -v v="$v" '
+            $0 ~ "^## " v "( |$)" {found=1; next}
+            found && /^## / {exit}
+            found {print}
+          ' BOX_CHANGELOG.md > notes.md
+          gh release create "$tag" -R "$REPO" --target "$GITHUB_SHA" --title "$title" \
+            --notes-file notes.md --latest
+          echo "Released $tag"
