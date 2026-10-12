@@ -1,4 +1,4 @@
-# Azan SIP (SIP-TO-ATHAN)
+# Azan SIP (ATHAN-TO-SIP)
 
 Azan SIP plays the azan (call to prayer) automatically on VoIP desk phones and IP speakers, much like iAthan SIP.
 Everything is set up in its control panel; no files need editing.
