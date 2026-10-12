@@ -4,7 +4,7 @@ Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version,
 `## x.y.z - title` section at the top and merge it to main: a release tagged `box-vx.y.z` is
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
-## 0.3.0 - Setup wizard and prayer-times screen
+## 0.3.0 - Setup wizard, prayer-times screen and Makkah live
 - A new box opens a six-step setup wizard: password, location, prayer times, azan sound, phone system, then a test chime and Finish.
 - The box's screen shows a QR code. Scan it to set up from your phone instead; the screen follows along, and you can switch back at any step.
 - Azan recordings on a USB stick plugged into the box are copied over and chosen automatically. From a phone or PC you can add them directly.
