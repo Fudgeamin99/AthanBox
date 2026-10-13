@@ -87,7 +87,7 @@ DEFAULT_CONFIG = {
     "network": {"local_ip": "", "multicast_ttl": 4},
     # Makkah live stream (empty = Saudi Quran TV). direct: screens fetch it themselves; fallback: when a screen
     # can't, it goes through the box (off: the box never relays it, so it uses no data for it)
-    "live": {"url": "", "direct": False, "fallback": True},
+    "live": {"url": "", "direct": True, "fallback": True},
     "targets": [{"name": "All phones (multicast)", "type": "multicast", "address": "224.5.6.20:10008",
                  "codec": "PCMU", "enabled": True}],
 }
@@ -377,7 +377,7 @@ class Service:
         """Where screens get Makkah live: through the box, or (direct) from the stream itself, so the box
         uses no data for it. The link is only shared with screens when they need it."""
         lv = self.cfg.get("live") or {}
-        if lv.get("direct") is True:
+        if lv.get("direct") is not False:   # on unless switched off
             return {"direct": True, "url": self.live_url, "fallback": lv.get("fallback") is not False}
         return {"direct": False}
 
