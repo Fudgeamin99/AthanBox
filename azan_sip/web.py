@@ -41,6 +41,8 @@ from .praytimes import METHODS, PRAYERS, SHAFAQ, get_zone
 log = logging.getLogger("azan-sip")
 
 DEFAULT_PORT = 8765
+# The version shown in the panel: the Box's own (BOX_CHANGELOG.md), or the desktop app's without it.
+VERSION = updater.box_version() or __version__
 AUDIO_EXT = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".wma", ".mp4"}
 STATIC = Path(__file__).with_name("static")
 STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -342,7 +344,7 @@ class Service:
         with self.lock:
             app = self.app
             ui = self.update_info or {}
-            st = {"version": __version__, "error": self.error, "restarting": self.restarting,
+            st = {"version": VERSION, "error": self.error, "restarting": self.restarting,
                   "update": {"available": bool(ui.get("available")), "latest_version": ui.get("latest_version")}, "running": bool(self.thread and self.thread.is_alive()),
                   "configured": self.cfg.get("general", {}).get("configured", True),
                   "setup_manual": self.setup_manual(),
@@ -383,7 +385,7 @@ class Service:
         return info
 
     def update_status(self) -> dict:
-        info = dict(self.update_info or {"current_version": __version__, "repo": updater.REPO_URL,
+        info = dict(self.update_info or {"current_version": VERSION, "repo": updater.REPO_URL,
                                          "current_commit": updater._installed(self.base).get("commit")})
         info["backups"] = updater.backups(self.base)
         info["mode"] = updater.mode(self.base)
@@ -678,7 +680,7 @@ class Handler(BaseHTTPRequestHandler):
         return {"box": svc.box, "logged_in": self._authed(), "has_password": svc.auth.has_password() if svc.box else False,
                 "custom_password": svc.auth.custom_password() if svc.box else False,
                 "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code),
-                "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": __version__,
+                "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": VERSION,
                 "panel": look.panel(svc.cfg)}
 
     def _setup_urls(self) -> list[str]:
@@ -1019,7 +1021,7 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
         except OSError as exc:
             log.warning("Could not open port 80 (%s) - the panel is on port %d only", exc, port)
         log.info("Box mode: control panel open to the network, password needed to change settings")
-    log.info("Azan SIP %s - control panel at %s", __version__, url)
+    log.info("Azan SIP%s %s - control panel at %s", " Box" if updater.box_version() else "", VERSION, url)
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     threading.Thread(target=svc.auto_update_checker, name="update-check", daemon=True).start()

@@ -2,8 +2,9 @@
 
 Your settings (config.toml), recordings (audio/), timetable.csv and logs are never touched:
 only the program files are replaced. The previous version is kept in backups/ so it can be
-restored from the control panel. If the folder is a git clone and git is installed, a normal
-`git pull` is used instead of downloading a zip.
+restored from the control panel. A box installed with packaging/box/install.sh updates to each new
+Box release (tagged box-vX.Y.Z, the same versions the Docker image gets). If the folder is a git
+clone and git is installed, a normal `git pull` of main is used instead.
 """
 from __future__ import annotations
 
@@ -52,6 +53,25 @@ DOCKER_NOTE = ("Running in Docker: to update, pull the new image with 'docker co
 # service in compose.yaml) to pull the new image and replace this container.
 HELPER_URL = os.environ.get("AZAN_UPDATER_URL", "http://127.0.0.1:8770")
 _NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+# Box releases are tagged box-vX.Y.Z. The Box's version is the newest "## x.y.z - title" heading of
+# BOX_CHANGELOG.md, which ships next to the azan_sip folder; __version__ is the desktop app's.
+TAG_PREFIX = "box-v"
+PROGRAM_DIR = Path(__file__).resolve().parent.parent
+_CHANGELOG_VERSION = re.compile(r"^## (\d+\.\d+\.\d+)(?: |$)", re.M)
+
+
+def _changelog_version(text: str) -> str | None:
+    m = _CHANGELOG_VERSION.search(text or "")
+    return m.group(1) if m else None
+
+
+def box_version(root: Path | None = None) -> str | None:
+    """The Box version of the program in root (default: the one running), or None if unknown."""
+    try:
+        return _changelog_version(Path(root or PROGRAM_DIR, "BOX_CHANGELOG.md").read_text(encoding="utf-8"))
+    except OSError:
+        return None
 
 
 class HelperMissing(Exception):
@@ -105,7 +125,7 @@ def docker_helper(base: Path) -> dict | None:
         return {"ok": False, "error": str(exc)}
 
 
-def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = None):
+def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = None, not_found: str | None = None):
     req = urllib.request.Request(url, headers=dict(UA, **({"Accept": accept} if accept else {})))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -114,7 +134,7 @@ def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = 
         if exc.code == 403 and "rate limit" in exc.read().decode(errors="ignore").lower():
             raise RuntimeError("GitHub's hourly limit was reached - try again in an hour") from exc
         if exc.code == 404:
-            raise RuntimeError(f"Couldn't find {REPO} on GitHub (is it still public?)") from exc
+            raise RuntimeError(not_found or f"Couldn't find {REPO} on GitHub (is it still public?)") from exc
         if exc.code == 409:
             raise RuntimeError(f"Nothing has been published to {REPO} on GitHub yet, so there are no "
                                "updates to install") from exc
@@ -126,6 +146,19 @@ def _get(url: str, timeout: float = 20, raw: bool = False, accept: str | None = 
 
 def _vtuple(v: str) -> tuple:
     return tuple(int(x) for x in re.findall(r"\d+", v or "0")[:4])
+
+
+def latest_release() -> dict:
+    """The newest published Box release: its version, tag, commit, title, date and page."""
+    r = _get(f"{API}/releases/latest",
+             not_found="No Azan SIP Box release has been published on GitHub yet, so there are no updates to install")
+    tag = r.get("tag_name") or ""
+    if not tag.startswith(TAG_PREFIX):
+        raise RuntimeError(f"The newest release on GitHub ({tag or 'untagged'}) isn't an Azan SIP Box release")
+    version = tag[len(TAG_PREFIX):]
+    return {"tag": tag, "version": version, "commit": _get(f"{API}/commits/{tag}")["sha"],
+            "title": (r.get("name") or "").removeprefix(f"{version} - ").strip(),
+            "date": r.get("published_at") or "", "url": r.get("html_url") or f"{REPO_URL}/releases/tag/{tag}"}
 
 
 def _installed(base: Path) -> dict:
@@ -162,7 +195,7 @@ def backups(base: Path) -> list[dict]:
         for p in sorted(d.iterdir(), reverse=True):
             if (p / "azan_sip" / "__init__.py").is_file():
                 m = re.search(r'__version__\s*=\s*"([^"]+)"', (p / "azan_sip" / "__init__.py").read_text("utf-8"))
-                out.append({"name": p.name, "version": m.group(1) if m else "?"})
+                out.append({"name": p.name, "version": box_version(p) or (m.group(1) if m else "?")})
     return out
 
 
@@ -170,7 +203,7 @@ def backups(base: Path) -> list[dict]:
 def check(base: Path) -> dict:
     base = Path(base)
     inst = _installed(base)
-    info = {"repo": REPO_URL, "current_version": __version__, "current_commit": inst.get("commit"),
+    info = {"repo": REPO_URL, "current_version": box_version() or __version__, "current_commit": inst.get("commit"),
             "mode": mode(base), "checked_at": datetime.now().isoformat(timespec="seconds"),
             "backups": backups(base)}
     if DOCKER:
@@ -197,26 +230,23 @@ def check(base: Path) -> dict:
         behind = int(_git(base, "rev-list", "--count", f"HEAD..origin/{BRANCH}") or 0)
         changed = bool(_git(base, "status", "--porcelain", "--untracked-files=no"))  # e.g. after a Restore
         msg = _git(base, "log", "-1", "--format=%s%x00%cI", f"origin/{BRANCH}").split("\x00")
-        init_py = _git(base, "show", f"origin/{BRANCH}:azan_sip/__init__.py")
-        m = re.search(r'__version__\s*=\s*"([^"]+)"', init_py)
+        try:
+            latest = _changelog_version(_git(base, "show", f"origin/{BRANCH}:BOX_CHANGELOG.md"))
+        except RuntimeError:
+            latest = None
+        if not latest:
+            m = re.search(r'__version__\s*=\s*"([^"]+)"', _git(base, "show", f"origin/{BRANCH}:azan_sip/__init__.py"))
+            latest = m.group(1) if m else "?"
         info.update(current_commit=head, latest_commit=remote, latest_message=msg[0],
-                    latest_date=msg[1] if len(msg) > 1 else "", latest_version=m.group(1) if m else "?",
+                    latest_date=msg[1] if len(msg) > 1 else "", latest_version=latest,
                     available=behind > 0 or changed)
         return info
 
-    c = _get(f"{API}/commits/{BRANCH}")
-    sha = c["sha"]
-    init_py = _get(f"{API}/contents/azan_sip/__init__.py?ref={sha}", raw=True,
-                   accept="application/vnd.github.raw").decode()
-    m = re.search(r'__version__\s*=\s*"([^"]+)"', init_py)
-    latest = m.group(1) if m else "0"
-    if inst.get("commit"):
-        available = inst["commit"] != sha
-    else:  # installed by hand: go by the version number
-        available = _vtuple(latest) > _vtuple(__version__)
-    info.update(latest_commit=sha, latest_version=latest,
-                latest_message=c["commit"]["message"].splitlines()[0],
-                latest_date=c["commit"]["committer"]["date"], available=available)
+    rel = latest_release()
+    current = box_version()  # None: installed before the Box had its own version number
+    info.update(current_version=current or "an earlier version", latest_version=rel["version"],
+                latest_message=rel["title"], latest_date=rel["date"], latest_commit=rel["commit"],
+                latest_url=rel["url"], available=not current or _vtuple(rel["version"]) > _vtuple(current))
     return info
 
 
@@ -256,7 +286,7 @@ def _verify(root: Path):
     if r.returncode != 0:
         raise RuntimeError("The new version failed its start-up check, so nothing was changed:\n"
                            + (r.stderr.strip().splitlines() or ["unknown error"])[-1])
-    return r.stdout.strip()
+    return box_version(root) or r.stdout.strip()
 
 
 def _backup(base: Path, version: str) -> Path:
@@ -311,7 +341,7 @@ def apply(base: Path) -> dict:
         return _exe_apply(base)
     if _is_git(base):
         before = _git(base, "rev-parse", "HEAD")
-        _backup(base, __version__)
+        _backup(base, box_version() or __version__)
         try:
             _git(base, "fetch", "--quiet", "origin", BRANCH)
             # Program files only; settings/recordings/logs are untracked (.gitignore) so they are untouched.
@@ -322,10 +352,9 @@ def apply(base: Path) -> dict:
         log.info("Updated with git pull: %s -> %s", before[:7], _git(base, "rev-parse", "--short", "HEAD"))
         return {"ok": True, "version": version}
 
-    c = _get(f"{API}/commits/{BRANCH}")
-    sha = c["sha"]
-    log.info("Downloading %s @ %s", REPO, sha[:7])
-    data = _get(f"https://codeload.github.com/{REPO}/zip/{sha}", timeout=120, raw=True)
+    rel = latest_release()
+    log.info("Downloading %s %s", REPO, rel["tag"])
+    data = _get(f"https://codeload.github.com/{REPO}/zip/refs/tags/{rel['tag']}", timeout=120, raw=True)
     with tempfile.TemporaryDirectory(prefix="azan-update-") as tmp:
         tmp = Path(tmp)
         with zipfile.ZipFile(io.BytesIO(data)) as z:
@@ -338,7 +367,7 @@ def apply(base: Path) -> dict:
             raise RuntimeError("Unexpected download layout - update cancelled")
         root = roots[0]
         version = _verify(root)
-        backup = _backup(base, __version__)
+        backup = _backup(base, box_version() or __version__)
         try:
             _install_tree(root, base)
         except Exception as exc:
@@ -346,10 +375,11 @@ def apply(base: Path) -> dict:
             _install_tree(backup, base)
             raise RuntimeError(f"Update failed and was undone: {exc}") from exc
     (base / ".installed.json").write_text(json.dumps({
-        "commit": sha, "version": version, "installed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "source": f"{REPO_URL}/commit/{sha}"}, indent=2), encoding="utf-8")
-    log.info("Updated to version %s (%s)", version, sha[:7])
-    return {"ok": True, "version": version, "commit": sha}
+        "commit": rel["commit"], "version": version, "tag": rel["tag"],
+        "installed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "source": rel["url"]}, indent=2),
+        encoding="utf-8")
+    log.info("Updated to version %s (%s)", version, rel["tag"])
+    return {"ok": True, "version": version, "commit": rel["commit"]}
 
 
 def rollback(base: Path, name: str | None = None) -> dict:

@@ -4,6 +4,10 @@ Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version,
 `## x.y.z - title` section at the top and merge it to main: a release tagged `box-vx.y.z` is
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
+## 0.3.1 - Updates from the control panel on Debian
+- On a box installed with the Debian installer, such as a Wyse thin client, **Settings → Updates** now installs each new Box release (the same versions as the Docker image) instead of every change made on GitHub. **Check for updates** shows the new version with a **What's new** link, and **Update now** installs it and restarts. The previous version is kept, so you can go back.
+- Settings shows the Box's own version number, such as 0.3.1, instead of the desktop app's.
+
 ## 0.3.0 - Setup wizard, prayer-times screen and Makkah live
 - A new box opens a six-step setup wizard: password, location, prayer times, azan sound, phone system, then a test chime and Finish.
 - The box's screen shows a QR code. Scan it to set up from your phone instead; the screen follows along, and you can switch back at any step.
