@@ -4,7 +4,7 @@ The Azan SIP Box plays the azan (call to prayer) automatically at every prayer t
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.3.2, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.3.3, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
@@ -77,7 +77,7 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 **Prayer-times screen:** open `http://<the computer's address>:8765/display` on a TV, tablet or spare monitor for a full-screen clock, the next azan with a countdown, and today's times in English and Arabic. After the last azan of the day it shows tomorrow's times. No password is needed to view it, and *Full screen* fills the screen.
 
-**Makkah live:** press *Makkah live* on the prayer-times screen (or open `/display?live=1`) to show the live picture from Masjid al-Haram next to the next azan and today's times. The sound starts off and goes quiet by itself while your own azan plays. The Box relays the stream, so screens watching at the same time share one download. Each screen remembers whether it shows Makkah live. If the Box runs on a cloud server, turn on *Screens fetch the stream themselves* on the Display page, so each screen downloads the stream over its own internet connection and the server uses no data for it.
+**Makkah live:** press *Makkah live* on the prayer-times screen (or open `/display?live=1`) to show the live picture from Masjid al-Haram next to the next azan and today's times. The sound starts off and goes quiet by itself while your own azan plays. The Box relays the stream, so screens watching at the same time share one download. Each screen remembers whether it shows Makkah live. If the Box runs on a cloud server, turn on *Screens fetch the stream themselves* on the Display page, so each screen downloads the stream over its own internet connection and the server uses no data for it. To make sure it never does, also turn off *If a screen can't fetch it, go through the box*.
 
 **Display page:** in the control panel, choose how the prayer-times screen looks, with a live preview: a theme (Masjid green, Night, Navy and gold, Maroon, Sand, or your own colours), cards along the bottom or a list at the side, the text size, the masjid name, a notice line along the bottom, and which parts to show. *Save changes* updates every screen within a few seconds. The Makkah live layout and stream link are there too. **Settings → Appearance** sets light or dark and the colour of the control panel itself.
 
