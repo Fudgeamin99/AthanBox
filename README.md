@@ -4,7 +4,7 @@ The Azan SIP Box plays the azan (call to prayer) automatically at every prayer t
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.4.0, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.4.1, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
