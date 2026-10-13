@@ -433,13 +433,18 @@ function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden
 // ---------------------------------------------------------------- Makkah live
 // The stream is relayed by the box (/live/stream.m3u8) and played with hls.js, loaded only when needed.
 // With "Screens fetch the stream themselves" on, the screen plays the stream's own link instead, so the box
-// uses no data for it; if the stream doesn't let web pages read it, the screen goes through the box after all.
+// uses no data for it; if the stream doesn't let web pages read it, the screen goes through the box after all,
+// unless that is turned off too.
 const RELAY = "/live/stream.m3u8";
 const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0,
             directFailed:false, played:false, key:null};
 const liveKey = () => JSON.stringify((S && S.live) || {});
 function liveSrc(){ const l = S && S.live; return l && l.direct && l.url && !LV.directFailed ? l.url : RELAY; }
-function directFailed(){ LV.directFailed = true; startLive(); }
+function directFailed(){
+  if(S && S.live && S.live.fallback === false)  // going through the box is turned off: keep trying the stream itself
+    return retryLive("Makkah live isn't available on this screen", "It couldn't fetch the stream itself, and going through the box is turned off on the Display page.");
+  LV.directFailed = true; startLive();
+}
 const SPK = {off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>',
              on:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'};
 function liveMsg(kind, title, text){

@@ -907,7 +907,8 @@ function pageDisplay(){
     <div class="grid2"><div class="field"><label>Picture on the</label><div class="seg">${r("dside","display.live_side","left",L.live_side,"Left")}${r("dside","display.live_side","right",L.live_side,"Right")}</div></div>
       <div class="field"><label for="d-lw">Picture size: up to <span id="lw-v">${L.live_width}%</span> of the width</label><input type="range" id="d-lw" min="50" max="85" step="1" data-path="display.live_width" data-kind="num" value="${L.live_width}"></div></div>
     <div class="toggle-row"><div><div class="t">Start new screens with Makkah live</div><div class="d">For screens that haven't been switched yet. Each screen remembers its own choice after that.</div></div>${sw("display.live_start", L.live_start)}</div>
-    <div class="toggle-row"><div><div class="t">Screens fetch the stream themselves</div><div class="d">Each screen downloads Makkah live over its own internet connection, so the box uses no data for it. Useful when the box runs on a cloud server. If the stream doesn't allow it, screens go through the box as before.</div></div>${sw("live.direct", CFG.live.direct === true)}</div>
+    <div class="toggle-row"><div><div class="t">Screens fetch the stream themselves</div><div class="d">Each screen downloads Makkah live over its own internet connection, so the box uses no data for it. Useful when the box runs on a cloud server.</div></div>${sw("live.direct", CFG.live.direct === true, "data-rerender")}</div>
+    ${CFG.live.direct === true ? `<div class="toggle-row"><div><div class="t">If a screen can't fetch it, go through the box</div><div class="d">Turn this off so the box never uses data for Makkah live. A screen that can't fetch the stream itself shows a message instead.</div></div>${sw("live.fallback", CFG.live.fallback !== false)}</div>` : ""}
     <div class="field" style="margin-top:12px"><label for="live-url">IPTV stream link (.m3u8)</label><input type="text" id="live-url" data-path="live.url" spellcheck="false" placeholder="${esc(META.live_default||"")}" value="${val("live.url")}">
       <div class="hint">Leave it empty for Saudi Quran TV. If the channel moves, or to show another channel (Madinah, say), paste its .m3u8 link here and press Save changes.</div></div>
     <div class="row"><button class="btn" id="live-check" onclick="checkLive()">Check the stream</button><span id="live-result" class="muted"></span></div></div>`;
@@ -921,7 +922,9 @@ async function checkLive(){
   try{
     const r = await api("/api/live/test", {url});
     out.innerHTML = `<span class="pill ${r.working ? "ok" : "bad"}">${r.working ? "OK" : "Not working"}</span> ${esc(r.summary)}`
-      + (r.working ? ` · ${r.direct ? "Screens can fetch it themselves" : "Screens can't fetch it themselves, so they go through the box"}` : "");
+      + (r.working ? ` · ${r.direct ? "Screens can fetch it themselves" : CFG.live.direct === true && CFG.live.fallback === false
+          ? "Screens can't fetch it themselves, and going through the box is off, so most screens won't show it"
+          : "Screens can't fetch it themselves, so they go through the box"}` : "");
   }catch(e){ out.innerHTML = `<span class="pill bad">Not working</span> ${esc(e.message)}`; }
   b.disabled = false;
 }

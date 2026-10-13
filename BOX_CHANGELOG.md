@@ -4,6 +4,9 @@ Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version,
 `## x.y.z - title` section at the top and merge it to main: a release tagged `box-vx.y.z` is
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
+## 0.3.3 - Makkah live without using the Box's data
+- With **Screens fetch the stream themselves** on, a new switch on the Display page, **If a screen can't fetch it, go through the box**, can be turned off. The Box then never relays Makkah live, so it uses no data for it, and a screen that can't fetch the stream itself shows a message and keeps trying.
+
 ## 0.3.2 - Makkah live straight from the stream
 - New on the Display page: **Screens fetch the stream themselves**. Each screen then downloads Makkah live over its own internet connection instead of through the Box, so a Box on a cloud server uses no data for it. If the stream doesn't allow it, screens go through the Box as before.
 - **Check the stream** now also says whether screens can fetch the stream themselves.

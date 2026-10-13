@@ -59,7 +59,9 @@ DEFAULT_CONFIG = {
     "prayers": {"enabled": list(ADHAN_PRAYERS), "reminder_minutes": 0, "skip_days": []},
     "audio": {"azan": "tone", "volume_db": 0, "lead_in_ms": 400},
     "network": {"local_ip": "", "multicast_ttl": 4},
-    "live": {"url": "", "direct": False},   # Makkah live stream (empty = Saudi Quran TV); direct: screens fetch it themselves
+    # Makkah live stream (empty = Saudi Quran TV). direct: screens fetch it themselves; fallback: when a screen
+    # can't, it goes through the box (off: the box never relays it, so it uses no data for it)
+    "live": {"url": "", "direct": False, "fallback": True},
     "targets": [{"name": "All phones (multicast)", "type": "multicast", "address": "224.5.6.20:10008",
                  "codec": "PCMU", "enabled": True}],
 }
@@ -293,9 +295,16 @@ class Service:
     def live_screen(self) -> dict:
         """Where screens get Makkah live: through the box, or (direct) from the stream itself, so the box
         uses no data for it. The link is only shared with screens when they need it."""
-        if (self.cfg.get("live") or {}).get("direct") is True:
-            return {"direct": True, "url": self.live_url}
+        lv = self.cfg.get("live") or {}
+        if lv.get("direct") is True:
+            return {"direct": True, "url": self.live_url, "fallback": lv.get("fallback") is not False}
         return {"direct": False}
+
+    @property
+    def relay_off(self) -> bool:
+        """Screens must fetch Makkah live themselves: the box doesn't relay it at all."""
+        info = self.live_screen()
+        return info["direct"] and not info["fallback"]
 
     def configured(self) -> bool:
         return bool(self.cfg.get("general", {}).get("configured", True))
@@ -758,6 +767,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._authed():  # prayer times are public, the log is not
                     st.update(log=[], history=[])
                 return self._json(st)
+            if p in ("/live/stream.m3u8", "/live/x") and svc.relay_off:
+                return self._json({"ok": False, "error": "Makkah live through the box is turned off on the Display page"}, 403)
             if p == "/live/stream.m3u8":  # Makkah live, relayed so any screen can play it
                 try:
                     ctype, body = svc.live.entry(self.client_address[0])
