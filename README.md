@@ -54,7 +54,7 @@ Open `http://<the computer's address>:8765`, sign in with your password, and the
 On a small PC that stays on, such as a Dell Wyse thin client, install Debian 12 or 13 without a desktop, then run:
 
 ```sh
-sudo apt install -y git
+sudo apt update && sudo apt install -y git
 git clone https://github.com/Fudgeamin99/azan-sip-box.git
 cd azan-sip-box
 sudo sh packaging/box/install.sh
