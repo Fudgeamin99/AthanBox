@@ -1,2 +1,2 @@
 """azan-sip: automatic azan (call to prayer) over VoIP phones."""
-__version__ = "1.4.0"
+__version__ = "1.11.2"

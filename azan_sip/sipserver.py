@@ -1,0 +1,541 @@
+"""Azan SIP's own small SIP server: desk phones (as an extra line) or a phone system (as a
+register SIP trunk) sign in to Azan SIP, and it calls them to play the azan.
+
+- Accounts (SIP trunks) are set on the Phones page. A phone system signed in with one is called on
+  the number you choose, such as a paging group; with no number, the device itself is called (a desk
+  phone), always with auto-answer. Each account can allow several sign-ins at once.
+- Sign-ins use SIP digest authentication; repeated wrong passwords from an address are blocked
+  for a while. Calls from outside are always refused: this server never connects calls anywhere.
+- Calls go out from the same port the phones signed in to, as phones expect from their server.
+"""
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import logging
+import queue
+import re
+import secrets
+import socket
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from . import __version__, rtp
+from .sip import SipCall, SipMessage, SipTarget, _rand
+
+log = logging.getLogger("azan-sip")
+
+REALM = "azan-sip"
+ALLOW = "INVITE, ACK, CANCEL, BYE, OPTIONS"
+MIN_EXPIRES, MAX_EXPIRES = 60, 900
+MAX_SIGNINS = 50
+NONCE_LIFE = 300
+_USER = re.compile(r"^[A-Za-z0-9_.+-]{1,40}$")
+
+
+@dataclass
+class Account:
+    username: str
+    password: str
+    name: str = ""
+    kind: str = "trunk"          # trunk (1.9.0 also had "phone": the same as a trunk with no number)
+    dial: str = ""               # the number to call on the phone system (e.g. a paging group); empty: the device
+    enabled: bool = True
+    max_signins: int = 1         # how many devices / phone systems may be signed in with it at once
+
+
+@dataclass
+class Binding:
+    username: str
+    contact: str                 # the Contact URI the phone registered
+    addr: tuple[str, int]        # where its REGISTER came from (works through NAT)
+    expires_at: float
+    user_agent: str = ""
+    since: float = field(default_factory=time.time)
+
+
+def check_accounts(accounts: list, port) -> None:
+    """Refuse settings that can't work, with a message for the person saving them."""
+    try:
+        p = int(port)
+    except (TypeError, ValueError):
+        raise ValueError("The SIP port must be a number, usually 5060") from None
+    if not 1 <= p <= 65535:
+        raise ValueError("The SIP port must be between 1 and 65535")
+    seen = set()
+    if not accounts:
+        raise ValueError("Add at least one account for a phone or phone system to sign in with")
+    for a in accounts:
+        u = str(a.get("username", "")).strip()
+        if not _USER.match(u):
+            raise ValueError("Account usernames can use letters, numbers and . _ - + (no spaces)")
+        if u.lower() in seen:
+            raise ValueError(f"The username {u} is used twice")
+        seen.add(u.lower())
+        if len(str(a.get("password", ""))) < 8:
+            raise ValueError(f"Use a password of at least 8 characters for {u}")
+        if not re.match(r"^[A-Za-z0-9*#+_.-]{0,40}$", str(a.get("dial", "")).strip()):
+            raise ValueError(f"The number to call for {u} can use digits, letters and * # + _ . -")
+        try:
+            n = int(a.get("max_signins", 1) or 1)
+        except (TypeError, ValueError):
+            raise ValueError(f"Sign-ins allowed for {u} must be a number") from None
+        if not 1 <= n <= MAX_SIGNINS:
+            raise ValueError(f"Sign-ins allowed for {u} must be between 1 and {MAX_SIGNINS}")
+
+
+def _contact_key(contact: str) -> str:
+    """One sign-in per Contact address (user@host:port), whatever parameters a device adds."""
+    return re.sub(r"^sips?:", "", contact.strip().strip("<>")).split(";", 1)[0].split("?", 1)[0].lower()
+
+
+class SipServer(threading.Thread):
+    def __init__(self, port: int, local_ip: str | None, accounts: list[Account], state_file: Path | None = None):
+        super().__init__(name=f"sip-server-{port}", daemon=True)
+        self.port = int(port)
+        self.local_ip_cfg = local_ip
+        self.accounts = {a.username.lower(): a for a in accounts}
+        self.state_file = state_file
+        self.lock = threading.Lock()
+        self.bindings: dict[str, dict[str, Binding]] = {}   # username -> contact -> sign-in
+        self.calls: dict[str, queue.Queue] = {}
+        self.secret = secrets.token_bytes(16)
+        self.failures: dict[str, list[float]] = {}
+        self.stop_event = threading.Event()
+        self.status, self.detail = "starting", ""
+        self.sock: socket.socket | None = None
+        self.started = threading.Event()
+        self.loaded = False   # only a server that started (and read the saved sign-ins) may overwrite them
+
+    # ------------------------------------------------------------ lifecycle
+    def run(self):
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            self.sock.bind(("0.0.0.0", self.port))
+        except OSError as exc:
+            self.status = "failed"
+            self.detail = (f"port {self.port} is already in use by another program (a softphone or phone system on "
+                           f"this PC?) - choose another port" if getattr(exc, "errno", 0) in (48, 98, 10048, 10013)
+                           else f"can't open UDP port {self.port}: {exc}")
+            log.error("Azan SIP phone server: %s", self.detail)
+            self.started.set()
+            return
+        self._load()
+        self.status, self.detail = "running", f"listening on UDP port {self.port}"
+        log.info("Azan SIP phone server listening on UDP port %s (%d account(s))", self.port, len(self.accounts))
+        self.started.set()
+        self.sock.settimeout(1.0)
+        while not self.stop_event.is_set():
+            try:
+                data, addr = self.sock.recvfrom(65535)
+            except (socket.timeout, TimeoutError):
+                self._expire()
+                continue
+            except (ConnectionResetError, OSError):
+                if self.stop_event.is_set():
+                    break
+                continue
+            if not data.strip():
+                continue                      # keep-alive
+            try:
+                msg = SipMessage.parse(data)
+            except Exception:
+                continue
+            try:
+                self._dispatch(msg, addr)
+            except Exception:
+                log.exception("SIP server: couldn't handle a message from %s", addr[0])
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+        self.status = "stopped"
+
+    def stop(self):
+        self.stop_event.set()
+        self._save()
+
+    def update_accounts(self, accounts: list[Account]):
+        with self.lock:
+            self.accounts = {a.username.lower(): a for a in accounts}
+            for u in list(self.bindings):
+                a = self.accounts.get(u)
+                if a is None or not a.enabled:
+                    del self.bindings[u]
+                    continue
+                bs = self.bindings[u]   # fewer sign-ins allowed now: keep the most recently refreshed
+                for k in sorted(bs, key=lambda k: bs[k].expires_at)[:max(0, len(bs) - max(1, a.max_signins))]:
+                    del bs[k]
+        self._save()
+
+    # ------------------------------------------------------------ state file (bindings survive a restart)
+    def _save(self):
+        if not self.state_file or not self.loaded:
+            return
+        with self.lock:
+            data = {u: [{"contact": b.contact, "addr": list(b.addr), "expires_at": b.expires_at,
+                         "user_agent": b.user_agent, "since": b.since} for b in bs.values()]
+                    for u, bs in self.bindings.items() if bs}
+        try:
+            tmp = self.state_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data), encoding="utf-8")
+            tmp.replace(self.state_file)
+        except OSError:
+            pass
+
+    def _load(self):
+        self.loaded = True
+        if not self.state_file:
+            return
+        try:
+            data = json.loads(self.state_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        now = time.time()
+        with self.lock:
+            for u, items in data.items():
+                if u not in self.accounts:
+                    continue
+                for b in (items if isinstance(items, list) else [items]):   # 1.9.0 saved one per account
+                    if b.get("expires_at", 0) > now:
+                        self.bindings.setdefault(u, {})[_contact_key(b["contact"])] = Binding(
+                            u, b["contact"], tuple(b["addr"]), b["expires_at"], b.get("user_agent", ""), b.get("since", now))
+
+    def _expire(self):
+        now, gone = time.time(), []
+        with self.lock:
+            for u, bs in self.bindings.items():
+                for k, b in list(bs.items()):
+                    if b.expires_at < now:
+                        gone.append((u, b.addr[0]))
+                        del bs[k]
+        for u, ip in gone:
+            log.info("SIP account %s is no longer signed in from %s (its registration ran out)", u, ip)
+        if gone:
+            self._save()
+
+    # ------------------------------------------------------------ messages
+    def send(self, data: bytes, addr):
+        try:
+            self.sock.sendto(data, addr)
+        except OSError:
+            pass
+
+    def _reply(self, req: SipMessage, addr, status: str, extra: list[str] | None = None, to_tag: bool = True):
+        to = req.get("to")
+        if to_tag and "tag=" not in to:
+            to += f";tag={_rand(8)}"
+        via = req.get_all("via")
+        if via:   # rport / received, so replies reach phones behind NAT
+            v0 = via[0]
+            if "rport" in v0 and not re.search(r"rport=\d", v0):
+                v0 = re.sub(r";rport(?=;|$)", f";rport={addr[1]}", v0)
+            if "received=" not in v0:
+                v0 += f";received={addr[0]}"
+            via = [v0] + via[1:]
+        lines = ([f"SIP/2.0 {status}"] + [f"Via: {v}" for v in via]
+                 + [f"From: {req.get('from')}", f"To: {to}", f"Call-ID: {req.get('call-id')}",
+                    f"CSeq: {req.get('cseq')}", f"Allow: {ALLOW}", f"Server: azan-sip/{__version__}"]
+                 + (extra or []) + ["Content-Length: 0"])
+        self.send(("\r\n".join(lines) + "\r\n\r\n").encode(), addr)
+
+    def _dispatch(self, msg: SipMessage, addr):
+        cid = msg.get("call-id")
+        q = self.calls.get(cid)
+        if q is not None:                      # part of a call we placed
+            q.put((msg, addr))
+            return
+        if not msg.method:
+            return                             # a stray response
+        m = msg.method
+        if m == "REGISTER":
+            self._register(msg, addr)
+        elif m == "OPTIONS":
+            self._reply(msg, addr, "200 OK", ["Accept: application/sdp"], to_tag=False)
+        elif m == "INVITE":                    # nobody can call through Azan SIP
+            self._reply(msg, addr, "403 Forbidden")
+        elif m == "ACK":
+            return
+        elif m in ("BYE", "CANCEL"):
+            self._reply(msg, addr, "481 Call/Transaction Does Not Exist")
+        elif m in ("SUBSCRIBE", "PUBLISH"):
+            self._reply(msg, addr, "489 Bad Event")
+        elif m in ("NOTIFY", "MESSAGE", "INFO"):
+            self._reply(msg, addr, "200 OK")
+        else:
+            self._reply(msg, addr, "405 Method Not Allowed")
+
+    # ------------------------------------------------------------ sign-in
+    def _nonce(self) -> str:
+        ts = str(int(time.time()))
+        return ts + "." + hmac.new(self.secret, ts.encode(), hashlib.sha256).hexdigest()[:24]
+
+    def _nonce_ok(self, nonce: str) -> bool:
+        ts, _, sig = nonce.partition(".")
+        if not ts.isdigit():
+            return False
+        good = hmac.new(self.secret, ts.encode(), hashlib.sha256).hexdigest()[:24]
+        return hmac.compare_digest(good, sig) and time.time() - int(ts) < NONCE_LIFE
+
+    def _blocked(self, ip: str) -> bool:
+        now = time.time()
+        recent = [t for t in self.failures.get(ip, []) if now - t < 300]
+        self.failures[ip] = recent
+        return len(recent) >= 10
+
+    def _challenge(self, req, addr, stale=False):
+        self._reply(req, addr, "401 Unauthorized",
+                    [f'WWW-Authenticate: Digest realm="{REALM}", nonce="{self._nonce()}", algorithm=MD5, qop="auth"'
+                     + (", stale=true" if stale else "")])
+
+    def _check_auth(self, req: SipMessage, account: Account) -> str:
+        """'ok', 'none' (no credentials yet), 'stale' or 'bad'."""
+        h = req.get("authorization")
+        if not h.lower().startswith("digest"):
+            return "none"
+        p = {k.lower(): (a or b) for k, a, b in re.findall(r'(\w+)=(?:"([^"]*)"|([^\s,]+))', h)}
+        if p.get("username", "").lower() != account.username.lower() or p.get("realm") != REALM:
+            return "bad"
+        if not self._nonce_ok(p.get("nonce", "")):
+            return "stale"
+        md5 = lambda s: hashlib.md5(s.encode()).hexdigest()  # noqa: E731
+        ha1 = md5(f"{p['username']}:{REALM}:{account.password}")
+        ha2 = md5(f"REGISTER:{p.get('uri', '')}")
+        if p.get("qop", "").lower() == "auth":
+            want = md5(f"{ha1}:{p['nonce']}:{p.get('nc', '')}:{p.get('cnonce', '')}:auth:{ha2}")
+        else:
+            want = md5(f"{ha1}:{p['nonce']}:{ha2}")
+        return "ok" if hmac.compare_digest(want, p.get("response", "")) else "bad"
+
+    def _register(self, req: SipMessage, addr):
+        ip = addr[0]
+        if self._blocked(ip):
+            self._reply(req, addr, "403 Forbidden")
+            return
+        m = re.search(r"sips?:([^@;>]+)@", req.get("to"))
+        user = (m.group(1) if m else "").lower()
+        account = self.accounts.get(user)
+        if account is None or not account.enabled:
+            result = "none" if not req.get("authorization") else "bad"
+            if result == "none":
+                self._challenge(req, addr)      # don't tell scanners which names exist
+                return
+        else:
+            result = self._check_auth(req, account)
+        if result in ("none", "stale"):
+            self._challenge(req, addr, stale=result == "stale")
+            return
+        if result != "ok":
+            self.failures.setdefault(ip, []).append(time.time())
+            log.warning("SIP sign-in for %s from %s failed: wrong username or password", user or "?", ip)
+            self._reply(req, addr, "403 Forbidden")
+            return
+        self.failures.pop(ip, None)
+        contacts = req.get_all("contact")
+        exp_hdr = re.search(r"\d+", req.get("expires"))
+        if any(c.strip() == "*" for c in contacts):
+            expires = 0
+        else:
+            cm = re.search(r";\s*expires=(\d+)", ",".join(contacts))
+            expires = int(cm.group(1)) if cm else int(exp_hdr.group()) if exp_hdr else 3600
+        cm = re.search(r"<([^>]+)>", contacts[0]) if contacts else None
+        contact = (cm.group(1) if cm else contacts[0].split(";")[0].strip()) if contacts else ""
+        key = _contact_key(contact) if contact else ""
+        if expires == 0 or not contacts:
+            with self.lock:
+                bs = self.bindings.get(user, {})
+                gone = bs.pop(key, None) if contact and contact != "*" else bs.clear() or True
+            if gone:
+                log.info("SIP account %s signed out (%s)", account.username, ip)
+            self._save()
+            self._reply(req, addr, "200 OK")
+            return
+        expires = min(max(expires, MIN_EXPIRES), MAX_EXPIRES)
+        now = time.time()
+        with self.lock:
+            bs = self.bindings.setdefault(user, {})
+            for k in [k for k, b in bs.items() if b.expires_at < now]:
+                del bs[k]
+            old = bs.get(key)
+            if old is None and len(bs) >= max(1, account.max_signins):
+                # full: a device signing in again from the same address (new port after a restart) takes
+                # its old place; anything else has to wait until a sign-in ends or more are allowed
+                same = [k for k, b in bs.items() if b.addr[0] == addr[0]]
+                if same:
+                    del bs[min(same, key=lambda k: bs[k].expires_at)]
+                else:
+                    full = True
+            else:
+                full = False
+            if not locals().get("full"):
+                bs[key] = Binding(user, contact, (addr[0], addr[1]), now + expires, req.get("user-agent"),
+                                  old.since if old else now)
+        if locals().get("full"):
+            log.warning("SIP account %s: refused a sign-in from %s:%s - it already has %d of %d allowed",
+                        account.username, addr[0], addr[1], len(bs), account.max_signins)
+            self._reply(req, addr, "403 Forbidden", ["Warning: 399 azan-sip \"Too many sign-ins for this account\""])
+            return
+        if not old or old.addr != (addr[0], addr[1]):
+            log.info("SIP trunk %s signed in from %s:%s%s",
+                     account.name or account.username, addr[0], addr[1],
+                     f" ({req.get('user-agent')})" if req.get("user-agent") else "")
+            self._save()
+        self._reply(req, addr, "200 OK", [f"Contact: <{contact}>;expires={expires}", f"Expires: {expires}",
+                                          f"Date: {time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime())}"])
+
+    # ------------------------------------------------------------ for the UI and calls
+    def active(self) -> dict[str, list[Binding]]:
+        """username -> its current sign-ins (oldest first)."""
+        now = time.time()
+        with self.lock:
+            out = {u: sorted((b for b in bs.values() if b.expires_at > now), key=lambda b: b.since)
+                   for u, bs in self.bindings.items()}
+        return {u: bs for u, bs in out.items() if bs}
+
+    def info(self) -> dict:
+        act, now = self.active(), time.time()
+        accounts = []
+        for u, a in self.accounts.items():
+            bs = act.get(u, [])
+            signins = [{"from": f"{b.addr[0]}:{b.addr[1]}", "device": b.user_agent,
+                        "expires_in": int(b.expires_at - now)} for b in bs]
+            accounts.append({"username": a.username, "name": a.name, "kind": a.kind, "registered": bool(bs),
+                             "max": a.max_signins, "signins": signins,
+                             "from": signins[0]["from"] if signins else "", "device": signins[0]["device"] if signins else ""})
+        return {"status": self.status, "detail": self.detail, "port": self.port, "accounts": accounts}
+
+
+class ServerCallTransport:
+    """Lets a SipCall send and receive through the server's socket instead of its own."""
+
+    def __init__(self, server: SipServer, remote: tuple[str, int]):
+        self.server, self.remote, self.port = server, remote, server.port
+        self.q: queue.Queue = queue.Queue()
+        self.call_id = None
+
+    def attach(self, call_id: str):
+        self.call_id = call_id
+        self.server.calls[call_id] = self.q
+
+    def send(self, data: bytes, addr=None):
+        self.server.send(data, addr or self.remote)
+
+    def recv(self, timeout: float):
+        try:
+            return self.q.get(timeout=max(timeout, 0.01))
+        except queue.Empty:
+            return None
+
+    def close(self):
+        if self.call_id:
+            self.server.calls.pop(self.call_id, None)
+
+
+class ServerManager:
+    """Runs the server to match the settings (one per Azan SIP, on one port)."""
+
+    def __init__(self):
+        self.server: SipServer | None = None
+        self.lock = threading.Lock()
+        self.state_file: Path | None = None
+
+    def sync(self, cfg: dict, base: Path | None = None):
+        if base is not None:
+            self.state_file = Path(base) / ".sip_bindings.json"
+        t = next((t for t in cfg.get("targets", []) if t.get("type") == "server" and t.get("enabled", True)), None)
+        local_ip = cfg.get("network", {}).get("local_ip") or None
+        with self.lock:
+            if t is None:
+                if self.server:
+                    self.server.stop()
+                    self.server = None
+                    log.info("Azan SIP phone server stopped")
+                return
+            accounts = [Account(str(a.get("username", "")).strip(), str(a.get("password", "")), a.get("name", ""),
+                                "trunk", str(a.get("dial", "")).strip(), a.get("enabled", True),
+                                max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))))
+                        for a in t.get("accounts", []) if isinstance(a, dict)]
+            port = int(t.get("port", 5060) or 5060)
+            s = self.server
+            if s and s.port == port and s.local_ip_cfg == local_ip and s.is_alive():
+                s.update_accounts(accounts)
+                return
+            if s:
+                s.stop()
+                s.join(timeout=3)
+            self.server = SipServer(port, local_ip, accounts, self.state_file)
+            self.server.start()
+            self.server.started.wait(2)
+
+    def info(self) -> dict | None:
+        s = self.server
+        return s.info() if s else None
+
+    def stop(self):
+        with self.lock:
+            if self.server:
+                self.server.stop()
+                self.server.join(timeout=3)
+                self.server = None
+
+
+MANAGER = ServerManager()
+
+
+@dataclass
+class ServerTarget:
+    """The "Register to Azan SIP" method: call every sign-in of every account."""
+    name: str
+    codec: str = "PCMU"
+    ring_timeout: float = 20.0
+    local_ip: str | None = None
+
+    def play(self, clip, stop: threading.Event) -> bool:
+        server = MANAGER.server
+        if server is None or server.status != "running":
+            log.warning("[%s] the Azan SIP phone server isn't running%s", self.name,
+                        f": {server.detail}" if server else " - press Save changes first")
+            return False
+        jobs = []
+        for u, bs in server.active().items():
+            acct = server.accounts.get(u)
+            if acct and acct.enabled:
+                jobs += [(acct, b) for b in bs]   # every device / phone system signed in with the account
+        if not jobs:
+            log.warning("[%s] no phone or phone system is signed in to Azan SIP", self.name)
+            return False
+        from concurrent.futures import ThreadPoolExecutor
+        codecs = [self.codec] + [c for c in ("PCMU", "PCMA") if c != self.codec]
+
+        def call(job):
+            acct, b = job
+            _, host, port = _contact_hostport(b.contact)
+            user = acct.dial or _contact_user(b.contact) or acct.username   # no number: call the device itself
+            target = SipTarget(uri=f"sip:{user}@{host}:{port}", username=acct.username, password=acct.password,
+                               from_user="azan", display_name="Azan", auto_answer=True,   # phone systems ignore it
+                               codecs=codecs, ring_timeout=self.ring_timeout,
+                               local_ip=self.local_ip or rtp.local_ip_for(b.addr[0]))
+            transport = ServerCallTransport(server, b.addr)
+            return SipCall(target, clip.get, stop, transport=transport).run()
+
+        with ThreadPoolExecutor(max_workers=min(32, len(jobs))) as ex:
+            results = list(ex.map(call, jobs))
+        log.info("[%s] %d/%d answered", self.name, sum(results), len(results))
+        return any(results)
+
+
+def _contact_user(contact: str) -> str:
+    m = re.match(r"sips?:([^@;>]+)@", contact)
+    return m.group(1) if m else ""
+
+
+def _contact_hostport(contact: str) -> tuple[str, str, int]:
+    u = re.sub(r"^sips?:", "", contact).split(";", 1)[0].split("?", 1)[0]
+    user, _, hp = u.rpartition("@")
+    host, _, port = hp.partition(":")
+    return user, host, int(port) if port.isdigit() else 5060

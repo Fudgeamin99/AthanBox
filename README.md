@@ -79,6 +79,10 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 **Makkah live:** press *Makkah live* on the prayer-times screen (or open `/display?live=1`) to show the live picture from Masjid al-Haram next to the next azan and today's times. The sound starts off and goes quiet by itself while your own azan plays. The Box relays the stream, so screens watching at the same time share one download. Each screen remembers whether it shows Makkah live. If the Box runs on a cloud server, turn on *Screens fetch the stream themselves* on the Display page, so each screen downloads the stream over its own internet connection and the server uses no data for it. To make sure it never does, also turn off *If a screen can't fetch it, go through the box*.
 
+**TV app:** on the **TV app** page, switch on *Let TV screens connect*. A TV screen then shows the prayer times and plays the azan through the TV's speakers, at the same moment as the phones. Use an old iPad (scan the QR code, then *Add to Home Screen*), the **Azan SIP TV** Android app (scan the second QR code, or open `http://<the box's address>:8765/apk` on the device), or a smart TV's browser at `http://<the box's address>:8765/tv`. The page lists the screens and can test them.
+
+**Ramadan:** the **Ramadan** page sets the dates, the extra sounds on the phones (Suhoor ends, the Iftar azan, Taraweeh and more), Isha in Ramadan, the Ramadan screens (countdowns, the dua at Iftar, Eid) and prints the month's timetable. It switches itself on and off on the dates you set.
+
 **Display page:** in the control panel, choose how the prayer-times screen looks, with a live preview: a theme (Masjid green, Night, Navy and gold, Maroon, Sand, or your own colours), cards along the bottom or a list at the side, the text size, the masjid name, a notice line along the bottom, and which parts to show. *Save changes* updates every screen within a few seconds. The Makkah live layout and stream link are there too. **Settings → Appearance** sets light or dark and the colour of the control panel itself.
 
 | Ways to reach the phones | Best for |
@@ -87,6 +91,7 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 | Phone system page group | Grandstream UCM, FreePBX, Asterisk, 3CX and others. The Box stays registered as its own extension (shows as Idle) and calls your paging group. |
 | Call each phone directly | Poly/Polycom, or when multicast isn't possible. Needs direct IP calls and auto-answer on the phones. |
 | IP speaker (RTP) | Paging speakers that listen on a fixed IP address and port. |
+| Register to Azan SIP (SIP trunk) | A phone system that adds the Box as a register SIP trunk (no extension needed), or desk phones that add it as an extra line. The Box listens on UDP port 5060. |
 
 ## Password
 
@@ -113,9 +118,10 @@ What's new in each version is under [Releases](https://github.com/Fudgeamin99/az
 | 1 | Control panel on the network, password, factory reset, `http://azan.local`, Debian installer | Panel, password and reset in 0.2.0, the Debian installer in 0.3.0 |
 | Docker | Run it on a NAS or home server | Released in 0.2.0. The Update button in Settings came in 0.3.0. |
 | 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | Released in 0.3.0, with Makkah live and the Display page |
+| Desktop 1.11 | Ramadan mode, the SIP trunk, the TV app and the Android app from the desktop app | Released in 0.4.0 |
 | 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | Planned |
 | 4 | Sticker tool: per-box password and QR code | Planned |
 
 ## About this repository
 
-`main` holds the Box's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. The Box started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand.
+`main` holds the Box's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. The Box started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand. 0.4.0 matches the desktop app's 1.11.2. The Android TV app is built there, and the Box uses its AzanTV.apk.

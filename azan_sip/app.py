@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
 
-from . import audio, rtp
+from . import audio, ramadan, rtp, sipserver
 from .praytimes import PrayerTimes, Settings
 from .sip import SipCall, SipTarget
 
@@ -24,8 +24,9 @@ class Clip:
     """An audio file (or the built-in test chime) prepared on demand per codec."""
 
     def __init__(self, source: str, base: Path, volume_db: float = 0.0, lead_in_ms: int = 400,
-                 max_seconds: float | None = None, tone_seconds: float = 6.0):
+                 max_seconds: float | None = None, tone_seconds: float = 6.0, repeat_seconds: float | None = None):
         self.source = source
+        self.repeat_seconds = repeat_seconds
         self.tone_seconds = tone_seconds
         self.path = None if source == "tone" else (base / source).resolve()
         self.volume_db, self.lead_in_ms, self.max_seconds = volume_db, lead_in_ms, max_seconds
@@ -39,8 +40,14 @@ class Clip:
                         else audio.load(self.path, codec, self.volume_db))
                 if self.max_seconds:
                     body = body[: int(self.max_seconds * audio.SAMPLE_RATE)]
+                if self.repeat_seconds and body:   # play it again and again for this long
+                    want = int(self.repeat_seconds * audio.SAMPLE_RATE)
+                    body = (body * (want // len(body) + 1))[:want]
                 self._cache[codec] = audio.silence(self.lead_in_ms, codec) + body + audio.silence(600, codec)
             return self._cache[codec]
+
+    def seconds(self) -> float:
+        return len(self.get("PCMU")) / audio.SAMPLE_RATE
 
     def check(self):
         if self.path is not None and not self.path.is_file():
@@ -126,8 +133,11 @@ def build_targets(cfg: dict, require: bool = True) -> list:
                               extra_headers=t.get("extra_headers", []))
                     for u in uris if u]
             out.append(SipCallTarget(name, sips))
+        elif kind == "server":  # phones and phone systems that sign in to Azan SIP's own SIP server
+            out.append(sipserver.ServerTarget(name, codec, float(t.get("ring_timeout") or net.get("ring_seconds") or 20),
+                                              local_ip))
         else:
-            raise ValueError(f"{name}: unknown target type {kind!r} (use multicast, sip or unicast_rtp)")
+            raise ValueError(f"{name}: unknown target type {kind!r} (use multicast, sip, unicast_rtp or server)")
     if not out and require:
         raise ValueError("No enabled targets in config")
     return out
@@ -149,6 +159,11 @@ class Shared:
         self.now_playing: str | None = None
         self.fired: set[tuple] = set()
         self.history: list[dict] = []
+        # for TV screens: what is playing (with its start time) and how the last one ended
+        self.seq = 0
+        self.playing: dict | None = None
+        self.last: dict | None = None
+        self.screens_listening = lambda: False   # set by the control panel
 
 
 class AzanApp:
@@ -194,6 +209,22 @@ class AzanApp:
             if not (0 <= hh < 24 and 0 <= mm < 60):
                 raise ValueError("Jumu'ah time must be HH:MM")
 
+        # Ramadan: dates, extra sounds and the Isha time during the month
+        self.ramadan = ramadan.Ramadan(self.cfg.get("ramadan"))
+        r = self.ramadan.s
+        for k in ("qiyam_time", "isha_time", "eid_prayer1", "eid_prayer2"):
+            if r.get(k) and not ramadan.parse_time(str(r[k])):
+                raise ValueError(f"Ramadan: {k.replace('_', ' ')} must be HH:MM")
+        self.ramadan_clips = {}
+        for name, key in (("suhoor", "suhoor"), ("wakeup", "wakeup"), ("iftar_reminder", "before_iftar"),
+                          ("taraweeh", "taraweeh"), ("qiyam", "qiyam")):
+            if r.get(f"{key}_on") and r.get(f"{key}_sound"):
+                self.ramadan_clips[name] = mk(r[f"{key}_sound"])
+        if r.get("takbeer_on") and r.get("takbeer_sound") and r.get("eid_prayer1"):
+            self.ramadan_clips["takbeer"] = Clip(r["takbeer_sound"], self.base, vol, lead,
+                                                 repeat_seconds=max(1, self.ramadan.num("takbeer_minutes")) * 60)
+        self.iftar_clip = mk(r["iftar_sound"], mx) if r.get("iftar_on") and r.get("iftar_sound") else None
+
         self.sh = shared or Shared()
         self._busy, self._halt = self.sh.busy, self.sh.halt
         self.stop = threading.Event()
@@ -209,20 +240,39 @@ class AzanApp:
     def clip_for(self, prayer: str, when: date | None = None) -> Clip:
         if prayer == "dhuhr" and when and when.weekday() == 4 and self.jumuah_clip:
             return self.jumuah_clip
+        if prayer == "maghrib" and when and self.iftar_clip and self.ramadan.fasting(when):
+            return self.iftar_clip
         return self.clips.get(prayer) or self.default_clip
 
     def all_clips(self) -> list[Clip]:
-        return [c for c in [self.default_clip, self.reminder_clip, self.jumuah_clip, *self.clips.values()] if c]
+        return [c for c in [self.default_clip, self.reminder_clip, self.jumuah_clip, self.iftar_clip,
+                            *self.clips.values(), *self.ramadan_clips.values()] if c]
+
+    def day_times(self, day: date) -> dict[str, datetime]:
+        """The prayer times for a day, with the Ramadan Isha time when one is set."""
+        times = self.times.for_date(day)
+        r = self.ramadan
+        if r.s["isha_mode"] != "calc" and r.fasting(day):
+            if r.s["isha_mode"] == "fixed" and ramadan.parse_time(str(r.s["isha_time"])):
+                hh, mm = ramadan.parse_time(str(r.s["isha_time"]))
+                times["isha"] = self.times.localize(datetime.combine(day, dtime(hh, mm)))
+            elif r.s["isha_mode"] == "after":
+                times["isha"] = times["maghrib"] + timedelta(minutes=r.num("isha_after"))
+        return times
+
+    def sehri(self, day: date) -> datetime:
+        return self.times.for_date(day)["fajr"] - timedelta(minutes=self.ramadan.num("suhoor_minutes"))
 
     def check(self):
         for c in self.all_clips():
             c.check()
 
     def events_for(self, day: date) -> list[tuple[datetime, str, str]]:
-        """[(when, prayer, kind)] where kind is 'azan' or 'reminder'."""
+        """[(when, prayer, kind)] where kind is 'azan', 'reminder' or 'ramadan' (prayer is then the
+        Ramadan sound: suhoor, wakeup, iftar_reminder, taraweeh, qiyam or takbeer)."""
         if day.strftime("%a").lower()[:3] in self.skip_days:
             return []
-        times = self.times.for_date(day)
+        times = self.day_times(day)
         if self.jumuah_time and day.weekday() == 4:
             hh, mm = (int(x) for x in self.jumuah_time.split(":"))
             times["dhuhr"] = self.times.localize(datetime.combine(day, dtime(hh, mm)))
@@ -233,7 +283,38 @@ class AzanApp:
             ev.append((times[p], p, "azan"))
             if self.reminder_minutes and self.reminder_clip:
                 ev.append((times[p] - timedelta(minutes=self.reminder_minutes), p, "reminder"))
+        ev += self.ramadan_events(day, times)
         return sorted(ev)
+
+    def ramadan_events(self, day: date, times: dict) -> list[tuple[datetime, str, str]]:
+        r, clips, ev = self.ramadan, self.ramadan_clips, []
+        if r.fasting(day):
+            mins = lambda key: timedelta(minutes=r.num(key))  # noqa: E731
+            if "suhoor" in clips:
+                ev.append((times["fajr"] - mins("suhoor_minutes"), "suhoor", "ramadan"))
+            if "wakeup" in clips:
+                ev.append((times["fajr"] - mins("wakeup_minutes"), "wakeup", "ramadan"))
+            if "iftar_reminder" in clips:
+                ev.append((times["maghrib"] - mins("before_iftar_minutes"), "iftar_reminder", "ramadan"))
+            if "taraweeh" in clips:
+                ev.append((times["isha"] + mins("taraweeh_minutes"), "taraweeh", "ramadan"))
+            k = r.day_number(day)
+            hm = ramadan.parse_time(str(r.s["qiyam_time"]))
+            if "qiyam" in clips and hm and k and k >= 21:   # the last ten nights (the night before day 21 onwards)
+                t = self.times.localize(datetime.combine(day, dtime(*hm)))
+                if t < times["fajr"]:
+                    ev.append((t, "qiyam", "ramadan"))
+        if "takbeer" in clips and r.eid_day(day):
+            hm = ramadan.parse_time(str(r.s["eid_prayer1"]))
+            if hm:
+                t = self.times.localize(datetime.combine(day, dtime(*hm))) - timedelta(minutes=r.num("takbeer_minutes"))
+                ev.append((t, "takbeer", "ramadan"))
+        return ev
+
+    def event_clip(self, when: datetime, prayer: str, kind: str) -> Clip | None:
+        if kind == "ramadan":
+            return self.ramadan_clips.get(prayer)
+        return self.reminder_clip if kind == "reminder" else self.clip_for(prayer, when.date())
 
     def next_event(self) -> tuple[datetime, str, str] | None:
         now = self.now()
@@ -243,9 +324,14 @@ class AzanApp:
                     return e
         return None
 
-    def broadcast(self, clip: Clip, label: str = "", targets: list | None = None) -> bool:
+    def broadcast(self, clip: Clip, label: str = "", targets: list | None = None,
+                  screens: bool | None = None) -> bool:
+        """Play a clip on the phones (all of them unless targets is given) and, when screens is
+        true (the default when playing to all phones), on the TV screens too."""
+        screens = targets is None if screens is None else screens
         targets = self.targets if targets is None else targets
-        if not targets:
+        on_screens = screens and self.sh.screens_listening()
+        if not targets and not on_screens:
             log.warning("No phones/targets are enabled; nothing to play for %s", label)
             return False
         if not self._busy.acquire(blocking=False):
@@ -253,17 +339,33 @@ class AzanApp:
             return False
         self._halt.clear()
         self.now_playing = label or "audio"
+        self.sh.seq += 1
+        seq = self.sh.seq
         ok = False
         try:
-            log.info("Playing %s (%s) to %d target(s)", label or "audio", clip, len(targets))
+            for codec in {"PCMU"} | {getattr(t, "codec", "PCMU") for t in targets}:
+                clip.get(codec)   # prepare the audio first, so the phones and screens start together
+            self.sh.playing = {"seq": seq, "label": label or "audio", "clip": clip, "started": time.time(),
+                               "screens": bool(screens)}
+            where = f"{len(targets)} target(s)" + (" and the TV screens" if on_screens else "")
+            log.info("Playing %s (%s) to %s", label or "audio", clip, where if targets else "the TV screens")
             start = time.monotonic()
-            with ThreadPoolExecutor(max_workers=len(targets)) as ex:
-                results = list(ex.map(lambda t: _safe_play(t, clip, self._halt), targets))
-            ok = any(results)
+            if targets:
+                with ThreadPoolExecutor(max_workers=len(targets)) as ex:
+                    results = list(ex.map(lambda t: _safe_play(t, clip, self._halt), targets))
+                ok = any(results) or on_screens
+            else:   # only TV screens: they play it themselves, so just wait until it's over
+                self._halt.wait(clip.seconds())
+                ok = True
             log.info("Finished %s in %.0f s%s", label or "broadcast", time.monotonic() - start,
                      " (stopped)" if self._halt.is_set() else "")
             return ok
+        except Exception:
+            log.exception("Playing %s failed", label or "audio")
+            return False
         finally:
+            self.sh.last = {"seq": seq, "stopped": self._halt.is_set()}
+            self.sh.playing = None
             self.history = (self.history + [{"label": label, "at": self.now().isoformat(timespec="seconds"),
                                              "ok": ok}])[-20:]
             self.now_playing = None
@@ -310,15 +412,22 @@ class AzanApp:
                 self.stop.wait(min(wait, 30))  # re-check regularly (clock changes, DST)
                 continue
             self.fired.add((when.date(), prayer, kind))
-            clip = self.reminder_clip if kind == "reminder" else self.clip_for(prayer, when.date())
-            label = f"{prayer.title()} {'reminder' if kind == 'reminder' else 'azan'}"
+            clip = self.event_clip(when, prayer, kind)
+            label = ramadan.event_label(prayer, kind)
+            if clip is None:
+                continue
             threading.Thread(target=self.broadcast, args=(clip, label), daemon=True).start()
         log.info("Azan scheduler stopped")
 
     def _log_today(self):
         today = self.now().date()
-        t = self.times.for_date(today)
+        t = self.day_times(today)
         log.info("Today %s: %s", today, "  ".join(f"{k.title()} {v:%H:%M}" for k, v in t.items()))
+        if self.ramadan.fasting(today):
+            extra = [f"{ramadan.LABELS[n]} {w:%H:%M}" for w, n, k in self.ramadan_events(today, t)]
+            k = self.ramadan.day_number(today)
+            log.info("Ramadan%s · Sehri ends %s%s", f" day {k}" if k else "", f"{self.sehri(today):%H:%M}",
+                     (" · Ramadan sounds today: " + ", ".join(extra)) if extra else "")
 
 
 def _safe_play(target, clip, stop) -> bool:
