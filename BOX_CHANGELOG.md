@@ -4,6 +4,12 @@ Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version,
 `## x.y.z - title` section at the top and merge it to main: a release tagged `box-vx.y.z` is
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
+
+## 0.4.1 - Phones signed in over the internet hear the azan
+
+- **Phones behind a router:** a phone or phone system signed in to the Box over the internet (say a Yealink at home and the Box on a cloud server) now hears the azan. The Box sends the sound to the router's public address and follows the port the phone's own audio comes from, instead of the phone's private address, which can't be reached.
+- **No more "Held":** azan calls no longer show as held on Yealink and other phones.
+
 ## 0.4.0 - Ramadan mode, SIP trunk and the TV app
 Brings the Box up to the desktop app's 1.11.2, with everything from its versions 1.8.0 to 1.11.2.
 - **Ramadan** page in the menu. Ramadan mode switches itself on for the month and off on Eid, from the expected date (8 February 2027 for Ramadan 1448); move it a day either way after the moonsighting, or choose 29 or 30 days. On the phones: a **Suhoor ends** alert before Fajr, a different **Iftar azan** for Maghrib and a **Taraweeh** chime after Isha, with an optional wake-up, a reminder before Iftar, a Qiyam chime in the last ten nights and **takbeer** before the Eid prayer. Isha in Ramadan can be as calculated, a fixed time or a set time after Maghrib.

@@ -9,6 +9,7 @@ Two uses:
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import logging
 import random
 import re
@@ -182,7 +183,8 @@ class SipCall:
         for c in self.t.codecs:
             if c in CODECS:
                 lines.append(f"a=rtpmap:{CODECS[c]} {c}/8000")
-        lines += ["a=ptime:20", "a=sendonly"]
+        # sendrecv, not sendonly: phones show sendonly as "Held", and their audio lets us find them behind NAT
+        lines += ["a=ptime:20", "a=sendrecv"]
         return "\r\n".join(lines) + "\r\n"
 
     def _request(self, method: str, cseq: int, branch: str, body: str = "", extra: list[str] | None = None,
@@ -364,6 +366,7 @@ class SipCall:
             log.error("%s: answer had no usable audio stream", self.t.uri)
             self._bye()
             return False
+        dest = self._nat_dest(dest)
         log.info("%s: answered, streaming %s to %s:%s", self.t.uri, codec, *dest)
         payload = self.get_audio(codec)
 
@@ -375,7 +378,9 @@ class SipCall:
                 if self.stop.wait(0.5):
                     self.stop_stream.set()
         threading.Thread(target=_relay_stop, daemon=True).start()
-        rtp.stream(payload, [dest], CODECS[codec], self.stop_stream, sock=self.rtp_sock)
+        dests = [dest]
+        threading.Thread(target=self._latch, args=(dests,), daemon=True).start()
+        rtp.stream(payload, dests, CODECS[codec], self.stop_stream, sock=self.rtp_sock)
         done = self.ended_by_remote.is_set()
         self.stop_stream.set()
         self._watching = False
@@ -391,6 +396,34 @@ class SipCall:
             msg = self._recv(0.3)
             if msg is not None and msg.status == 200 and msg.get("cseq", "").endswith("INVITE"):
                 self._ack(msg)
+
+    def _nat_dest(self, dest: tuple[str, int]) -> tuple[str, int]:
+        """A phone behind NAT (say one signed in to a box in the cloud) gives its private address in the
+        SDP, which can't be reached: send to the public address its SIP messages came from instead."""
+        try:
+            private = ipaddress.ip_address(dest[0]).is_private
+            public_remote = not ipaddress.ip_address(self.remote[0]).is_private
+        except ValueError:
+            return dest
+        if private and public_remote:
+            log.info("%s: the phone is behind NAT (%s), sending the audio to %s:%s", self.t.uri, dest[0],
+                     self.remote[0], dest[1])
+            return (self.remote[0], dest[1])
+        return dest
+
+    def _latch(self, dests: list[tuple[str, int]]):
+        """Symmetric RTP: once the phone's own audio arrives, send ours back to where it came from,
+        which is the NAT's real port for this call."""
+        allowed = {dests[0][0], self.remote[0]}
+        self.rtp_sock.settimeout(0.3)
+        while not self.stop_stream.is_set():
+            try:
+                _, addr = self.rtp_sock.recvfrom(2048)
+            except OSError:
+                continue
+            if addr[0] in allowed and addr != dests[0]:
+                log.info("%s: the phone's audio comes from %s:%s, sending there", self.t.uri, *addr)
+                dests[0] = addr
 
     def _parse_answer(self, sdp: str) -> tuple[tuple[str, int] | None, str]:
         conn, port, pts = None, None, []
