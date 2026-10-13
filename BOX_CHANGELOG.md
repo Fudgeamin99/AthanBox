@@ -8,7 +8,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 ## 0.4.3 - The box's own screen starts on more computers
 
-- **Prayer times on the box's screen:** `screen.sh` now works on computers where the screen stayed black with a blinking cursor, such as a Lenovo IdeaPad. Run `git pull` and `sudo sh packaging/box/screen.sh` again to get the fix.
+- **Volume for TV screens:** a new slider on the TV app page sets how loud the azan plays on TV screens, including the box's own screen. Screens follow within a second, even in the middle of an azan.
+- **Prayer times on the box's screen:** `screen.sh` now works on computers where the screen stayed black with a blinking cursor, such as a Lenovo IdeaPad.
+- **Sound on laptops:** `screen.sh` installs the sound firmware small Intel laptops need and switches their built-in speaker on. Restart the computer once afterwards if there's no sound.
+- Run `git pull` and `sudo sh packaging/box/screen.sh` again on a box with a screen to get these fixes.
 
 ## 0.4.2 - Makkah live doesn't use the box's data by default
 
