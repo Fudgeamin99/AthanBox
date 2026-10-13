@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.4.3 - The box's own screen starts on more computers
+
+- **Prayer times on the box's screen:** `screen.sh` now works on computers where the screen stayed black with a blinking cursor, such as a Lenovo IdeaPad. Run `git pull` and `sudo sh packaging/box/screen.sh` again to get the fix.
+
 ## 0.4.2 - Makkah live doesn't use the box's data by default
 
 - **Screens fetch Makkah live themselves** is now on unless you switch it off, so a box on a cloud server doesn't pay for the stream. Boxes that had it switched off keep their choice.

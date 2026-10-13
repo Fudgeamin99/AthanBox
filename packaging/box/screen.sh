@@ -24,12 +24,14 @@ ls /dev/dri/card* >/dev/null 2>&1 \
     || { echo "This computer has no screen output (no graphics found), so there is nothing to show the prayer times on."; exit 1; }
 
 apt-get update
-apt-get install -y --no-install-recommends cage chromium libgl1-mesa-dri fonts-dejavu-core \
-    alsa-utils dbus libpam-systemd
+apt-get install -y --no-install-recommends cage xwayland seatd chromium libgl1-mesa-dri \
+    fonts-dejavu-core alsa-utils dbus libpam-systemd
+# seatd hands the screen to the kiosk: logind refuses to on some computers (such as an IdeaPad).
+systemctl enable --now seatd
 
 id azan-screen >/dev/null 2>&1 \
     || useradd --system --create-home --home-dir /var/lib/azan-screen --shell /usr/sbin/nologin azan-screen
-for group in video render input audio; do
+for group in video render input audio _seatd; do
     if getent group "$group" >/dev/null; then usermod -a -G "$group" azan-screen; fi
 done
 

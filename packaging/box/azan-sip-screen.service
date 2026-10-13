@@ -2,8 +2,8 @@
 Description=Azan SIP Box - prayer-times screen on the TV plugged into the box
 # A login session on the first console, so the kiosk may use the screen, keyboard and sound
 # (set up by packaging/box/screen.sh, which also adds /etc/pam.d/azan-screen).
-After=azan-sip-box.service systemd-user-sessions.service dbus.socket systemd-logind.service getty@tty1.service
-Wants=dbus.socket systemd-logind.service
+After=azan-sip-box.service seatd.service systemd-user-sessions.service dbus.socket systemd-logind.service getty@tty1.service
+Wants=seatd.service dbus.socket systemd-logind.service
 Conflicts=getty@tty1.service
 ConditionPathExists=/dev/tty1
 
@@ -19,7 +19,7 @@ StandardOutput=journal
 StandardError=journal
 UtmpIdentifier=tty1
 UtmpMode=user
-Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_SESSION_TYPE=wayland LIBSEAT_BACKEND=seatd
 # cage shows one app full screen; -s still lets Ctrl+Alt+F2 reach a text login for maintenance
 ExecStart=/usr/bin/cage -s -- /usr/local/bin/azan-sip-screen
 Restart=always
