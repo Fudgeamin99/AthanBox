@@ -64,7 +64,7 @@ It installs Python and ffmpeg, names the box `azan` on the network, asks for the
 
 ### Prayer times on a TV plugged into the box
 
-A Dell Wyse or another small PC can show the prayer-times screen on a TV plugged into its HDMI or DisplayPort, and play the azan through the TV's speakers at the same moment as the phones. Plug the TV in and switch it on, then run:
+A Dell Wyse or another small PC can show the prayer-times screen on a TV plugged into its HDMI or DisplayPort, and play the azan through the TV's speakers at the same moment as the phones. An old laptop shows it on its own screen and plays the azan through its own speakers, unless a TV is plugged in. Closing a laptop's lid doesn't put the Box to sleep. Plug the TV in and switch it on, then run:
 
 ```sh
 cd azan-sip-box
