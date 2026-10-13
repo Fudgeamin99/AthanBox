@@ -6,6 +6,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.4.4 - Volume for the box's own screen
+
+- **The volume slider** on the TV app page now changes only the screen plugged into the box (a laptop or a Wyse on a TV), not iPads and other TV screens, which keep their own volume.
+- **Screens update themselves:** TV screens load the new version after the Box updates, instead of carrying on with the old page until they're restarted.
+
 ## 0.4.3 - The box's own screen starts on more computers
 
 - **Volume for TV screens:** a new slider on the TV app page sets how loud the azan plays on TV screens, including the box's own screen. Screens follow within a second, even in the middle of an azan.

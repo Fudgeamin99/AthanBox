@@ -930,10 +930,10 @@ function pageTV(){
       ${on && n.tv_qr ? `<div class="access-qr">${n.tv_qr}<div><b>Scan with the iPad's camera</b><br><span class="muted">or type ${urls.map(u=>`<span class="mono">${esc(u)}</span>`).join(" or ")} into Safari</span></div></div>` : ""}</div>
     <label class="switch"><input type="checkbox" ${on?"checked":""} onchange="setTV(this.checked)" aria-label="Let TV screens connect"><span></span></label></div></div>
   <div class="card" id="tvlist">${tvListHTML()}</div>
-  <div class="card"><h2>Volume</h2>
-    <div class="field"><label>Azan volume on TV screens, including the box's own screen: <span id="tvvol">${Math.round(+(CFG.general.tv_volume ?? 100))}%</span></label>
+  <div class="card"><h2>Volume on the box's own screen</h2>
+    <div class="field"><label>Azan volume on the TV or laptop screen plugged into the box: <span id="tvvol">${Math.round(+(CFG.general.tv_volume ?? 100))}%</span></label>
       <input type="range" min="0" max="100" step="5" data-path="general.tv_volume" data-kind="num" value="${Math.round(+(CFG.general.tv_volume ?? 100))}" oninput="$('#tvvol').textContent=this.value+'%'"></div>
-    <p class="muted" style="margin:6px 0 0;font-size:13px">Press Save changes, then Test chime. Screens follow within a second, even mid-azan. 100% is as loud as the screen's own volume allows.</p></div>
+    <p class="muted" style="margin:6px 0 0;font-size:13px">Press Save changes, then Test chime. The box's screen follows within a second, even mid-azan. 100% is as loud as its speakers are set. Other TV screens, such as an iPad or Android TV, keep their own volume.</p></div>
   <div class="card"><h2>Android app: phones, tablets, Android TV and Fire TV</h2>
     <p class="muted" style="margin-top:-4px">The <b>Azan SIP TV</b> app opens straight into the display, plays the azan without a tap and keeps the screen on by itself. Android 5.0 or newer.</p>
     ${on && n.apk_qr ? `<div class="access-qr" style="margin-bottom:14px">${n.apk_qr}<div><b>Scan with the Android device to download the app</b><br><span class="muted">or open ${(n.apk_urls||[]).slice(0,1).map(u=>`<span class="mono">${esc(u)}</span>`).join("")} in its browser</span></div></div>`

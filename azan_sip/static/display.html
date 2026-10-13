@@ -727,7 +727,8 @@ if(PREVIEW){
 // The screen asks the box twice a second what is playing and when it started, and plays the
 // same recording from the same point, so it sounds together with the phones. Browsers only allow
 // sound after the screen has been tapped (or clicked) once, so until then it shows a reminder.
-const TVA = {ctx:null, vol:1, on: store.get("azanTvSound") !== "0", offset:null, rtt:Infinity, offAt:0, bufs:new Map(),
+const LOCAL_SCREEN = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+const TVA = {ctx:null, vol:1, ver:"", on: store.get("azanTvSound") !== "0", offset:null, rtt:Infinity, offAt:0, bufs:new Map(),
              cur:null, done:0, shown:null, next:null, timer:null, error:"", lock:null, wasOn:false, off:false};
 const SPK2 = {on:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
               off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>'};
@@ -866,7 +867,12 @@ function tvOff(off){   // switched off in Azan SIP: go quiet and dark until it's
 }
 function tvHandle(j){
   const p = j.playing;
-  const vol = typeof j.volume === "number" ? j.volume : 1;   // the volume set on the TV app page
+  // A new Box version: load the new page, so updates reach screens that stay open for months
+  if (j.version && TVA.ver && j.version !== TVA.ver) { location.reload(); return; }
+  if (j.version) TVA.ver = j.version;
+  // The volume on the TV app page is for the box's own screen only (it opens the TV app on
+  // 127.0.0.1); other screens keep their own volume
+  const vol = LOCAL_SCREEN && typeof j.volume === "number" ? j.volume : 1;
   if (vol !== TVA.vol){
     TVA.vol = vol;
     if (TVA.cur && TVA.cur.gain){ try{ TVA.cur.gain.gain.setTargetAtTime(vol, TVA.ctx.currentTime, .1); }catch(e){} }
