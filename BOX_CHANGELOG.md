@@ -5,6 +5,12 @@ Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version,
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
+
+## 0.4.2 - Makkah live doesn't use the box's data by default
+
+- **Screens fetch Makkah live themselves** is now on unless you switch it off, so a box on a cloud server doesn't pay for the stream. Boxes that had it switched off keep their choice.
+- **Data warning:** when Makkah live goes through the box, the Display page says it uses about 1 GB an hour for each screen and can add to the charges on a hosted server.
+
 ## 0.4.1 - Phones signed in over the internet hear the azan
 
 - **Phones behind a router:** a phone or phone system signed in to the Box over the internet (say a Yealink at home and the Box on a cloud server) now hears the azan. The Box sends the sound to the router's public address and follows the port the phone's own audio comes from, instead of the phone's private address, which can't be reached.
