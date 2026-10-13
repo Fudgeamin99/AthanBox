@@ -39,3 +39,4 @@ cp packaging/box/azan-sip-box.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now azan-sip-box
 echo "Done. Open http://azan.local on a computer or phone on the same network."
+echo "To show the prayer times on a TV plugged into this box: sudo sh packaging/box/screen.sh"
