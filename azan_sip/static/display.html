@@ -425,14 +425,21 @@ async function load(){
     // Makkah live: ?live=1 in the address, else what this screen chose last, else the setting for new screens
     const q = new URLSearchParams(location.search).get("live"), mine = store.get("azanLive");
     if(!PREVIEW) setLive(q !== null ? q !== "0" : mine !== null ? mine === "1" : !!(st.look && st.look.live_start), false);
-  }
+  } else if(LV.on && !PREVIEW && LV.key !== null && LV.key !== liveKey()){ LV.directFailed = false; startLive(); }  // the stream setting changed
   render(); azanCheck();
 }
 function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden = false; $("#screen").hidden = true; }
 
 // ---------------------------------------------------------------- Makkah live
 // The stream is relayed by the box (/live/stream.m3u8) and played with hls.js, loaded only when needed.
-const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0};
+// With "Screens fetch the stream themselves" on, the screen plays the stream's own link instead, so the box
+// uses no data for it; if the stream doesn't let web pages read it, the screen goes through the box after all.
+const RELAY = "/live/stream.m3u8";
+const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0,
+            directFailed:false, played:false, key:null};
+const liveKey = () => JSON.stringify((S && S.live) || {});
+function liveSrc(){ const l = S && S.live; return l && l.direct && l.url && !LV.directFailed ? l.url : RELAY; }
+function directFailed(){ LV.directFailed = true; startLive(); }
 const SPK = {off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>',
              on:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'};
 function liveMsg(kind, title, text){
@@ -455,10 +462,11 @@ function loadHls(){
 function stopLive(){
   clearTimeout(LV.retry); LV.retry = null;
   if(LV.hls){ LV.hls.destroy(); LV.hls = null; }
-  const v = $("#video"); if(v.getAttribute("src")){ v.removeAttribute("src"); v.load(); }
+  const v = $("#video"); v.onerror = null; if(v.getAttribute("src")){ v.removeAttribute("src"); v.load(); }
 }
 function retryLive(title, text){
   stopLive();
+  LV.directFailed = false;  // the stream itself may have dropped: try it directly again next time
   if(text && !/[.!?]$/.test(text)) text += ".";
   liveMsg("error", title, `${text ? text + " " : ""}Trying again in ${LV.wait} seconds.`);
   soundBtn();
@@ -482,9 +490,13 @@ async function startLive(){
   }
   liveMsg("wait", "Connecting to Makkah live…");
   soundBtn();
+  LV.key = liveKey(); LV.played = false;
+  const src = liveSrc(), direct = src !== RELAY;
   try{
-    const r = await fetch("/live/stream.m3u8", {cache: "no-store"});
-    if(!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.error || `The stream isn't available (error ${r.status}).`); }
+    if(!direct){
+      const r = await fetch(RELAY, {cache: "no-store"});
+      if(!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.error || `The stream isn't available (error ${r.status}).`); }
+    }
     await loadHls();
   }catch(e){ return retryLive("Makkah live isn't available right now", e.message); }
   if(!LV.on) return;
@@ -493,6 +505,7 @@ async function startLive(){
     const h = LV.hls = new Hls({liveSyncDurationCount: 3, maxBufferLength: 30, backBufferLength: 30, enableWorker: true});
     h.on(Hls.Events.ERROR, (ev, d) => {
       if(!d.fatal) return;
+      if(direct && !LV.played && d.type === Hls.ErrorTypes.NETWORK_ERROR) return directFailed();
       if(d.type === Hls.ErrorTypes.MEDIA_ERROR && /codec|incompatible/i.test(d.details || "")){
         stopLive(); liveMsg("error", "This screen can't play Makkah live", "Its browser doesn't support the stream's video format. Chrome or Edge will play it."); soundBtn(); return;
       }
@@ -500,15 +513,16 @@ async function startLive(){
       retryLive("Makkah live was interrupted", d.type === Hls.ErrorTypes.NETWORK_ERROR ? "The connection to the stream dropped." : "");
     });
     h.on(Hls.Events.MANIFEST_PARSED, () => play());
-    h.loadSource("/live/stream.m3u8");
+    h.loadSource(src);
     h.attachMedia(v);
   } else if(v.canPlayType("application/vnd.apple.mpegurl")){
-    v.src = "/live/stream.m3u8"; play();
+    if(direct) v.onerror = () => { if(!LV.played) directFailed(); };
+    v.src = src; play();
   } else {
     liveMsg("error", "This screen can't play Makkah live", "Its browser is too old for live video. Chrome or Edge will play it."); soundBtn();
   }
 }
-$("#video").addEventListener("playing", () => { liveMsg(null); LV.wait = 15; LV.recovered = false; LV.lastMove = Date.now(); soundBtn(); });
+$("#video").addEventListener("playing", () => { liveMsg(null); LV.played = true; LV.wait = 15; LV.recovered = false; LV.lastMove = Date.now(); soundBtn(); });
 $("#video").addEventListener("volumechange", soundBtn);
 $("#video").addEventListener("timeupdate", () => { const t = $("#video").currentTime; if(t !== LV.lastT){ LV.lastT = t; LV.lastMove = Date.now(); } });
 setInterval(() => {  // a TV runs for days: if the picture freezes, reconnect

@@ -205,6 +205,16 @@ class LiveRelay:
                      else viewer)
         return ctype, body
 
+    def allows_pages(self, url: str) -> bool:
+        """Whether the stream lets a web page from another address read it (CORS), which screens need to
+        fetch it themselves instead of through the box."""
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "*/*", "Origin": "http://azan.local"})
+        try:
+            with _opener.open(req, timeout=10) as r:
+                return r.headers.get("Access-Control-Allow-Origin", "").strip() in ("*", "http://azan.local")
+        except Exception:
+            return False
+
     # ---------------------------------------------------------------- settings check
     def test(self, url: str) -> dict:
         """Check a stream link without playing it. Returns a short summary for Settings."""
@@ -242,6 +252,6 @@ class LiveRelay:
                 parts.append(f"{best[0]}×{best[1]}")
             if not live:
                 parts.append("recorded, not live")
-            return {"working": True, "summary": " · ".join(parts), "live": live}
+            return {"working": True, "summary": " · ".join(parts), "live": live, "direct": self.allows_pages(final)}
         except Exception as exc:
             return {"working": False, "summary": friendly(exc)}
