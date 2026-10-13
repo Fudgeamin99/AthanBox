@@ -45,7 +45,7 @@ h2{font-size:17px;margin:0 0 12px}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .field>label,.lbl{font-size:13px;font-weight:600;color:var(--muted)}
 .hint{font-size:12.5px;color:var(--muted);margin-top:-2px}
-input[type=text],input[type=number],input[type=password],input[type=time],input[type=search],select,textarea{
+input[type=text],input[type=number],input[type=password],input[type=time],input[type=date],input[type=search],select,textarea{
   width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel);outline:none}
 textarea{min-height:84px;resize:vertical;font-family:Consolas,ui-monospace,monospace;font-size:13.5px}
 input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 18%,transparent)}
@@ -125,11 +125,21 @@ tr:last-child td{border-bottom:0}
 .choice label:has(input:checked){border-color:var(--brand);background:color-mix(in srgb,var(--brand) 7%,transparent)}
 .choice .ct{font-weight:700;margin-bottom:3px;display:flex;gap:8px;align-items:center}
 .choice .cd{font-size:13px;color:var(--muted)}
+.choice label:last-child:nth-child(odd){grid-column:1 / -1}
+.acct{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--panel)}
+.acct .grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.acct .field{margin:0}
+.server-box{display:flex;flex-wrap:wrap;gap:8px 28px;padding:12px 16px;border-radius:12px;background:var(--accent-soft);margin-bottom:14px;font-size:14px}
+.server-box b{font-family:Consolas,ui-monospace,monospace;font-size:15px}
+@media (max-width:1100px){ .acct .grid5{grid-template-columns:1fr 1fr 1fr} }
+@media (max-width:900px){ .acct .grid5{grid-template-columns:1fr 1fr} }
 .seg{align-self:flex-start;display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .seg label{padding:8px 14px;cursor:pointer;border-right:1px solid var(--line);font-weight:500}
 .seg label:last-child{border-right:0}
 .seg input{display:none}
 .seg label:has(input:checked){background:var(--brand);color:var(--brand-ink)}
+.hero .seg label{border-color:rgba(255,255,255,.35)}
+.hero .seg label:has(input:checked){background:#fff;color:var(--brand-2)}
 details{border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
 summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
 .results{border:1px solid var(--line);border-radius:10px;margin-top:6px;overflow:hidden}
@@ -180,6 +190,20 @@ input[type=color]{width:54px;height:36px;padding:3px;border-radius:8px;border:1p
 .parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
 .parts .toggle-row:nth-last-child(2):nth-child(odd){border-bottom:0}
 input[type=range]{width:100%;max-width:420px}
+.access-qr{display:flex;gap:18px;align-items:center;padding:14px;border-radius:12px;background:var(--panel-2);margin-top:10px}
+.access-qr svg{width:120px;height:120px;border-radius:8px;flex:none;background:#fff}
+.tvrow{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.tvrow:first-of-type{border-top:0}
+.tvrow svg{width:26px;height:26px;flex:none;color:var(--muted)}
+.tvrow .t{font-weight:700}
+.tvrow .d{font-size:13px;color:var(--muted)}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:12px 0 12px 44px;border-top:1px solid var(--line);line-height:1.5}
+ol.steps>li:first-child{border-top:0;padding-top:4px}
+ol.steps>li::before{content:counter(st);position:absolute;left:0;top:10px;width:28px;height:28px;border-radius:14px;background:var(--brand);color:var(--brand-ink);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+ol.steps>li:first-child::before{top:2px}
+ol.steps b{font-weight:700}
+ol.steps .muted{font-size:13px}
 @media (max-width:900px){ .parts{grid-template-columns:1fr} .seg{flex-wrap:wrap} }
 @media (max-width:900px){
   .layout{grid-template-columns:1fr} nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}
@@ -199,10 +223,13 @@ input[type=range]{width:100%;max-width:420px}
     <button data-page="times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prayer times</button>
     <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
     <button data-page="phones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
-    <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    <button data-page="ramadan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Ramadan</button>
     <button data-page="display" title="Theme and layout of the prayer-times screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>Display</button>
+    <button data-page="tv" title="Show the prayer times on a TV and play the azan through it, from an iPad, an Android device or a smart TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M7 21h10M9.5 9.5v5l4-2.5z"/></svg>TV app</button>
     <button id="tvbtn" hidden onclick="openScreen('/display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
     <button onclick="openScreen('/display?live=1')" title="Makkah live with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Makkah live</button>
+    <!-- Settings is always the last item in the menu: add new pages above it -->
+    <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
     <div class="spacer"></div>
     <div class="status-mini" id="mini">Connecting…</div>
   </nav>
@@ -234,6 +261,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const PRAYERS = ["fajr","dhuhr","asr","maghrib","isha"];
 const TITLE = {fajr:"Fajr",sunrise:"Sunrise",dhuhr:"Dhuhr",asr:"Asr",maghrib:"Maghrib",isha:"Isha",jumuah:"Jumu'ah"};
 const ICON = {
+  signin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>',
   warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
   play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
   stop:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
@@ -384,7 +412,7 @@ async function loadConfig(){
   dirty(); applyPanelLook(CFG.panel);
 }
 function normalize(c){
-  for(const k of ["general","location","calculation","offsets","prayers","audio","network","live","display","panel"]) c[k] = c[k] || {};
+  for(const k of ["general","location","calculation","offsets","prayers","audio","network","live","display","panel","ramadan"]) c[k] = c[k] || {};
   c.targets = c.targets || [];
   c.prayers.enabled = c.prayers.enabled || PRAYERS.slice();
   c.prayers.skip_days = c.prayers.skip_days || [];
@@ -415,6 +443,7 @@ async function poll(){
   if(page==="overview") renderOverviewLive();
   if(page==="settings") renderLog();
   if(page==="phones" && CFG) refreshRegPills();
+  if(page==="tv"){ const el=$("#tvlist"); if(el) el.innerHTML = tvListHTML(); }
   }catch(e){ console.error(e); }
 }
 setInterval(poll, 2000);
@@ -424,7 +453,7 @@ function renderMini(){
   const m=$("#mini");
   if(offline||!S){ m.innerHTML="<b>Not running</b>Double-click Azan SIP to start it."; return; }
   if(S.playing){ m.innerHTML=`<b>▶ Playing</b>${esc(S.playing)}`; return; }
-  m.innerHTML = S.running ? `<b><span style="color:var(--ok)">●</span> Automatic azan on</b>${S.next?esc(TITLE[S.next.prayer]+" "+(S.next.kind==="reminder"?"reminder ":"")+"at "+S.next.time):""}`
+  m.innerHTML = S.running ? `<b><span style="color:var(--ok)">●</span> Automatic azan on</b>${S.next?esc((S.next.kind==="ramadan"?S.next.label+" ":TITLE[S.next.prayer]+" "+(S.next.kind==="reminder"?"reminder ":""))+"at "+S.next.time):""}`
                           : `<b><span style="color:var(--warn)">●</span> Paused</b>Azan will not play`;
 }
 
@@ -460,7 +489,7 @@ function go(p){ page=p; location.hash=p; editing=null; render(); window.scrollTo
 function render(){
   document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
-  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, settings:pageSettings}[page]||pageOverview)();
+  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, settings:pageSettings}[page]||pageOverview)();
 }
 function stoppedHTML(){ return `<div class="stopped card"><h1>Azan SIP is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
 
@@ -468,7 +497,7 @@ function stoppedHTML(){ return `<div class="stopped card"><h1>Azan SIP is not ru
 function pageOverview(){
   $("#main").innerHTML = `<div id="ov-banners"></div><div class="card hero" id="hero"></div><div class="prayers" id="pgrid"></div>
   <div class="grid2">
-    <div class="card"><h2>Quick test</h2><p class="muted" style="margin-top:-6px">Plays on every switched-on phone right now.</p>
+    <div class="card"><h2>Quick test</h2><p class="muted" style="margin-top:-6px">Plays on every switched-on phone right now${S && S.screens && S.screens.on ? ", and on the TV screens" : ""}.</p>
       <div class="row"><button class="btn" onclick="test({source:'tone',label:'Test chime'})">${ICON.play} Test chime</button>
       <button class="btn" onclick="test({source:'dhuhr',seconds:'default',label:'Azan test'})">${ICON.play} ${esc(azanTestLabel())}</button>
       <button class="btn danger" onclick="stopAudio()">${ICON.stop} Stop</button></div></div>
@@ -491,13 +520,13 @@ function renderOverviewLive(){
             <div class="when">${S.configured===false?"Check each page in the menu, then press Save changes.":"Nothing will play at prayer times."}</div></div>
             ${S.configured===false?(SESSION.box?`<button class="btn" onclick="openGuide()">Open the setup guide</button>`:""):`<button class="btn" onclick="setScheduler(true)">${ICON.play} Switch on</button>`}</div>`;
   } else if(S.next){
-    const n=S.next, title=TITLE[n.prayer]+(n.kind==="reminder"?" reminder":"");
-    hero = `<div class="eyebrow">Next azan</div><div class="hero-grid"><div><div class="big">${esc(title)}</div><div class="when">${esc(n.time)} ${esc(n.day)}</div></div>
+    const n=S.next, title=n.kind==="ramadan" ? n.label : TITLE[n.prayer]+(n.kind==="reminder"?" reminder":"");
+    hero = `<div class="eyebrow">${n.kind==="ramadan"?"Next in Ramadan":"Next azan"}</div><div class="hero-grid"><div><div class="big">${esc(title)}</div><div class="when">${esc(n.time)} ${esc(n.day)}</div></div>
             <div style="text-align:right"><div class="countdown" id="countdown">${fmtDur(n.seconds)}</div><div style="opacity:.8;font-size:13px">remaining</div></div></div>`;
   } else {
     hero = `<div class="eyebrow">Next azan</div><div class="big">None scheduled</div><div class="when">Switch on at least one prayer below.</div>`;
   }
-  $("#hero").innerHTML = pattern + hero + `<div class="meta">${esc(S.date||"")} · ${esc(S.location||"")} · ${esc(S.method||"")}${S.asr==="hanafi"?" · Hanafi Asr":""}${S.skip_today?" · <b>skipped today</b>":""}</div>`;
+  $("#hero").innerHTML = pattern + hero + `<div class="meta">${esc(S.date||"")}${S.ramadan&&S.ramadan.day?` · Ramadan day ${S.ramadan.day}`:""} · ${esc(S.location||"")} · ${esc(S.method||"")}${S.asr==="hanafi"?" · Hanafi Asr":""}${S.skip_today?" · <b>skipped today</b>":""}</div>`;
   $("#pgrid").innerHTML = (S.today||[]).map(p=>{
     const name = p.jumuah ? "Jumu'ah" : TITLE[p.name];
     const badge = p.status==="next" ? '<span class="pill brand">Next</span>' : p.status==="played" ? '<span class="pill ok">Played</span>' : "";
@@ -694,13 +723,15 @@ const KINDS = {
   pbx:{t:"Phone system page group", d:"Grandstream UCM, FreePBX, 3CX and others. Azan SIP signs in as an extension and calls your paging group.", i:ICON.server},
   direct:{t:"Call each phone directly", d:"For Poly/Polycom or when multicast isn't possible. Phones must allow direct IP calls and auto-answer.", i:ICON.phone},
   rtp:{t:"IP speaker (RTP)", d:"Paging speakers that listen for audio on a fixed IP address and port.", i:ICON.speaker},
+  server:{t:"Register to Azan SIP (SIP trunk)", d:"Your phone system adds Azan SIP as a SIP trunk (a desk phone can sign in the same way). Azan SIP calls it for the azan, for example on the paging group. No extension needed on the phone system.", i:ICON.signin},
 };
-function kindOf(t){ if(t.type==="multicast") return "multicast"; if(t.type==="unicast_rtp") return "rtp"; if(t.mode) return t.mode; return (t.username || /sip:[^@]+@/.test(t.uri||"")) && !t.uris ? "pbx" : "direct"; }
+function kindOf(t){ if(t.type==="server") return "server"; if(t.type==="multicast") return "multicast"; if(t.type==="unicast_rtp") return "rtp"; if(t.mode) return t.mode; return (t.username || /sip:[^@]+@/.test(t.uri||"")) && !t.uris ? "pbx" : "direct"; }
 function summary(t){
   const k=kindOf(t);
   if(k==="multicast") return `Multicast ${t.address||""} · ${t.codec||"PCMU"}`;
   if(k==="rtp") return (t.addresses||[t.address]).filter(Boolean).join(", ");
   if(k==="pbx") return `${t.uri||""}${t.username?" as extension "+t.username:""}`;
+  if(k==="server"){ const a=t.accounts||[]; return `Port ${t.port||5060} · ${a.length} SIP trunk account${a.length===1?"":"s"}${a.length?": "+a.map(x=>x.name||x.username).join(", "):""}`; }
   return `${(t.uris||[t.uri]).filter(Boolean).length} phone(s): ${(t.uris||[t.uri]).filter(Boolean).map(u=>u.replace(/^sip:/,"")).join(", ")}`;
 }
 function toEdit(t){
@@ -710,12 +741,28 @@ function toEdit(t){
   e.username=t.username||""; e.password=t.password||""; e.auth_username=t.auth_username||""; e.register=t.register!==false;
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
+  e.port=String(t.port||5060); e.accounts=JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)}));
   return e;
 }
 function fromEdit(e){
   const base={name:e.name||KINDS[e.kind].t, enabled:e.enabled, codec:e.codec};
   const lines=s=>String(s||"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
   if(e.kind==="multicast"){ if(!/^(22[4-9]|23\d)\./.test(e.mc_ip)) throw new Error("A multicast address starts with 224-239, e.g. 224.5.6.20"); return {...base,type:"multicast",address:`${e.mc_ip}:${parseInt(e.mc_port)||10008}`}; }
+  if(e.kind==="server"){
+    const port=parseInt(e.port,10); if(!(port>=1&&port<=65535)) throw new Error("The SIP port must be a number, usually 5060");
+    const accts=(e.accounts||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"trunk", dial:(a.dial||"").trim(), max_signins:parseInt(a.max_signins,10)}));
+    if(!accts.length) throw new Error("Add at least one SIP trunk account");
+    const seen=new Set();
+    for(const a of accts){
+      if(!/^[A-Za-z0-9_.+-]{1,40}$/.test(a.username)) throw new Error("Usernames can use letters, numbers and . _ - + (no spaces)");
+      if(seen.has(a.username.toLowerCase())) throw new Error(`The username ${a.username} is used twice`); seen.add(a.username.toLowerCase());
+      if(a.password.length<8) throw new Error(`Use a password of at least 8 characters for ${a.username}`);
+      if(!/^[A-Za-z0-9*#+_.-]{0,40}$/.test(a.dial)) throw new Error(`The number to call for ${a.username} can use digits, letters and * # + _ . -`);
+      if(!(a.max_signins>=1&&a.max_signins<=50)) throw new Error(`Sign-ins allowed for ${a.username} must be between 1 and 50`);
+    }
+    if(CFG.targets.some((t,i)=>t.type==="server"&&i!==e.index)) throw new Error("Azan SIP is already set up for phones to register to. Edit that entry and add accounts to it.");
+    return {...base, type:"server", port, accounts:accts};
+  }
   if(e.kind==="rtp"){ const a=lines(e.rtp); if(!a.length) throw new Error("Enter at least one speaker as IP:port"); return {...base,type:"unicast_rtp",addresses:a}; }
   if(e.kind==="pbx"){ if(!e.pbx_host||!e.pbx_ext) throw new Error("Enter the phone system address and the paging group number"); const t={...base,type:"sip",mode:"pbx",uri:`sip:${e.pbx_ext.trim()}@${e.pbx_host.trim()}`,username:e.username.trim(),password:e.password,auto_answer:false,register:e.register!==false}; if(e.auth_username.trim()) t.auth_username=e.auth_username.trim(); return t; }
   const p=lines(e.phones); if(!p.length) throw new Error("Enter at least one phone IP address"); return {...base,type:"sip",mode:"direct",uris:p.map(x=>x.startsWith("sip:")?x:"sip:"+x),auto_answer:true};
@@ -748,12 +795,18 @@ function refreshRegPills(){
   });
 }
 function regPill(t){
+  if(kindOf(t)==="server"){
+    const info=S&&S.sipserver; if(!info||t.enabled===false) return "";
+    if(info.status==="failed") return `<span class="pill warn" title="${esc(info.detail)}"><span class="dot"></span>Not running</span><div class="detail" style="color:var(--warn);white-space:normal">${esc(info.detail)}</div>`;
+    const n=info.accounts.reduce((c,a)=>c+(a.signins||[]).length,0), all=info.accounts.reduce((c,a)=>c+(a.max||1),0);
+    return `<span class="pill ${n?"ok":""}" title="${esc(info.accounts.map(a=>`${a.name||a.username}: ${(a.signins||[]).length?(a.signins||[]).map(x=>x.from).join(", "):"not signed in"}`).join("\n"))}"><span class="dot"></span>${n} of ${all} signed in</span>`;
+  }
   const r=regFor(t); if(!r) return "";
   if(r.status==="registered") return `<span class="pill ok" title="${esc(r.detail)}"><span class="dot"></span>Registered</span>`;
   if(r.status==="failed") return `<span class="pill warn" title="${esc(r.detail)}"><span class="dot"></span>Not registered</span><div class="detail" style="color:var(--warn);white-space:normal">${esc(r.detail)}</div>`;
   return `<span class="pill"><span class="dot"></span>Registering…</span>`;
 }
-function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", register:true, phones:"", rtp:""} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
+function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", register:true, phones:"", rtp:"", port:"5060", accounts:[]} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
 function editorHTML(){
   const e=editing, k=e.kind;
   const codec = `<div class="field"><label>Audio codec</label><select data-path="edit.codec">${opt("PCMU","G.711 µ-law (PCMU) - North America / most phones",e.codec)}${opt("PCMA","G.711 A-law (PCMA) - Europe / UK systems",e.codec)}</select><div class="hint">If the phones play silence or noise, try the other one.</div></div>`;
@@ -768,6 +821,28 @@ function editorHTML(){
       <div class="toggle-row"><div><div class="t">Stay registered</div><div class="d">Keeps the extension signed in so the phone system shows it as Idle/online, like a desk phone.</div></div>${sw("edit.register", e.register!==false)}</div>`;
   if(k==="direct") fields = `<div class="field"><label>Phone IP addresses (one per line)</label><textarea data-path="edit.phones" placeholder="192.168.1.50&#10;192.168.1.51">${evl("phones")}</textarea>
       <div class="hint">Each phone must accept direct IP calls and auto-answer intercom calls. Find a phone's IP in its menu under Status.</div></div>${codec}`;
+  if(k==="server"){
+    if(!e.accounts) e.accounts=[];
+    if(!e.port) e.port="5060";
+    if(!e.accounts.length) e.accounts.push(newAccount());
+    const ip=SESSION.ip||(META.ips||[])[0]||"the box's IP address", info=(S&&S.sipserver)||null;
+    const st=u=>{ const a=info&&info.accounts.find(x=>x.username.toLowerCase()===String(u).toLowerCase()); if(!info||info.status!=="running"||!a) return "";
+      const si=a.signins||[]; if(!si.length) return `<span class="pill"><span class="dot"></span>Not signed in yet</span>`;
+      return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>${si.length} of ${a.max} signed in: ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
+    fields = `<div class="server-box"><span>Server / registrar: <b>${esc(ip)}</b></span><span>Port: <b>${esc(e.port)}</b></span><span>Transport: <b>UDP</b></span>
+        <span class="muted" style="flex-basis:100%;font-size:13px">Enter these on the phone system as a register SIP trunk (or on a desk phone as an extra line), with a username and password below.</span></div>
+      ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
+      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on the box.</div></div>${codec}</div>
+      <div class="lbl" style="margin:6px 0 8px">SIP trunk accounts</div>
+      ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
+        <div class="grid5"><div class="field"><label for="ac${i}n">Name</label><input type="text" id="ac${i}n" data-path="edit.accounts.${i}.name" placeholder="Office UCM" value="${esc(a.name||"")}"></div>
+          <div class="field"><label for="ac${i}u">Username</label><input type="text" id="ac${i}u" data-path="edit.accounts.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
+          <div class="field"><label for="ac${i}p">Password</label><input type="text" id="ac${i}p" data-path="edit.accounts.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
+          <div class="field"><label for="ac${i}d">Number to call</label><input type="text" id="ac${i}d" data-path="edit.accounts.${i}.dial" placeholder="e.g. 7000" value="${esc(a.dial||"")}"><div class="hint">The paging group on the phone system. Leave it empty for a desk phone.</div></div>
+          <div class="field"><label for="ac${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="ac${i}m" data-path="edit.accounts.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phone systems or devices can sign in with it at once.</div></div></div></div>`).join("")}
+      <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.accounts.push(newAccount());render()">+ Add a SIP trunk</button></div>
+      <div class="hint">Calls into Azan SIP are always refused, and repeated wrong passwords are blocked, so it can't be used to make calls. Setup steps for phones and phone systems are in the guide below the list.</div>`;
+  }
   if(k==="rtp") fields = `<div class="field"><label>Speakers as IP:port (one per line)</label><textarea data-path="edit.rtp" placeholder="192.168.1.80:50000">${evl("rtp")}</textarea></div>${codec}`;
   return `<div class="card"><h2>${e.index<0?"Add phones":"Edit "+esc(e.name)}</h2>
     <div class="lbl" style="margin-bottom:8px">How should the azan reach them?</div>
@@ -778,6 +853,12 @@ function editorHTML(){
       <div class="row">${e.index>=0?`<button class="btn danger" onclick="removeTarget()">Remove</button>`:""}</div>
       <div class="row"><button class="btn" onclick="testEditing()">${ICON.play} Test now</button><button class="btn" onclick="editing=null;render()">Cancel</button><button class="btn primary" onclick="finishEdit()">Done</button></div>
     </div></div>`;
+}
+function newAccount(){
+  const used=new Set((editing&&editing.accounts||[]).map(a=>String(a.username).toLowerCase()));
+  let n=1; while(used.has("trunk"+n)) n++;
+  const chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", buf=new Uint32Array(14); crypto.getRandomValues(buf);
+  return {name:"", username:"trunk"+n, password:[...buf].map(x=>chars[x%chars.length]).join(""), kind:"trunk", dial:"", max_signins:"1"};
 }
 function finishEdit(){ try{ const t=fromEdit(editing); if(editing.index<0) CFG.targets.push(t); else CFG.targets[editing.index]=t; editing=null; dirty(); render(); toast("Press Save changes to start using it."); }catch(e){ toast(e.message,"bad"); } }
 function removeTarget(){ if(!confirm("Remove these phones?")) return; CFG.targets.splice(editing.index,1); editing=null; dirty(); render(); }
@@ -798,7 +879,178 @@ function guideHTML(){
     <span class="muted">If it shows "Not registered": check the password, that UDP 5060 is enabled (PBX Settings → SIP Settings), and that the extension's <i>Permitted IP</i> list (if set) includes this PC. Several wrong passwords can make the UCM's Fail2ban block this PC for a while.</span></p></details>
   <details><summary>FreePBX / Asterisk</summary><p>Applications → Extensions: add a PJSIP extension for Azan SIP (e.g. 7099). Applications → <b>Paging and Intercom</b>: create a group (e.g. 7000) with the phones as members, Duplex off. Then add <b>Phone system page group</b> here with those numbers.</p></details>
   <details><summary>3CX</summary><p>Users: add an extension for Azan SIP. Groups → <b>Paging</b>: create a paging group with the phones. Use the extension's <b>Authentication ID</b> and <b>password</b> here.</p></details>
+  <details><summary>Desk phone with Azan SIP as a line (Register to Azan SIP)</summary><p>Add a SIP trunk account here and leave <b>Number to call</b> empty (raise <b>Sign-ins allowed</b> to let several phones share it). On the phone's web page, add a second account (line) with: <b>Server / Registrar</b> = the box's IP address, <b>Port</b> = the SIP port (5060), <b>Username</b>, <b>Authentication name</b> and <b>Password</b> = the account's details, <b>Transport</b> = UDP.<br>
+    <b>Yealink:</b> Account → Register → Account 2, then Account → Advanced → turn on <b>Auto Answer</b> for that account (or keep Features → Intercom → <b>Allow Intercom</b> on).<br>
+    <b>Grandstream:</b> Account 2 → General Settings, then Account 2 → Call Settings → <b>Allow Auto Answer by Call-Info/Alert-Info</b> = Yes.<br>
+    <b>Fanvil / Snom:</b> add the line, and turn on auto-answer (intercom) for it.<br>
+    <span class="muted">The phone shows the account as registered, and the account shows "Signed in" here.</span></p></details>
+  <details><summary>Grandstream UCM as a SIP trunk to Azan SIP</summary><p>1. <b>Extension/Trunk → VoIP Trunks → Add SIP Trunk</b>: Type <b>Register SIP Trunk</b>, Provider name "Azan SIP", Host name = the box's IP address and port (e.g. <span class="kbd">192.168.1.20:5060</span>), Username and Password = the SIP trunk account here.<br>
+    2. <b>Extension/Trunk → Inbound Routes</b>: add a route for that trunk with the pattern = the account's <b>Number to call</b> (e.g. <span class="kbd">7000</span>), destination = your Paging/Intercom group.<br>
+    3. The trunk shows as registered on the UCM and "Signed in" here. No extension is needed for Azan SIP.</p></details>
+  <details><summary>FreePBX / Asterisk as a SIP trunk to Azan SIP</summary><p>Connectivity → Trunks → <b>Add SIP (chan_pjsip) Trunk</b>: SIP Server = the box's IP address, port 5060, Username/Secret = the account here, Authentication <b>Outbound</b>, Registration <b>Send</b>. Then Connectivity → <b>Inbound Routes</b>: DID = the account's Number to call (e.g. 7000) → Paging and Intercom group.</p></details>
+  <details><summary>3CX as a SIP trunk to Azan SIP</summary><p>SIP Trunks → Add → <b>Generic SIP Trunk</b>, registrar = the box's IP address and port, authentication with the account's username and password. Add an inbound rule for the account's Number to call → the paging group.</p></details>
   </div>`;
+}
+
+// ---- TV app: the display on a TV (an old iPad), which also plays the azan out loud
+const TVSTATE = {ready:["ok","Ready · plays the azan"], playing:["ok","Playing the azan"], tap:["warn","Waiting for a tap on the screen to turn on its sound"],
+                 muted:["", "Azan sound switched off on that screen"], away:["bad","Not connected"]};
+function agoText(s){ return s < 90 ? "just now" : s < 3600 ? `${Math.round(s/60)} min ago` : "over an hour ago"; }
+function tvListHTML(){
+  const list = (S && S.screens && S.screens.list) || [], on = !!(S && S.screens && S.screens.on);
+  const ready = list.some(x => x.state === "ready" || x.state === "playing");
+  const icon = ICON.screen;
+  const rows = list.length ? list.map(x => { const st = TVSTATE[x.state] || ["", x.state];
+      return `<div class="tvrow">${icon}<div style="flex:1;min-width:0"><div class="t">${esc(x.name)} <span class="muted mono" style="font-weight:400;font-size:13px">${esc(x.ip)}</span></div>
+        <div class="d">${x.state === "away" ? `Last seen ${agoText(x.seen)}` : "Connected"}</div></div><span class="pill ${st[0]}">${esc(st[1])}</span></div>`; }).join("")
+    : `<p class="muted" style="margin:4px 0 0">${on ? "No TV screens yet. Open the TV app on the iPad: the steps are below." : "Switch on “Let TV screens connect” above first."}</p>`;
+  return `<div class="row" style="justify-content:space-between;margin-bottom:6px"><h2 style="margin:0">TV screens</h2>
+      <div class="row" style="gap:8px"><button class="btn small" ${ready ? "" : "disabled"} onclick="testTV('tone')">${ICON.play} Test chime</button>
+        <button class="btn small" ${ready ? "" : "disabled"} onclick="testTV('azan')">${ICON.play} Test the azan</button></div></div>
+    ${rows}
+    ${list.length ? `<p class="muted" style="margin:10px 0 0;font-size:13px">The tests play on the TV screens only. The azan plays on the screens and the phones together.</p>` : ""}`;
+}
+async function testTV(what){
+  await act(async()=>{ await api("/api/test", what === "tone" ? {source:"tone", label:"TV test chime", screens_only:true}
+                                                       : {source:"azan", seconds:"default", label:"TV azan test", screens_only:true}); setTimeout(poll,400); }, "Playing on the TV screens…");
+}
+// Addresses and QR codes for TV screens (the page this was opened on first, say azan.local)
+let TVL = null;
+async function loadTVLinks(){ try{ TVL = await api("/api/tv-links"); }catch(e){ TVL = TVL || {}; } }
+async function setTV(on){
+  await act(async()=>{ TVL = await api("/api/screens", {on}); applySaved("general.screens", on); await poll(); render(); },
+    on ? "TV screens can connect" : "TV screens switched off");
+}
+function pageTV(){
+  if(!TVL){ $("#main").innerHTML = '<h1>TV app</h1><p class="muted">Loading…</p>'; loadTVLinks().then(()=>{ if(page==="tv") render(); }); return; }
+  const n = TVL, on = !!n.screens, urls = n.tv_urls || [], url = urls[0] || "http://azan.local/tv";
+  $("#main").innerHTML = `<h1>TV app</h1><p class="sub">Shows the prayer times on a big screen TV and plays the azan through the TV's speakers, at the same moment as the phones. Use an old iPad connected to the TV (5th or 6th generation is fine), the Android app on a phone, tablet, Android TV or Fire TV, or a smart TV's browser.</p>
+  <div class="card"><div class="toggle-row" style="padding-top:0"><div><div class="t">Let TV screens connect</div>
+      <div class="d">Screens on this network can show the prayer times and play the azan, without the password. They can't see or change the settings. Switch it off to disconnect every TV screen straight away.</div>
+      ${on && n.tv_qr ? `<div class="access-qr">${n.tv_qr}<div><b>Scan with the iPad's camera</b><br><span class="muted">or type ${urls.map(u=>`<span class="mono">${esc(u)}</span>`).join(" or ")} into Safari</span></div></div>` : ""}</div>
+    <label class="switch"><input type="checkbox" ${on?"checked":""} onchange="setTV(this.checked)" aria-label="Let TV screens connect"><span></span></label></div></div>
+  <div class="card" id="tvlist">${tvListHTML()}</div>
+  <div class="card"><h2>Android app: phones, tablets, Android TV and Fire TV</h2>
+    <p class="muted" style="margin-top:-4px">The <b>Azan SIP TV</b> app opens straight into the display, plays the azan without a tap and keeps the screen on by itself. Android 5.0 or newer.</p>
+    ${on && n.apk_qr ? `<div class="access-qr" style="margin-bottom:14px">${n.apk_qr}<div><b>Scan with the Android device to download the app</b><br><span class="muted">or open ${(n.apk_urls||[]).slice(0,1).map(u=>`<span class="mono">${esc(u)}</span>`).join("")} in its browser</span></div></div>`
+      : `<p class="muted">Switch on “Let TV screens connect” above to download the app from the box.</p>`}
+    <ol class="steps">
+      <li><b>Download AzanTV.apk.</b> Scan the QR code, or type <span class="kbd">${esc((n.apk_urls||[])[0] || url.replace(/tv$/, "apk"))}</span> into the device's browser. On Android TV or Fire TV, install the free <b>Downloader</b> app and type the address there.</li>
+      <li><b>Install it.</b> Open the downloaded file and choose Install. If Android asks, allow installing apps from that browser (or Downloader). If Play Protect warns about an unknown app, choose <b>Install anyway</b>.</li>
+      <li><b>Connect.</b> Open <b>Azan SIP TV</b> and type the box's address, <span class="kbd">${esc(n.address || "its IP address")}</span>, or press <b>Search the network</b>. Then press <b>Connect</b>.</li>
+      <li><b>Connect it to the TV.</b> A TV box or Fire TV is already on the TV. A tablet or phone needs a USB-C to HDMI adapter (only some support it, such as many Samsung Galaxy models) or screen casting to a Chromecast or Smart TV.</li>
+    </ol>
+    <p class="muted" style="margin:10px 0 0;font-size:13px">In the app, press <b>Back</b> (on a remote too) for Makkah live, the azan sound on that screen, Reload and Change server.${n.apk_here === false ? " The app comes from GitHub, so the device needs internet access to download it." : ""}</p></div>
+  <div class="card"><h2>Set up the iPad</h2>
+    <ol class="steps">
+      <li><b>Update the iPad.</b> Settings → General → Software Update. An iPad 5th generation goes up to iPadOS 16, a 6th generation to iPadOS 17. Either is fine.</li>
+      <li><b>Open the TV app in Safari.</b> Scan the QR code above with the Camera app, or type <span class="kbd">${esc(url)}</span> into Safari. The iPad must be on the same network as the box.</li>
+      <li><b>Add it to the Home Screen.</b> Tap the Share button <span class="muted">(the square with an arrow)</span> → <b>Add to Home Screen</b> → <b>Add</b>. Then open <b>Azan TV</b> from the Home Screen: it runs full screen, like an app.</li>
+      <li><b>Tap the screen once.</b> iPads only let a page make sound after a tap. It's needed again only if the app is closed or the iPad restarts. The screen shows a reminder until then.</li>
+      <li><b>Keep it awake.</b> Settings → Display &amp; Brightness → <b>Auto-Lock → Never</b>, and keep the iPad on its charger.</li>
+      <li><b>Connect it to the TV.</b> With Apple's <b>Lightning Digital AV Adapter</b> and an HDMI cable (it has a charging port too), or with <b>Screen Mirroring</b> to an Apple TV or AirPlay TV. The azan plays through the TV's speakers. Turn the iPad's volume up.</li>
+      <li><b>Optional: lock it to the app.</b> Settings → Accessibility → <b>Guided Access</b> → on. Open Azan TV and triple-click the Home button to start, so nobody can leave the app.</li>
+    </ol></div>
+  <div class="card"><h2>Good to know</h2>
+    <ul style="margin:0;padding-left:20px;line-height:1.7">
+      <li>Theme, layout, masjid name, notice and Ramadan screens come from the <a href="#display" onclick="go('display');return false">Display</a> page, like every screen.</li>
+      <li>Tap the TV app to show its buttons: <b>Makkah live</b>, and <b>Azan sound</b> to keep that screen quiet.</li>
+      <li>An iPad's screen is 4:3, so a widescreen TV shows black bars at the sides.</li>
+      <li>Give the box a fixed address in your router (a DHCP reservation), so the screens always find it.</li>
+      <li>If the box is off or restarting, the TV shows that the azan isn't running and reconnects by itself.</li>
+    </ul></div>`;
+}
+
+// ---- Ramadan page: dates, extra sounds on the phones, Isha, the display and Eid
+const RDEF = {mode:"auto", start:"", days:30, suhoor_on:true, suhoor_minutes:10, suhoor_sound:"tone",
+  wakeup_on:false, wakeup_minutes:45, wakeup_sound:"tone", iftar_on:true, iftar_sound:"",
+  before_iftar_on:false, before_iftar_minutes:5, before_iftar_sound:"tone", taraweeh_on:true, taraweeh_minutes:15, taraweeh_sound:"tone",
+  qiyam_on:false, qiyam_time:"02:30", qiyam_sound:"tone", isha_mode:"calc", isha_time:"19:30", isha_after:90,
+  theme_on:true, countdown_on:true, dua_on:true, counter_on:true, eid_on:true,
+  eid_prayer1:"", eid_prayer2:"", takbeer_on:true, takbeer_minutes:30, takbeer_sound:""};
+function rset(){ return Object.assign({}, RDEF, CFG.ramadan || {}); }
+function addDays(iso, n){ const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function longDay(iso){ return iso ? new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"long", day:"numeric", month:"long", year:"numeric", timeZone:"UTC"}) : ""; }
+function rStart(R){   // the first day in use: the one set here, unless that Ramadan is over; else the expected date
+  const sr = S && S.ramadan, today = sr ? sr.today : new Date().toISOString().slice(0, 10);
+  if(R.start && addDays(R.start, +R.days) >= today) return {start:R.start, expected:false};
+  return {start: sr ? sr.expected_start : "", expected:true};
+}
+function shiftStart(n){ const R = rset(); CFG.ramadan.start = addDays(rStart(R).start, n); dirty(); render(); }
+function soundOpts(cur, tone=true, none=null){
+  const files = (META.audio_files || []).map(f => "audio/" + f);
+  let o = (none !== null ? opt("", none, cur) : "") + (tone ? opt("tone", "Chime", cur) : "");
+  o += files.map(f => opt(f, f.slice(6), cur)).join("");
+  if(cur && cur !== "tone" && !files.includes(cur)) o += opt(cur, cur.replace(/^audio\//, "") + " (missing)", cur);
+  return o;
+}
+function testSound(v, label){
+  if(!v) return toast("Choose a recording first", "bad");
+  test(v === "tone" ? {source:"tone", label} : {source:"file:" + v.replace(/^audio\//, ""), seconds:"default", label});
+}
+function pageRamadan(){
+  const R = rset(), st = rStart(R), days = +R.days === 29 ? 29 : 30, sr = (S && S.ramadan) || {};
+  const r = (name, path, v, cur, label, kind) => `<label><input type="radio" name="${name}" data-path="${path}" value="${v}" ${kind?`data-kind="${kind}"`:""} data-rerender ${String(cur)===String(v)?"checked":""}>${label}</label>`;
+  const num = (path, v, label, w=64) => `<input type="number" min="0" max="240" data-path="${path}" data-kind="int" value="${esc(v)}" aria-label="${label}" style="width:${w}px">`;
+  const sel = (path, v, label, tone=true, none=null) => `<select data-path="${path}" aria-label="${label}" style="width:auto;max-width:240px">${soundOpts(v, tone, none)}</select>`;
+  const row = (title, desc, controls, swPath, on) => `<div class="toggle-row" style="flex-wrap:wrap"><div style="flex:1 1 260px;min-width:0"><div class="t">${title}</div><div class="d">${desc}</div></div>
+      <div class="row" style="gap:8px">${controls}</div>${swPath ? sw(swPath, on) : ""}</div>`;
+  const eid = addDays(st.start, days);
+  const headline = R.mode === "off" ? "Ramadan mode is off" : sr.fasting && sr.day ? `Ramadan day ${sr.day} of ${days}` : R.mode === "on" ? "Ramadan mode is on now" : `Starts ${longDay(st.start)}`;
+  $("#main").innerHTML = `<h1>Ramadan</h1><p class="sub">Times and sounds for the month. Ramadan mode switches itself on and off on the dates below.</p>
+  <div class="card hero" style="padding:22px 24px"><div class="row" style="justify-content:space-between;gap:16px 24px;position:relative">
+    <div><div class="eyebrow">Ramadan ${esc(sr.hijri_year || "")}</div><div class="big" style="font-size:28px;margin:4px 0 2px">${esc(headline)}</div>
+      <div class="when" style="font-size:15px">${R.mode === "off" ? "No Ramadan sounds or screens until you switch it back on." : `${st.expected ? "Expected · " : ""}${days} days · Eid al-Fitr on ${esc(longDay(eid))}`}</div></div>
+    <div class="seg" style="border-color:rgba(255,255,255,.35)">${r("rmode","ramadan.mode","auto",R.mode,"Automatic")}${r("rmode","ramadan.mode","on",R.mode,"On now")}${r("rmode","ramadan.mode","off",R.mode,"Off")}</div></div></div>
+
+  <div class="card"><h2>Dates</h2>
+    <div class="row" style="gap:18px 28px;align-items:flex-end">
+      <div class="field" style="margin:0"><label for="rm-start">First day of Ramadan</label><input type="date" id="rm-start" data-path="ramadan.start" data-rerender value="${esc(st.start)}" style="width:auto"></div>
+      <div class="field" style="margin:0"><label>Number of days</label><div class="seg">${r("rdays","ramadan.days",29,days,"29 days","int")}${r("rdays","ramadan.days",30,days,"30 days","int")}</div></div>
+      <div class="row" style="gap:8px"><button class="btn" onclick="shiftStart(-1)">Start a day earlier</button><button class="btn" onclick="shiftStart(1)">Start a day later</button></div></div>
+    <p class="muted" style="margin:12px 0 0;font-size:13px">${st.expected ? "This is the expected date from the Islamic calendar. " : "Set here. "}Change it when your masjid announces the moonsighting; every screen and phone follows.</p></div>
+
+  <div class="card"><h2>On the phones</h2><p class="muted" style="margin:-6px 0 4px;font-size:13px">Extra sounds during Ramadan, on top of the five azans.</p>
+    ${row("Suhoor ends", "Tells everyone to stop eating, before the Fajr azan. Also sets the Sehri time on the display and timetable.",
+      `${num("ramadan.suhoor_minutes", R.suhoor_minutes, "Minutes before Fajr")}<span class="muted">min before Fajr</span>${sel("ramadan.suhoor_sound", R.suhoor_sound, "Suhoor ends sound")}`, "ramadan.suhoor_on", R.suhoor_on)}
+    ${row("Suhoor wake-up", "For i'tikaf, or anyone sleeping at the masjid.",
+      `${num("ramadan.wakeup_minutes", R.wakeup_minutes, "Wake-up minutes before Fajr")}<span class="muted">min before Fajr</span>${sel("ramadan.wakeup_sound", R.wakeup_sound, "Wake-up sound")}`, "ramadan.wakeup_on", R.wakeup_on)}
+    ${row("Iftar azan", "A different recording for the Maghrib azan during Ramadan.",
+      `${sel("ramadan.iftar_sound", R.iftar_sound, "Iftar azan recording", false, "Same as the Maghrib azan")}<button class="btn small" onclick="testSound(rset().iftar_sound,'Iftar azan test')">${ICON.play} Listen</button>`, "ramadan.iftar_on", R.iftar_on)}
+    ${row("Before Iftar", "A short reminder so people are ready to break the fast.",
+      `${num("ramadan.before_iftar_minutes", R.before_iftar_minutes, "Minutes before Maghrib")}<span class="muted">min before Maghrib</span>${sel("ramadan.before_iftar_sound", R.before_iftar_sound, "Before Iftar sound")}`, "ramadan.before_iftar_on", R.before_iftar_on)}
+    ${row("Taraweeh", "A chime when Taraweeh is about to start.",
+      `${num("ramadan.taraweeh_minutes", R.taraweeh_minutes, "Minutes after Isha")}<span class="muted">min after Isha</span>${sel("ramadan.taraweeh_sound", R.taraweeh_sound, "Taraweeh sound")}`, "ramadan.taraweeh_on", R.taraweeh_on)}
+    ${row("Qiyam, last ten nights", "A chime for night prayers, from the 21st night.",
+      `<span class="muted">at</span><input type="time" data-path="ramadan.qiyam_time" value="${esc(R.qiyam_time)}" aria-label="Qiyam time" style="width:auto">${sel("ramadan.qiyam_sound", R.qiyam_sound, "Qiyam sound")}`, "ramadan.qiyam_on", R.qiyam_on)}
+  </div>
+
+  <div class="card"><h2>Prayer times in Ramadan</h2><p class="muted" style="margin:-6px 0 12px;font-size:13px">Only during the month. Everything goes back to normal on Eid.</p>
+    <div class="row" style="gap:12px 18px"><b style="min-width:50px">Isha</b>
+      <div class="seg">${r("risha","ramadan.isha_mode","calc",R.isha_mode,"As calculated")}${r("risha","ramadan.isha_mode","fixed",R.isha_mode,"Fixed time")}${r("risha","ramadan.isha_mode","after",R.isha_mode,"After Maghrib")}</div>
+      ${R.isha_mode === "fixed" ? `<input type="time" data-path="ramadan.isha_time" value="${esc(R.isha_time)}" aria-label="Isha time in Ramadan" style="width:auto">` : ""}
+      ${R.isha_mode === "after" ? `${num("ramadan.isha_after", R.isha_after, "Minutes after Maghrib")}<span class="muted">min after Maghrib</span>` : ""}</div></div>
+
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Prayer-times display</h2>
+      <button class="btn small" onclick="openScreen('/display?ramadan=demo')">${ICON.screen.replace("<svg",'<svg style="width:15px;height:15px"')} Preview on the display</button></div>
+    ${row("Ramadan theme", "Night sky, lanterns and a gold highlight for the month.", "", "ramadan.theme_on", R.theme_on)}
+    ${row("Iftar and Suhoor countdowns", "The big countdown shows Iftar in the day and Suhoor overnight.", "", "ramadan.countdown_on", R.countdown_on)}
+    ${row("Dua at Iftar", "The dua for breaking the fast, in Arabic and English, for 15 minutes from Maghrib.", "", "ramadan.dua_on", R.dua_on)}
+    ${row("Day counter and Hijri date", "“Day 13 of 30” and “13 Ramadan” under the location.", "", "ramadan.counter_on", R.counter_on)}
+    ${row("Eid screen", "Eid Mubarak and the Eid prayer times on the morning of Eid.", "", "ramadan.eid_on", R.eid_on)}
+  </div>
+
+  <div class="card"><h2>Eid al-Fitr</h2>
+    <div class="row" style="gap:16px 24px;align-items:flex-end">
+      <div class="field" style="margin:0"><label for="eid1">1st Eid prayer</label><input type="time" id="eid1" data-path="ramadan.eid_prayer1" value="${esc(R.eid_prayer1)}" style="width:auto"></div>
+      <div class="field" style="margin:0"><label for="eid2">2nd Eid prayer (optional)</label><input type="time" id="eid2" data-path="ramadan.eid_prayer2" value="${esc(R.eid_prayer2)}" style="width:auto"></div></div>
+    ${row("Takbeer on the phones", "Plays on repeat before the 1st Eid prayer. Needs the Eid prayer time and a recording.",
+      `<span class="muted">from</span>${num("ramadan.takbeer_minutes", R.takbeer_minutes, "Minutes before the 1st Eid prayer")}<span class="muted">min before</span>${sel("ramadan.takbeer_sound", R.takbeer_sound, "Takbeer recording", false, "Choose a recording…")}`, "ramadan.takbeer_on", R.takbeer_on)}
+  </div>
+
+  <div class="row" style="gap:10px"><button class="btn primary" onclick="window.open('/ramadan/timetable','_blank')">Print the Ramadan timetable</button>
+    <button class="btn" onclick="testSound(rset().suhoor_sound,'Suhoor ends test')">${ICON.play} Test the Suhoor alert</button>
+    <span class="muted" style="font-size:13px">Recordings are added on the Azan sound page.</span></div>`;
 }
 
 // ---- Settings
@@ -856,7 +1108,8 @@ function appearanceCardHTML(){
 const DDEF = {theme:"green", background:"#0d4a3f", accent:"#f3e2b4", layout:"cards", scale:100, title:"", message:"", hide:[],
               buttons:"always", live_layout:"list", live_side:"left", live_width:75, live_start:false};
 const DTHEMES = [["green","Masjid green","#0d4a3f","#f3e2b4"],["night","Night","#0b0f0e","#e2bf6e"],["navy","Navy and gold","#0f2340","#e8c36a"],
-                 ["maroon","Maroon","#4a1420","#f2dfb4"],["sand","Sand (light)","#f4ecdc","#146356"],["custom","Your colours",null,null]];
+                 ["maroon","Maroon","#4a1420","#f2dfb4"],["sand","Sand (light)","#f4ecdc","#146356"],["ramadan","Ramadan night","#111735","#e9c46a"],
+                 ["custom","Your colours",null,null]];
 const DPARTS = [["clock","Clock"],["date","Date"],["arabic","Arabic prayer names"],["countdown","Countdown to the azan"],
                 ["sunrise","Sunrise"],["status","Phone status line"],["pattern","Background pattern"]];
 const DP = {live:false};

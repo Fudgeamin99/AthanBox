@@ -18,6 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The Android TV app, as in the release image, so screens on a network without internet can download it from the box.
+      # Without it, /apk sends them to the app's latest release on GitHub.
+      - name: Add the Android app (AzanTV.apk)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
+             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
+
       - name: Build the image
         run: docker build -t azan-sip-box:test .
 
@@ -56,6 +64,14 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      # The Android TV app, as in the release image, so screens on a network without internet can download it from the box.
+      # Without it, /apk sends them to the app's latest release on GitHub.
+      - name: Add the Android app (AzanTV.apk)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
+             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
 
       - name: Image name
         id: name

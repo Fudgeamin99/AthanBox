@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-DISPLAY_THEMES = ("green", "night", "navy", "maroon", "sand", "custom")
+DISPLAY_THEMES = ("green", "night", "navy", "maroon", "sand", "ramadan", "custom")
 PANEL_ACCENTS = ("green", "blue", "navy", "maroon", "purple", "brown", "custom")
 PARTS = ("clock", "date", "arabic", "countdown", "sunrise", "status", "pattern")
 

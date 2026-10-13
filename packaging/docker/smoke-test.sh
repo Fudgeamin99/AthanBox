@@ -1,7 +1,7 @@
 #!/bin/sh
 # Checks a running Azan SIP Box container: the panel answers, a new box opens first-time setup,
-# the prayer-times screen is there, settings need the password, the password works, and
-# Settings > Updates knows it is running in Docker.
+# the prayer-times screen is there, settings need the password, the password works,
+# Settings > Updates knows it is running in Docker, and TV screens connect only when allowed.
 #   sh packaging/docker/smoke-test.sh http://127.0.0.1:8765 <password>
 set -eu
 url=${1:-http://127.0.0.1:8765}
@@ -46,3 +46,19 @@ echo "ok: signed in"
 mode=$(curl -fsS -b "$jar" "$url/api/update" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("mode"))')
 [ "$mode" = docker ] || { echo "FAIL: update mode is '$mode' (expected docker)"; exit 1; }
 echo "ok: Settings > Updates says to pull a new image"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/ramadan/timetable")
+[ "$code" = 200 ] || { echo "FAIL: the Ramadan timetable answered $code"; exit 1; }
+curl -fsS "$url/api/state" | grep -q '"ramadan_screen"' || { echo "FAIL: the prayer-times screen gets no Ramadan data"; exit 1; }
+echo "ok: Ramadan timetable and screens"
+
+# From another device (here the container's host) the TV app needs "Let TV screens connect"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/api/tv?id=ci")
+[ "$code" = 403 ] || { echo "FAIL: a TV screen got in ($code) while TV screens are switched off"; exit 1; }
+curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"on": true}' "$url/api/screens" >/dev/null
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/api/tv?id=ci")
+[ "$code" = 200 ] || { echo "FAIL: a TV screen couldn't connect ($code) with TV screens switched on"; exit 1; }
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/apk")
+case "$code" in 200|302) ;; *) echo "FAIL: /apk answered $code"; exit 1;; esac
+curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"on": false}' "$url/api/screens" >/dev/null
+echo "ok: TV screens connect only when allowed (the Android app: $([ "$code" = 200 ] && echo "in the image" || echo "from GitHub"))"

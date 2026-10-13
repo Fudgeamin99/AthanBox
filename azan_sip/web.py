@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import collections
 import copy
+import html
 import http.cookies
 import ipaddress
 import json
@@ -31,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, live, look, rtp, tomlw, updater
+from . import __version__, live, look, ramadan, rtp, screens, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import FROZEN, app_dir
 from .sipreg import Registration, RegistrationManager
@@ -50,6 +51,31 @@ STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; char
 PAGES = {"/setup": "setup.html", "/display": "display.html"}
 USB_ROOTS = ("/media", "/run/media")  # where Debian mounts USB sticks
 
+# The TV app's own routes. From other devices these follow "Let TV screens connect" only, so switching
+# it off disconnects every TV screen. (The prayer-times screen itself stays open to everyone, as before.)
+TV_PATHS = {"/tv", "/tv.webmanifest", "/api/tv", "/apk"}
+TV_PREFIXES = ("/tv/sound/", "/icons/")
+
+# Added to the display when it is opened as the TV app (/tv): what an iPad needs to add it to the
+# Home Screen as a full-screen app with its own icon.
+TV_HEAD = b"""<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/tv.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Azan TV">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e4a40">
+<link rel="apple-touch-icon" href="/icons/tv-180.png">"""
+# The Android app is the desktop app's (built in Fudgeamin99/ATHAN-TO-SIP). The Box's Docker image carries
+# a copy (static/AzanTV.apk, added when the image is built); otherwise it comes from the app's latest release.
+APK_FILE = STATIC / "AzanTV.apk"
+APK_URL = "https://github.com/Fudgeamin99/ATHAN-TO-SIP/releases/latest/download/AzanTV.apk"
+TV_MANIFEST = {"name": "Azan SIP TV", "short_name": "Azan TV", "start_url": "/tv", "scope": "/tv",
+               "display": "fullscreen", "orientation": "landscape", "background_color": "#0e4a40",
+               "theme_color": "#0e4a40", "description": "Prayer times and the azan on a TV",
+               "icons": [{"src": "/icons/tv-192.png", "sizes": "192x192", "type": "image/png"},
+                         {"src": "/icons/tv-512.png", "sizes": "512x512", "type": "image/png"}]}
+
 DEFAULT_CONFIG = {
     "general": {"configured": False, "scheduler_enabled": True, "port": DEFAULT_PORT},
     "location": {"name": "London, United Kingdom", "latitude": 51.5074, "longitude": -0.1278,
@@ -65,6 +91,50 @@ DEFAULT_CONFIG = {
     "targets": [{"name": "All phones (multicast)", "type": "multicast", "address": "224.5.6.20:10008",
                  "codec": "PCMU", "enabled": True}],
 }
+
+
+TIMETABLE_HTML = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ramadan {year} timetable</title>
+<style>
+@page{{size:A4;margin:12mm}}
+*{{box-sizing:border-box}}
+body{{margin:0;background:#e9e5dc;color:#1d2622;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}}
+.sheet{{width:210mm;min-height:297mm;margin:16px auto;padding:12mm 13mm;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.12);display:flex;flex-direction:column}}
+.head{{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}}
+h1{{margin:0;font-size:30px;letter-spacing:-.4px}} h1 span{{font-family:"Noto Naskh Arabic","Traditional Arabic","Segoe UI",serif;color:#146356;font-size:24px;margin-left:12px}}
+.sub{{margin-top:6px;font-weight:600}} .small{{font-size:12.5px;color:#4f5a55;margin-top:2px}}
+.masjid{{text-align:right;font-weight:700;font-size:16px}}
+table{{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;font-variant-numeric:tabular-nums}}
+th{{background:#1d2622;color:#fff;font-size:12px;padding:7px 8px;text-align:right}} th:nth-child(-n+2){{text-align:left}}
+th.k{{background:#146356}}
+td{{padding:4px 8px;border-bottom:1px solid #ddd6c6;text-align:right}} td:nth-child(-n+2){{text-align:left}}
+td.n{{font-weight:700}} td.k{{font-weight:800;background:rgba(20,99,86,.08)}}
+tr:nth-child(even) td{{background-color:#faf8f3}} tr:nth-child(even) td.k{{background:rgba(20,99,86,.11)}}
+tr.ten td{{background-color:#f3ecd9}} tr.ten td.k{{background:#eadfbf}}
+.legend{{margin-top:10px;font-size:12px;color:#4f5a55;display:flex;gap:20px;flex-wrap:wrap}}
+.legend i{{display:inline-block;width:14px;height:10px;background:#f3ecd9;border:1px solid #ddd6c6;margin-right:6px;vertical-align:-1px}}
+.foot{{margin-top:auto;padding-top:10px;border-top:1px solid #ddd6c6;font-size:12px;color:#4f5a55;display:flex;justify-content:space-between;gap:16px}}
+.bar{{width:210mm;margin:16px auto 0;display:flex;justify-content:flex-end;gap:10px}}
+.bar button{{font:inherit;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid #146356;background:#146356;color:#fff;cursor:pointer}}
+@media print{{body{{background:#fff}} .bar{{display:none}} .sheet{{margin:0;box-shadow:none;width:auto;min-height:0;padding:0}}
+  th,td.k,tr.ten td{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
+@media (max-width:820px){{.sheet,.bar{{width:auto;margin:10px}} .sheet{{min-height:0;padding:16px}} table{{font-size:12px}} td,th{{padding:4px 5px}}}}
+</style></head><body>
+<div class="bar"><button onclick="window.print()">Print</button></div>
+<div class="sheet">
+  <div class="head"><div>
+    <h1>Ramadan {year}<span lang="ar">رمضان {arabic_year}</span></h1>
+    <div class="sub">{span}{loc}</div>
+    <div class="small">{method} · Sehri ends {mins} minutes before Fajr{isha_note}</div></div>
+    <div class="masjid" style="{title_style}">{title}</div></div>
+  <table><thead><tr><th>Ramadan</th><th>Date</th><th class="k">Sehri ends</th><th>Fajr</th><th>Sunrise</th><th>Dhuhr</th><th>Asr</th><th class="k">Iftar</th><th>Isha</th></tr></thead>
+  <tbody>
+{rows}
+  </tbody></table>
+  <div class="legend"><span><i></i>Last ten nights</span><span><b>Fri</b> in bold: Jumu'ah</span><span>Taraweeh every night after Isha</span></div>
+  <div class="foot"><span>{note}</span><span>Printed from Azan SIP</span></div>
+</div></body></html>"""
 
 
 # ------------------------------------------------------------------ logging
@@ -246,6 +316,10 @@ class Service:
         self.extra_servers: list[ThreadingHTTPServer] = []
         self.wizard = {"rev": 0, "state": None, "driver": ""}  # first-time setup, shared by the screen and phones
         self.live = live.LiveRelay(lambda: self.live_url)
+        self.tvs = screens.Screens()       # TV screens that play the azan (the TV app)
+        self.sounds = screens.Sounds()
+        self.shared.screens_listening = self.tvs.listening
+        self._tv_next = (0.0, None, None)
         self.load()
 
     # -- config
@@ -276,6 +350,12 @@ class Service:
     def apply(self, cfg: dict, save: bool = True):
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
         look.check(cfg)
+        ramadan.check(cfg.get("ramadan"))
+        servers = [t for t in cfg.get("targets", []) if t.get("type") == "server"]
+        if len(servers) > 1:
+            raise ValueError("Only one 'Register to Azan SIP' entry is possible; add more accounts to it instead")
+        for t in servers:
+            sipserver.check_accounts(t.get("accounts", []), t.get("port", 5060))
         with self.lock:
             app = AzanApp(self.config_path, cfg, require_targets=False, shared=self.shared)  # raises if invalid
             if save:
@@ -283,6 +363,7 @@ class Service:
             self._stop_scheduler(halt_audio=False)  # an azan that is playing carries on
             self.app, self.cfg, self.error = app, cfg, None
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
+            sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to Azan SIP
             g = cfg.get("general", {})
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
@@ -337,6 +418,7 @@ class Service:
                     if f.is_file() and f.name != ".gitkeep":
                         f.unlink(missing_ok=True)
             self.auth.reset_to_factory()
+            self.tvs.clear()   # TV screens can't connect until they're allowed again
             self.wizard = {"rev": self.wizard["rev"] + 1, "state": None, "driver": ""}
             self.app, self.cfg, self.error = None, {}, None
             self.load()
@@ -354,9 +436,167 @@ class Service:
     def shutdown(self):
         self._stop_scheduler()
         self.regs.stop_all()
+        sipserver.MANAGER.stop()
+
+    # -- TV screens (the TV app)
+    @property
+    def screens_on(self) -> bool:
+        """Let TV screens connect: the TV app may open and play the azan, without the password."""
+        return bool(self.cfg.get("general", {}).get("screens"))
+
+    def set_screens(self, on: bool):
+        cfg = copy.deepcopy(self.cfg)
+        cfg.setdefault("general", {})["screens"] = bool(on)
+        self.apply(cfg, save=True)
+        if not on:
+            self.tvs.clear()   # they can't connect any more, so don't list them
+        log.info("TV screens %s", "can connect" if on else "switched off - every TV screen is disconnected")
+
+    def tv_links(self, host: str = "") -> dict:
+        """Addresses for the TV app page: the one the page was opened on first (say azan.local), then the box's
+        own. The Android app gets the box's IP address: it adds port 8765 by itself."""
+        port = self.server.server_address[1] if self.server else DEFAULT_PORT
+        here = "" if self.extra_servers else f":{port}"   # with port 80 open, no port is needed
+        hosts = [host] if host else []
+        hosts += [ip + here for ip in dict.fromkeys([box_ip(), *local_ips()])]
+        urls = [f"http://{h}/" for h in dict.fromkeys(hosts)]
+        on = self.screens_on
+        ip = box_ip()
+        return {"screens": on, "tv_urls": [u + "tv" for u in urls], "apk_urls": [u + "apk" for u in urls],
+                "apk_here": APK_FILE.is_file(), "address": ip if port == DEFAULT_PORT else f"{ip}:{port}",
+                "tv_qr": qr_svg(urls[0] + "tv").decode() if urls and on else None,
+                "apk_qr": qr_svg(urls[0] + "apk").decode() if urls and on else None}
+
+    def tv_state(self) -> dict:
+        """What TV screens ask about twice a second: what's playing (and since when, so they join in at
+        the right place), how the last one ended, and what plays next (to download it early)."""
+        sh = self.shared
+        out = {"now": int(time.time() * 1000), "version": VERSION, "playing": None, "last": sh.last,
+               "next": None}
+        p = sh.playing
+        if p and p["screens"]:
+            out["playing"] = {"seq": p["seq"], "label": p["label"], "started": int(p["started"] * 1000),
+                              "sound": self.sounds.add(p["clip"])}
+        app = self.app
+        if app is not None and self.thread is not None and self.thread.is_alive():
+            at, key, nxt = self._tv_next
+            if key != id(app) or time.monotonic() - at > 15:
+                try:
+                    nxt = app.next_event()
+                except Exception:
+                    nxt = None
+                self._tv_next = (time.monotonic(), id(app), nxt)
+            if nxt:
+                when, prayer, kind = nxt
+                clip = app.event_clip(when, prayer, kind)
+                if clip is not None:
+                    out["next"] = {"at": int(when.timestamp() * 1000), "label": ramadan.event_label(prayer, kind),
+                                   "sound": self.sounds.add(clip)}
+        return out
+
+    # -- Ramadan
+    @staticmethod
+    def ramadan_display(app: AzanApp, now, cards_date, demo: bool = False) -> dict | None:
+        """What the display shows in Ramadan: the day counter, Iftar and Suhoor countdowns, the dua at
+        Iftar and the Eid screen. demo pretends today is the 13th of Ramadan (for the preview button)."""
+        r = app.ramadan
+        if demo:
+            r = ramadan.Ramadan({**r.s, "mode": "on", "start": (now.date() - timedelta(days=12)).isoformat()})
+        if r.mode == "off":
+            return None
+        s, today = r.s, now.date()
+        tomorrow = today + timedelta(days=1)
+        t = app.day_times(today)
+        fast_today, fast_tomorrow, eid_today = r.fasting(today), r.fasting(tomorrow), r.eid_day(today)
+        eve = not fast_today and fast_tomorrow and now >= t["maghrib"]
+        if not (fast_today or eid_today or eve):
+            return None
+        mins = timedelta(minutes=r.num("suhoor_minutes"))
+        sehri = lambda d: app.times.for_date(d)["fajr"] - mins  # noqa: E731
+        hm = lambda x: f"{x:%H:%M}"  # noqa: E731
+        start, n, expected = r.period(tomorrow if eve else today)
+        k = r.day_number(today) if fast_today else None
+        out = {"theme": bool(s["theme_on"]), "counter": bool(s["counter_on"]), "day": k, "days": n,
+               "hijri": r.hijri(today), "last_ten": bool(k and k >= 21), "expected": expected,
+               "starts_tomorrow": eve, "eid_in": max(0, (start + timedelta(days=n) - today).days),
+               "fajr": hm(t["fajr"]), "maghrib": hm(t["maghrib"]), "isha": hm(t["isha"]),
+               "sehri": hm(sehri(today)) if fast_today else None,
+               "next_sehri": hm(sehri(tomorrow)) if fast_tomorrow else None,
+               "cards_sehri": None, "phase": None, "seconds": None, "target": None}
+        if r.fasting(cards_date):
+            out["cards_sehri"] = hm(sehri(cards_date))
+            out["cards_sehri_passed"] = cards_date == today and sehri(today) <= now
+        phase = target = None
+        if fast_today and s["countdown_on"] and sehri(today) <= now < t["maghrib"]:
+            phase, target = "iftar", t["maghrib"]
+        elif fast_today and s["dua_on"] and t["maghrib"] <= now < t["maghrib"] + timedelta(minutes=15):
+            phase = "dua"
+        elif fast_today and s["countdown_on"] and now < sehri(today):
+            phase, target = "suhoor", sehri(today)
+            out["target_fajr"] = hm(t["fajr"])
+        elif fast_tomorrow and s["countdown_on"] and now >= t["isha"]:
+            phase, target = "suhoor", sehri(tomorrow)
+            out["target_fajr"] = hm(sehri(tomorrow) + mins)
+        elif eid_today and s["eid_on"] and now < t["dhuhr"]:
+            phase = "eid"
+            out["eid"] = {"prayer1": s["eid_prayer1"], "prayer2": s["eid_prayer2"],
+                          "year": r.hijri_year(today - timedelta(days=1))}
+        out["phase"] = phase
+        if target is not None:
+            out.update(seconds=int((target - now).total_seconds()), target=hm(target))
+        return out
+
+    def ramadan_summary(self, app: AzanApp, now) -> dict:
+        r, today = app.ramadan, now.date()
+        start, n, expected = r.period(today)
+        return {"mode": r.mode, "fasting": r.fasting(today), "day": r.day_number(today) if r.fasting(today) else None,
+                "start": start.isoformat(), "days": n, "expected": expected,
+                "expected_start": ramadan.expected_start(today, n).isoformat(),
+                "eid": (start + timedelta(days=n)).isoformat(), "hijri_year": r.hijri_year(today),
+                "today": today.isoformat()}
+
+    def ramadan_timetable(self) -> str:
+        """A printable A4 timetable for the month: Sehri, the five prayers and Iftar for every day."""
+        app = self.app
+        if app is None:
+            raise RuntimeError(self.error or "Settings not loaded")
+        r, today = app.ramadan, app.now().date()
+        start, n, expected = r.period(today)
+        year = r.hijri_year(today)
+        mins = r.num("suhoor_minutes")
+        esc = html.escape
+        rows = []
+        for i in range(n):
+            d = start + timedelta(days=i)
+            t = app.day_times(d)
+            sehri = t["fajr"] - timedelta(minutes=mins)
+            cls = " class='ten'" if i >= 20 else ""
+            day = f"<b>{d:%a}</b>" if d.weekday() == 4 else f"{d:%a}"
+            rows.append(f"<tr{cls}><td class='n'>{i + 1}</td><td>{day} {d.day} {d:%b}</td><td class='k'>{sehri:%H:%M}</td>"
+                        + "".join(f"<td>{t[p]:%H:%M}</td>" for p in ("fajr", "sunrise", "dhuhr", "asr"))
+                        + f"<td class='k'>{t['maghrib']:%H:%M}</td><td>{t['isha']:%H:%M}</td></tr>")
+        end = start + timedelta(days=n - 1)
+        span = f"{start:%B} – {end:%B %Y}" if start.month != end.month else f"{start:%B %Y}"
+        if start.year != end.year:
+            span = f"{start:%B %Y} – {end:%B %Y}"
+        loc = self.cfg.get("location", {}).get("name") or ""
+        title = look.display(self.cfg).get("title") or ""
+        method = METHODS.get(app.settings.method, {}).get("name", app.settings.method)
+        arabic_year = str(year).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+        nice = f"{start:%A} {start.day} {start:%B %Y}"
+        note = (f"Ramadan is expected to begin on {nice}. Dates depend on the moonsighting."
+                if expected else f"Ramadan begins on {nice}.")
+        isha_note = {"fixed": f" · Isha at {r.s['isha_time']} in Ramadan",
+                     "after": f" · Isha {r.num('isha_after')} minutes after Maghrib in Ramadan"}.get(r.s["isha_mode"], "")
+        return TIMETABLE_HTML.format(
+            year=year, arabic_year=arabic_year, span=esc(span), loc=esc((" · " + loc) if loc else ""),
+            method=esc(method), mins=mins, isha_note=esc(isha_note), title=esc(title),
+            title_style="" if title else "display:none", rows="\n".join(rows), note=esc(note))
+
 
     # -- state for the panel
-    def state(self) -> dict:
+    def state(self, demo: bool = False) -> dict:
+        """demo: the Ramadan screens as on the 13th of Ramadan (the Ramadan page's preview button)."""
         with self.lock:
             app = self.app
             ui = self.update_info or {}
@@ -367,7 +607,9 @@ class Service:
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "live": self.live_screen(),
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
-                  "log_id": RING.counter, "registrations": self.regs.info()}
+                  "log_id": RING.counter, "registrations": self.regs.info(),
+                  "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to Azan SIP
+                  "screens": {"on": self.screens_on, "list": self.tvs.info()}}
             if app is None:
                 return st
             now = app.now()
@@ -388,6 +630,10 @@ class Service:
                 "skip_today": now.strftime("%a").lower()[:3] in app.skip_days,
                 "next": self.next_info(app), "next_azan": self.next_info(app, "azan"),
                 "history": app.history[::-1],
+                "ramadan": self.ramadan_summary(app, now),
+                # what the prayer-times screen shows in Ramadan (countdowns, dua, Eid), for the day on its cards
+                "ramadan_screen": self.ramadan_display(app, now, now.date() + timedelta(days=1) if "tomorrow" in st
+                                                       else now.date(), demo),
                 "warnings": self.warnings(app),
                 "targets": len(app.targets),
             })
@@ -454,7 +700,7 @@ class Service:
         w = []
         if not self.cfg.get("general", {}).get("configured", True):
             w.append("Welcome! Check your location, calculation method and phones, then press Save.")
-        if not app.targets:
+        if not app.targets and not (self.screens_on and self.tvs.listening()):
             w.append("No phones are switched on - add or enable one on the Phones page.")
         for c in app.all_clips():
             if c.path is not None and not c.path.is_file():
@@ -501,7 +747,7 @@ class Service:
     @staticmethod
     def rows_for(app: AzanApp, day, now, next_key: tuple | None) -> list[dict]:
         """One day's times for the cards: played / passed / next (next_key is (date, prayer))."""
-        times = app.times.for_date(day)
+        times = app.day_times(day)   # with the Ramadan Isha time when one is set
         azan_times = {p: w for w, p, k in app.events_for(day) if k == "azan"}
         rows = []
         for name in PRAYERS:
@@ -527,7 +773,7 @@ class Service:
                     if e[0] > now and kind in (None, e[2])), None)
         if not nxt:
             return None
-        return {"prayer": nxt[1], "kind": nxt[2], "time": f"{nxt[0]:%H:%M}",
+        return {"prayer": nxt[1], "kind": nxt[2], "label": ramadan.event_label(nxt[1], nxt[2]), "time": f"{nxt[0]:%H:%M}",
                 "day": "today" if nxt[0].date() == now.date() else
                 ("tomorrow" if nxt[0].date() == now.date() + timedelta(days=1) else f"{nxt[0]:%A}"),
                 "seconds": int((nxt[0] - now).total_seconds())}
@@ -572,19 +818,23 @@ class Service:
         if req.get("seconds") and src != "tone":
             clip = Clip(clip.source, app.base, vol, lead, float(req["seconds"]))
         clip.check()
-        targets = None
-        if req.get("target") is not None:  # test one phone entry (possibly unsaved)
+        targets, on_screens = None, None
+        if req.get("screens_only"):   # TV app page: test the TV screens only
+            if not self.tvs.listening():
+                raise RuntimeError("No TV screen is ready to play. Open the TV app on the screen and tap it once to turn on its sound.")
+            targets, on_screens = [], True
+        elif req.get("target") is not None:  # test one phone entry (possibly unsaved)
             t = dict(req["target"], enabled=True)
             targets = build_targets({"network": self.cfg.get("network", {}), "targets": [t]})
         if app.now_playing:
             raise RuntimeError(f"Already playing: {app.now_playing}")
         if req.get("wait"):  # play it now and say whether it worked (setup wizard)
             first = RING.counter
-            if not app.broadcast(clip, req.get("label") or "Test", targets):
+            if not app.broadcast(clip, req.get("label") or "Test", targets, on_screens):
                 problems = [x["msg"] for x in list(RING.lines) if x["id"] > first and x["level"] in ("WARNING", "ERROR")]
                 raise RuntimeError(problems[-1] if problems else "the test chime didn't play")
             return {"ok": True}
-        threading.Thread(target=app.broadcast, args=(clip, req.get("label") or "Test", targets),
+        threading.Thread(target=app.broadcast, args=(clip, req.get("label") or "Test", targets, on_screens),
                          daemon=True).start()
         return {"ok": True}
 
@@ -689,6 +939,12 @@ class Handler(BaseHTTPRequestHandler):
         """Whose setup-code session survives the end of setup: a phone or PC, never the box's own screen."""
         return None if self._client_local() else self._token()
 
+    def _tv_allowed(self, p: str) -> bool:
+        """The TV app follows "Let TV screens connect" (on the TV app page) on every device but the box itself."""
+        if not (p in TV_PATHS or p.startswith(TV_PREFIXES)):
+            return True
+        return self._client_local() or self.service.screens_on
+
     def _need_login(self):
         return self._json({"ok": False, "login": True, "error": "Please enter the password to change settings"}, 401)
 
@@ -699,6 +955,14 @@ class Handler(BaseHTTPRequestHandler):
                 "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code),
                 "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": VERSION,
                 "panel": look.panel(svc.cfg)}
+
+    def _page_host(self) -> str:
+        """The address this page was opened on (an IP address or a .local name), if it is one other devices can use."""
+        raw = (self.headers.get("Host") or "").strip()
+        name = raw.split(":")[0].lower()
+        if not name or name in ("127.0.0.1", "localhost") or not re.fullmatch(r"[a-z0-9.\-]+(:\d+)?", raw.lower()):
+            return ""
+        return raw
 
     def _setup_urls(self) -> list[str]:
         """Links for the setup QR code: the address this page was opened on first, then the box's own."""
@@ -715,11 +979,11 @@ class Handler(BaseHTTPRequestHandler):
         return bool(svc.box and svc.auth.setup_code and (self._client_local() or self._authed()))
 
     def _send(self, code: int, body: bytes, ctype: str = "application/json", extra: dict | None = None,
-              cache: bool = False, frame: str = "DENY"):
+              cache: bool | str = False, frame: str = "DENY"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "max-age=86400" if cache else "no-store")
+        self.send_header("Cache-Control", cache if isinstance(cache, str) else "max-age=86400" if cache else "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", frame)  # the Display page previews the prayer-times screen in a frame
         for k, v in (extra or {}).items():
@@ -743,6 +1007,10 @@ class Handler(BaseHTTPRequestHandler):
         svc = self.service
         url = urlparse(self.path)
         p = url.path
+        if not self._tv_allowed(p):
+            return self._send(403, "TV screens can't connect. In the Azan SIP Box's control panel, go to TV app and "
+                                   "switch on \u201cLet TV screens connect\u201d. Then try again.".encode("utf-8"),
+                              "text/plain; charset=utf-8")
         try:
             if p in ("/", "/index.html"):
                 if svc.box and not svc.configured() and not svc.setup_manual():  # first-time setup (keeps ?setup=)
@@ -758,14 +1026,49 @@ class Handler(BaseHTTPRequestHandler):
                 if f.suffix.lower() in STATIC_TYPES and f.is_file():
                     return self._send(200, f.read_bytes(), STATIC_TYPES[f.suffix.lower()], cache=True)
                 return self._send(404, b"Not found", "text/plain")
+            if p == "/tv":   # the TV app: the prayer-times screen, which also plays the azan
+                body = re.sub(rb'<meta name="viewport"[^>]*>\s*<!--tv-->', lambda m: TV_HEAD,
+                              (STATIC / "display.html").read_bytes(), count=1)
+                body = body.replace(b"<title>Azan SIP \xc2\xb7 Prayer times</title>", b"<title>Azan SIP TV</title>", 1)
+                return self._send(200, body, "text/html; charset=utf-8")
+            if p == "/apk":   # the Android app (Azan SIP TV)
+                if APK_FILE.is_file():
+                    return self._send(200, APK_FILE.read_bytes(), "application/vnd.android.package-archive",
+                                      extra={"Content-Disposition": 'attachment; filename="AzanTV.apk"'})
+                return self._send(302, b"", "text/plain", extra={"Location": APK_URL})
+            if p == "/tv.webmanifest":
+                return self._send(200, json.dumps(TV_MANIFEST).encode(), "application/manifest+json",
+                                  cache="public, max-age=3600")
+            if p.startswith("/icons/"):
+                f = STATIC / "icons" / Path(unquote(p[7:])).name
+                if f.suffix == ".png" and f.is_file():
+                    return self._send(200, f.read_bytes(), "image/png", cache="public, max-age=86400")
+                return self._send(404, b"Not found", "text/plain")
+            if p == "/api/tv":
+                q = parse_qs(url.query)
+                one = lambda k, n=40: q.get(k, [""])[0][:n]  # noqa: E731
+                playing = one("playing", 12)
+                svc.tvs.touch(one("id"), self.client_address[0], one("name"), one("sound") == "1", one("audio", 16),
+                              int(playing) if playing.isdigit() else None)
+                return self._json(svc.tv_state())
+            if p.startswith("/tv/sound/"):
+                got = svc.sounds.body(p[10:], phone=parse_qs(url.query).get("phone", [""])[0] == "1")
+                if got is None:
+                    return self._send(404, b"Not found", "text/plain")
+                return self._send(200, got[1], got[0], cache="private, max-age=3600")
+            if p == "/ramadan/timetable":   # printable, like the prayer times themselves
+                return self._send(200, svc.ramadan_timetable().encode("utf-8"), "text/html; charset=utf-8")
             if p == "/api/ping":
                 return self._json({"app": "azan-sip", "version": __version__})
             if p == "/api/session":
                 return self._json(self._session_info())
             if p == "/api/state":
-                st = svc.state()
-                if not self._authed():  # prayer times are public, the log is not
-                    st.update(log=[], history=[])
+                st = svc.state(demo=parse_qs(url.query).get("ramadan", [""])[0] == "demo")
+                if not self._authed():  # prayer times are public, the log (and who is connected) is not
+                    srv = st.get("sipserver")
+                    st.update(log=[], history=[], screens={"on": st["screens"]["on"], "list": []},
+                              sipserver=srv and {"status": srv["status"], "detail": srv["detail"],
+                                                 "accounts": [{"registered": a["registered"]} for a in srv["accounts"]]})
                 return self._json(st)
             if p in ("/live/stream.m3u8", "/live/x") and svc.relay_off:
                 return self._json({"ok": False, "error": "Makkah live through the box is turned off on the Display page"}, 403)
@@ -801,6 +1104,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(svc.wizard)
             if p == "/api/update":
                 return self._json(svc.update_status())
+            if p == "/api/tv-links":   # the TV app page: addresses and QR codes for TV screens
+                return self._json(svc.tv_links(self._page_host()))
             if p.startswith("/audio/"):
                 f = svc.audio_dir / Path(unquote(p[7:])).name
                 if f.is_file() and f.suffix.lower() in AUDIO_EXT:
@@ -907,6 +1212,9 @@ class Handler(BaseHTTPRequestHandler):
                 svc.set_wizard({"finished": True}, "")
                 log.info("Setup guide finished" if again else "First-time setup finished")
                 return self._json({"ok": True})
+            if p == "/api/screens":
+                svc.set_screens(bool(req.get("on")))
+                return self._json({"ok": True, **svc.tv_links(self._page_host())})
             if p == "/api/live/test":
                 return self._json({"ok": True, **svc.live.test(str(req.get("url") or ""))})
             if p == "/api/preview":

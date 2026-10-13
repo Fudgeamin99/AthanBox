@@ -21,6 +21,8 @@ def _value(v) -> str:
         return f'"{esc}"'
     if isinstance(v, (list, tuple)):
         return "[" + ", ".join(_value(x) for x in v if x is not None) + "]"
+    if isinstance(v, dict):   # inline table, e.g. the accounts of the SIP server
+        return "{" + ", ".join(f"{_key(k)} = {_value(x)}" for k, x in v.items() if x is not None) + "}"
     raise TypeError(f"cannot write {type(v).__name__} to TOML")
 
 

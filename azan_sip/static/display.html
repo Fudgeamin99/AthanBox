@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--tv-->
 <title>Azan SIP · Prayer times</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/box.css">
@@ -137,6 +138,54 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .live.l-cards .card .ar{font-size:calc(2.4vh*var(--s)*var(--f,1))}
 .live.l-cards .card .t{font-size:calc(4.4vh*var(--s)*var(--f,1))}
 
+/* ---- Ramadan (the Ramadan page in the control panel) */
+.rstrip{position:relative;margin-top:2.4vh;display:flex;align-items:center;gap:1.6vw}
+.rstrip .rl{font-size:calc(1.9vh*var(--s));font-weight:700;letter-spacing:.3vh;color:var(--t-accent);white-space:nowrap}
+.rstrip .segs{flex:1;display:flex;gap:.4vh;min-width:60px}
+.rstrip .segs i{flex:1;height:1.1vh;border-radius:.6vh;background:rgb(var(--t-tint) / .14)}
+.rstrip .segs i.on{background:var(--t-accent)}
+.rstrip .segs i.ten{background:rgb(var(--t-tint) / .26)}
+.rstrip .rr{font-size:calc(1.9vh*var(--s));color:var(--t-muted);white-space:nowrap}
+.rstrip .pill{padding:.3vh 1.2vh;border-radius:99px;border:1px solid var(--t-accent);color:var(--t-accent);font-weight:700}
+.lanterns{display:none;position:absolute;left:66%;top:0;height:14.5vh;opacity:.42;pointer-events:none}
+.lanterns g{stroke:var(--t-accent)}
+.th-ramadan .screen .lanterns{display:block}
+.th-ramadan .screen .pattern,.live .lanterns{display:none}
+.mbars{display:inline-flex;gap:.45vh;align-items:flex-end;height:2.8vh;margin-right:.9vw;vertical-align:-.3vh}
+.mbars i{width:.7vh;background:var(--t-accent);border-radius:.4vh;animation:mb 1s infinite ease-in-out}
+.mbars i:nth-child(2){animation-delay:.15s}.mbars i:nth-child(3){animation-delay:.3s}.mbars i:nth-child(4){animation-delay:.45s}
+@keyframes mb{0%,100%{height:.7vh}50%{height:2.8vh}}
+.dua{margin-top:2.6vh;width:min(940px,100%);box-sizing:border-box;padding:3vh 3vw;border-radius:2vh;background:rgb(var(--t-tint) / .06);border:1px solid rgb(var(--t-tint) / .12);display:flex;flex-direction:column;gap:.9vh}
+.dua .dl{font-size:calc(1.9vh*var(--s)*var(--f,1));font-weight:700;letter-spacing:.3vh;color:var(--t-accent)}
+.dua .dar{font-size:calc(5.6vh*var(--s)*var(--f,1));line-height:1.7;font-weight:600}
+.dua .dtr{font-size:calc(2.6vh*var(--s)*var(--f,1));font-style:italic;color:var(--t-muted)}
+.dua .den{font-size:calc(3vh*var(--s)*var(--f,1));color:var(--t-soft)}
+.dua .dsrc{font-size:calc(1.9vh*var(--s)*var(--f,1));color:var(--t-muted);opacity:.8}
+.eidar{font-size:calc(12vh*var(--s)*var(--f,1));line-height:1.3;font-weight:700;color:var(--t-accent)}
+.tiles{margin-top:3.4vh;display:flex;gap:1.6vw;flex-wrap:wrap;justify-content:center}
+.tile{min-width:18vw;box-sizing:border-box;padding:2vh 1.8vw 2.2vh;border-radius:1.6vh;background:rgb(var(--t-tint) / .08);border:1px solid rgb(var(--t-tint) / .12);display:flex;flex-direction:column;gap:.2vh;text-align:left}
+.tile b{font-size:calc(2.3vh*var(--s)*var(--f,1))}
+.tile span{font-size:calc(5.4vh*var(--s)*var(--f,1));font-weight:800;font-variant-numeric:tabular-nums}
+.tile.hl{background:var(--t-accent);border-color:var(--t-accent);color:var(--t-on)}
+.tile.note span{font-size:calc(2.4vh*var(--s)*var(--f,1));font-weight:500;color:var(--t-soft);line-height:1.35}
+.live .dua{padding:1.2vh 1.4vh}
+.live .dua .dar{font-size:calc(3.4vh*var(--s)*var(--f,1))}
+.live .dua .den{font-size:calc(2.2vh*var(--s)*var(--f,1))}
+.live .dua .dtr{display:none}
+.live .eidar{font-size:calc(7vh*var(--s)*var(--f,1))}
+.live .tiles{gap:.8vh}.live .tile{min-width:0;flex:1}
+
+/* ---- TV app (/tv): plays the azan out loud too */
+.tv .screen{padding-top:max(5.6vh,calc(env(safe-area-inset-top,0px) + 10px));padding-left:max(4vw,env(safe-area-inset-left,0px));padding-right:max(4vw,env(safe-area-inset-right,0px))}
+.tvtap{all:unset;position:fixed;left:50%;bottom:max(3vh,env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:1.4vw;max-width:calc(100% - 32px);padding:1.8vh 2.4vw;border-radius:999px;background:var(--t-accent);color:var(--t-on);font-size:2.8vh;font-weight:700;box-shadow:0 1.2vh 4vh rgba(0,0,0,.35);cursor:pointer;animation:tvp 2.4s ease-in-out infinite}
+.tv.needtap footer{visibility:hidden}
+.tvtap svg{width:1.4em;height:1.4em;flex:none}
+.tvtap small{display:block;font-size:.62em;font-weight:600;opacity:.8}
+@keyframes tvp{50%{transform:translateX(-50%) scale(1.035)}}
+.tvoff{position:fixed;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;text-align:center;padding:6vh 8vw;background:var(--t-bg)}
+.tvoff h1{margin:0 0 1.4vh;font-size:5vh}
+.tvoff p{margin:0 auto;max-width:40em;color:var(--t-muted);font-size:2.6vh}
+
 /* splash while starting up */
 #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #splash svg.logo-big{width:18vh;height:18vh}
@@ -187,6 +236,10 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
   .badge{left:10px;top:10px;padding:5px 10px;font-size:12px;gap:6px}.badge .rec{width:8px;height:8px}
   .sound{right:10px;bottom:10px;padding:8px 12px;font-size:13px;border-radius:10px}.sound svg{width:16px;height:16px}
   .pmsg h2{font-size:18px}.pmsg p{font-size:13px}.spin{width:28px;height:28px;border-width:3px}
+  .rstrip{margin-top:14px;gap:10px}.rstrip .rl,.rstrip .rr{font-size:12px}.rstrip .segs i{height:6px}
+  .dua .dar{font-size:calc(24px*var(--s)*var(--f,1))}.dua .den{font-size:calc(15px*var(--s)*var(--f,1))}.dua .dtr{font-size:calc(13px*var(--s)*var(--f,1))}
+  .eidar{font-size:calc(48px*var(--s)*var(--f,1))}.tile{min-width:140px}.tile span{font-size:calc(24px*var(--s)*var(--f,1))}
+  .tvtap{font-size:16px;padding:10px 18px}
 }
 </style>
 </head>
@@ -202,10 +255,12 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 
 <div class="screen" id="screen" hidden>
   <svg class="pattern" viewBox="0 0 600 600" aria-hidden="true"><circle cx="300" cy="300" r="298"/><circle cx="300" cy="300" r="130"/><rect x="88" y="88" width="424" height="424"/><path d="M300 2L598 300 300 598 2 300z"/></svg>
+  <svg class="lanterns" viewBox="0 0 150 190" aria-hidden="true"><g fill="none" stroke-width="1.6" stroke-linejoin="round"><path d="M40 0 V54 M110 0 V30"/><path d="M28 54 H52 L56 64 H24 Z"/><path d="M26 64 H54 L60 104 L54 140 H26 L20 104 Z"/><path d="M40 64 V140 M20 104 H60"/><path d="M32 140 H48 L44 152 H36 Z"/><circle cx="40" cy="158" r="4"/><path d="M100 30 H120 L123 38 H97 Z"/><path d="M99 38 H121 L126 68 H94 Z"/><path d="M94 68 L99 96 H121 L126 68"/><path d="M104 96 H116 L113 105 H107 Z"/><circle cx="110" cy="110" r="3"/></g></svg>
   <header>
     <div class="place"><span id="logo"></span><div><b id="place"></b><span class="date" id="date"></span></div></div>
     <div id="clock"></div>
   </header>
+  <div class="rstrip" id="rstrip" hidden></div>
   <div class="stage">
     <div class="player" id="player">
       <video id="video" muted autoplay playsinline aria-label="Makkah live"></video>
@@ -225,11 +280,14 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
     <div class="status" id="status"></div>
     <div class="fbtns">
     <button class="fbtn" id="livebtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg><span>Makkah live</span></button>
+    <button class="fbtn" id="tvsound" type="button" hidden></button>
     <button class="fbtn" id="fs" type="button" hidden onclick="fullScreen()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Full screen</button>
     <button class="fbtn" id="settings" type="button" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Settings</button>
     </div>
   </footer>
+  <button class="tvtap" id="tvtap" type="button" hidden></button>
 </div>
+<div class="tvoff" id="tvoff" role="alert" hidden><div><h1>TV screens are switched off</h1><p>This screen was disconnected in the Azan SIP Box. To use it again, switch on “Let TV screens connect” on the TV app page of the control panel. It reconnects by itself.</p></div></div>
 
 <div class="modal" id="lock" hidden>
   <form class="box" id="lockform" autocomplete="off">
@@ -247,6 +305,11 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 <script>
 "use strict";
 const PREVIEW = new URLSearchParams(location.search).get("preview") === "1";  // inside the control panel's Display page
+const TV = location.pathname === "/tv" && !PREVIEW;   // the TV app: also plays the azan out loud
+const APP = TV && /AzanSIPTV/.test(navigator.userAgent);   // inside the Android app (full screen already, sound allowed)
+const DEMO = new URLSearchParams(location.search).get("ramadan") === "demo";   // "Preview on the display" on the Ramadan page
+Object.assign(TITLE, {sehri:"Sehri ends", iftar:"Iftar · Maghrib"});
+Object.assign(ARABIC, {sehri:"السحور", iftar:"الإفطار"});
 const store = {get(k){ if(PREVIEW) return null; try{ return localStorage.getItem(k); }catch(e){ return null; } },
                set(k, v){ if(PREVIEW) return; try{ localStorage.setItem(k, v); }catch(e){} }};
 let S = null, SESSION = {}, got = 0, failures = 0, firstLoad = true, LOOK = null, previewLook = null, lookKey = "";
@@ -259,6 +322,7 @@ const THEMES = {
   night: {bg:"#0b0f0e", ink:"#f4f1ea", soft:"#e6e1d6", muted:"#bdb6a6", accent:"#e2bf6e", on:"#1a1408", tint:"255 255 255", logo:"#1f2a26"},
   navy:  {bg:"#0f2340", ink:"#ffffff", soft:"#e3e9f3", muted:"#c3cee0", accent:"#e8c36a", on:"#13213a", tint:"255 255 255", logo:"#1d3a66"},
   maroon:{bg:"#4a1420", ink:"#ffffff", soft:"#f4e6e8", muted:"#e1c4c9", accent:"#f2dfb4", on:"#3b0f19", tint:"255 255 255", logo:"#6a2131"},
+  ramadan:{bg:"#111735", ink:"#ffffff", soft:"#e4e7f5", muted:"#b9c0e0", accent:"#e9c46a", on:"#1b1a10", tint:"255 255 255", logo:"#222c62"},
   sand:  {bg:"#f4ecdc", ink:"#1d2622", soft:"#2c3631", muted:"#5f6b65", accent:"#146356", on:"#ffffff", tint:"0 0 0", logo:"#146356", moon:"#f4e3b5"},
 };
 const PARTS = ["clock", "date", "arabic", "countdown", "sunrise", "status", "pattern"];
@@ -275,6 +339,11 @@ function themeVars(L){
           tint: light ? "0 0 0" : "255 255 255", logo: `color-mix(in srgb,${bg} 72%,${ink})`};
 }
 function look(){ return previewLook || LOOK || {}; }
+// in Ramadan the screen can switch to the Ramadan theme by itself (Ramadan page in the control panel)
+function withRamadan(L){ return L && S && S.ramadan_screen && S.ramadan_screen.theme ? Object.assign({}, L, {theme:"ramadan"}) : L; }
+const DUA = {ar:"ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ",
+  tr:"Dhahaba al-ẓamaʾu wa-btallati al-ʿurūqu wa thabata al-ajru in shāʾ Allāh",
+  en:"The thirst has gone, the veins are moistened, and the reward is certain, if Allah wills.", src:"Sunan Abi Dawud 2357"};
 function applyLook(L){
   if(!L) return;
   const key = JSON.stringify(L);
@@ -287,7 +356,8 @@ function applyLook(L){
   r.setProperty("--vw", (L.live_width || 75) + "%");
   layoutClasses();
   b.toggle("vid-right", L.live_side === "right");
-  b.toggle("btn-auto", L.buttons === "auto");
+  b.toggle("btn-auto", L.buttons === "auto" || TV);   // on a TV the buttons show when the screen is tapped
+  b.toggle("th-ramadan", L.theme === "ramadan");
   for(const p of PARTS) b.toggle("no-" + p, (L.hide || []).includes(p));
   if(!previewLook) store.set("azanLook", key);  // so the splash already has the right colours next time
   if(S) render();
@@ -302,16 +372,16 @@ for(const ev of ["mousemove", "pointerdown", "keydown", "touchstart"]) addEventL
 
 // ---------------------------------------------------------------- prayer times
 // The clock and countdown tick every second between updates from the box.
+let CD = null;   // seconds to whatever the big countdown is counting to
 function tick(){
   if(!S || !S.clock) return;
   const passed = (Date.now() - got) / 1000;
   const [h, m, s] = S.clock.split(":").map(Number);
   const t = new Date(2000, 0, 1, h, m, s + passed);
   $("#clock").textContent = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
-  const n = S.next_azan;
-  if(n){ const u = $("#until"); if(u) u.textContent = untilText(n.seconds - passed); }
+  if(CD != null){ const u = $("#until"); if(u) u.textContent = untilText(CD - passed); }
   // move on to the next prayer as soon as its time comes, without waiting for the next update
-  if(n && n.seconds - passed <= 0 && passed > 2) load();
+  if(CD != null && CD - passed <= 0 && passed > 2) load();
 }
 
 // Today's times, or tomorrow's after the last azan of the day (with tomorrow's Fajr next)
@@ -320,21 +390,61 @@ function rowsNow(){
   return (tm ? tm.rows : st.today || []).filter(r => r.name !== "sunrise" || !hide.includes("sunrise")).map(r => {
     const past = !tm && (r.status === "played" || r.status === "passed" || (!r.azan && r.time <= now));
     const isNext = n && n.day === (tm ? "tomorrow" : "today") && n.prayer === r.name && !st.playing;
-    return {name: r.jumuah ? "jumuah" : r.name, time: r.time, off: r.azan && !r.enabled,
+    return {name: r.jumuah ? "jumuah" : r.name, time: r.time, off: r.azan && !r.enabled, next: isNext,
             cls: [r.name === "sunrise" ? "sunrise" : "", isNext ? "next" : past ? "past" : ""].join(" ")};
   });
 }
+function rowsRamadan(rows){
+  const R = S.ramadan_screen;
+  if(!R || !R.cards_sehri) return rows;
+  const suhoor = R.phase === "suhoor";
+  rows = rows.map(r => Object.assign({}, r, suhoor && r.next ? {next:false, cls:r.cls.replace("next", "")} : {},
+                                     r.name === "maghrib" ? {name:"iftar"} : {}));
+  const i = Math.max(0, rows.findIndex(r => r.name === "fajr"));
+  rows.splice(i, 0, {name:"sehri", time:R.cards_sehri, off:false, cls: suhoor ? "next" : R.cards_sehri_passed ? "past" : ""});
+  return rows;
+}
+function renderStrip(R){
+  const el = $("#rstrip");
+  const show = !!(R && R.counter && (R.day || R.starts_tomorrow));
+  el.hidden = !show;
+  if(!show) return;
+  const label = R.day ? `RAMADAN · DAY ${R.day} OF ${R.days}` : "RAMADAN STARTS TOMORROW";
+  let segs = "";
+  for(let i = 1; i <= R.days; i++) segs += `<i class="${R.day && i <= R.day ? "on" : (i > 20 ? "ten" : "")}"></i>`;
+  const right = R.last_ten ? `<span class="pill">Last ten nights</span>`
+    : (R.day && R.eid_in ? `${R.eid_in === 1 ? "Eid al-Fitr tomorrow" : `Eid al-Fitr in ${R.eid_in} days`}${R.expected ? " (expected)" : ""}` : "");
+  el.innerHTML = `<span class="rl">${label}</span><span class="segs" aria-hidden="true">${segs}</span><span class="rr">${right}</span>`;
+}
 
 function render(){
-  const st = S, L = look(), n = st.next_azan;
+  const st = S, L = look(), n = st.next_azan, R = st.ramadan_screen;
   const town = (st.location || "").split(",")[0], date = (st.date || "").replace(/^(\w+) 0?/, "$1 ");
   $("#place").textContent = L.title || town;
-  $("#date").textContent = L.title && town ? `${date} · ${town}` : date;
-  if(st.configured === false){
+  $("#date").textContent = [date, R && R.hijri, L.title && town ? town : ""].filter(Boolean).join(" · ");
+  renderStrip(R);
+  CD = n ? n.seconds : null;
+  if(R && R.phase === "dua" && st.configured !== false){
+    $("#hero").innerHTML = `<div class="lbl">Maghrib · ${esc(R.maghrib)}</div><div class="name sm">Iftar time</div>
+      <div class="dua"><div class="dl">DUA FOR BREAKING THE FAST</div><div class="dar ar" lang="ar" dir="rtl">${DUA.ar}</div>
+      <div class="dtr">${DUA.tr}</div><div class="den">${DUA.en}</div><div class="dsrc">${DUA.src}</div></div>`
+      + (st.playing ? `<div class="when" style="margin-top:1.4vh"><span class="mbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>${esc(st.playing)} playing on all phones</div>` : "");
+  } else if(st.configured === false){
     $("#hero").innerHTML = `<div class="lbl">Almost ready</div><div class="name sm">Setup isn't finished</div>
       <div class="when">Open Settings to finish setting up.</div>`;
   } else if(st.playing){
     $("#hero").innerHTML = `<div class="lbl">Now playing</div><div class="name">${esc(st.playing.replace(/ (azan|test)$/i, ""))}</div><div class="when">on all phones</div>`;
+  } else if(R && R.phase === "eid"){
+    const e = R.eid || {}, takbeer = /takbeer/i.test(st.playing || "");
+    $("#hero").innerHTML = `<div class="lbl">Eid al-Fitr ${esc(e.year || "")}</div><div class="eidar ar" lang="ar" dir="rtl">عيد مبارك</div><div class="name sm">Eid Mubarak</div>`
+      + `<div class="tiles">${e.prayer1 ? `<div class="tile hl"><b>${e.prayer2 ? "1st Eid prayer" : "Eid prayer"}</b><span>${esc(e.prayer1)}</span></div>` : ""}`
+      + `${e.prayer2 ? `<div class="tile"><b>2nd Eid prayer</b><span>${esc(e.prayer2)}</span></div>` : ""}`
+      + `${takbeer ? `<div class="tile note"><b>Takbeer</b><span>Playing on all phones until the Eid prayer</span></div>` : ""}</div>`;
+  } else if(R && (R.phase === "iftar" || R.phase === "suhoor")){
+    CD = R.seconds;
+    $("#hero").innerHTML = R.phase === "iftar"
+      ? `<div class="lbl">Iftar</div><div class="name sm">Maghrib at ${esc(R.maghrib)}</div><div class="when"><span class="until" id="until">${esc(untilText(R.seconds))}</span>${R.next_sehri ? `<span class="sep"> · </span>Sehri ends tomorrow at ${esc(R.next_sehri)}` : ""}</div>`
+      : `<div class="lbl">Suhoor ends</div><div class="name sm">Stop eating at ${esc(R.target)}</div><div class="when"><span class="until" id="until">${esc(untilText(R.seconds))}</span>${R.target_fajr ? `<span class="sep"> · </span>Fajr azan at ${esc(R.target_fajr)}` : ""}</div>`;
   } else if(n){
     const fri = n.prayer === "dhuhr" && st.today && st.today.some(r => r.name === "dhuhr" && r.jumuah) && n.day === "today";
     const name = fri ? "jumuah" : n.prayer;
@@ -343,7 +453,7 @@ function render(){
   } else {
     $("#hero").innerHTML = `<div class="lbl">Next azan</div><div class="name xs">No azan is switched on</div>`;
   }
-  const tm = st.tomorrow, rows = rowsNow();
+  const tm = st.tomorrow, rows = rowsRamadan(rowsNow());
   $("#daylabel").textContent = tm ? tm.label : "";
   $("#daylabel").hidden = !tm;
   const tag = r => r.off ? '<div class="tag">No azan</div>' : "";
@@ -351,21 +461,31 @@ function render(){
   $("#cards").innerHTML = rows.map(r => `<div class="card ${r.cls}"><div class="n">${esc(TITLE[r.name])}</div><div class="ar" lang="ar">${ARABIC[r.name]}</div><div class="t">${esc(r.time)}</div>${tag(r)}</div>`).join("");
   $("#slist").innerHTML = (tm ? `<div class="day">${esc(tm.label)}</div>` : "")
     + rows.map(r => `<div class="r ${r.cls}"><span class="n">${esc(TITLE[r.name])}</span>${r.off ? '<span class="tag">No azan</span>' : ""}<span class="ar" lang="ar">${ARABIC[r.name]}</span><span class="t">${esc(r.time)}</span></div>`).join("");
-  $("#status").innerHTML = statusLine(st);
+  $("#status").innerHTML = statusLine(st) + (R && R.day ? " · Ramadan mode is on" : "");
   renderNotice(L.message || "");
   tick();
   requestAnimationFrame(fitAll);
 }
 
 function statusLine(st){
-  const regs = st.registrations || [];
+  if(TV && !st.playing && st.configured !== false && st.running){   // what this screen does: plays the azan, or needs a tap first
+    const t = tvStatus(), phones = phoneLine(st);
+    return phones ? phones.replace(" · the azan will play on all phones", "") + " · " + esc(t[1]) : `<span class="dot ${t[0]}"></span> ${esc(t[1].replace(" too", ""))}`;
+  }
+  return phoneLine(st) || `<span class="dot warn"></span> No phones are set up yet. Add them in Settings.`;
+}
+function phoneLine(st){
+  const regs = st.registrations || [], srv = st.sipserver;
   const failed = regs.filter(r => r.status === "failed"), waiting = regs.filter(r => r.status === "starting");
   if(st.playing) return `<span class="dot live"></span> Playing on the phones now`;
   if(st.configured === false) return `<span class="dot warn"></span> The azan won't play until setup is finished`;
   if(!st.running) return `<span class="dot warn"></span> Automatic azan is paused. Switch it on in Settings.`;
-  if(!st.targets) return `<span class="dot warn"></span> No phones are set up yet. Add them in Settings.`;
+  if(!st.targets) return "";
+  if(srv && srv.status === "failed") return `<span class="dot bad"></span> Phones can't sign in to the box: ${esc(srv.detail || "check Settings")}`;
   if(failed.length) return `<span class="dot bad"></span> Not connected to the phone system: ${esc(failed[0].detail || "check Settings")}`;
   if(waiting.length) return `<span class="dot warn"></span> Connecting to the phone system…`;
+  if(srv && st.targets === 1 && !regs.length && !(srv.accounts || []).some(a => a.registered))   // the only method, and nothing has signed in yet
+    return `<span class="dot warn"></span> Waiting for the phone system to sign in to the box…`;
   if(st.skip_today) return `<span class="dot warn"></span> No azan today (switched off for ${esc((st.date || "").split(" ")[0])}s)`;
   return `<span class="dot"></span> ${regs.length ? "Phones connected" : "Phones ready"} · the azan will play on all phones`;
 }
@@ -410,16 +530,16 @@ addEventListener("resize", () => { const t = noticeKey; noticeKey = ""; if(t) re
 
 async function load(){
   let st;
-  try{ st = await api("/api/state"); failures = 0; }
+  try{ st = await api("/api/state" + (DEMO ? "?ramadan=demo" : "")); failures = 0; }
   catch(e){
     failures++;
     if(!S || failures > 2) showSplash(S ? "Reconnecting to the box…" : "Starting up…");
     return;
   }
-  if(!PREVIEW && st.configured === false && SESSION.box && !st.setup_manual){ location.replace("/setup"); return; }
+  if(!PREVIEW && !TV && st.configured === false && SESSION.box && !st.setup_manual){ location.replace("/setup"); return; }
   S = st; got = Date.now();
   $("#splash").hidden = true; $("#screen").hidden = false;
-  if(!previewLook) applyLook(st.look);
+  if(!previewLook) applyLook(withRamadan(st.look));
   if(firstLoad){
     firstLoad = false;
     // Makkah live: ?live=1 in the address, else what this screen chose last, else the setting for new screens
@@ -465,7 +585,7 @@ function loadHls(){
     s.onload = ok; s.onerror = () => bad(new Error("Couldn't load the video player")); document.head.appendChild(s); });
 }
 function stopLive(){
-  clearTimeout(LV.retry); LV.retry = null;
+  clearTimeout(LV.retry); LV.retry = null; clearTimeout(LV.slow);
   if(LV.hls){ LV.hls.destroy(); LV.hls = null; }
   const v = $("#video"); v.onerror = null; if(v.getAttribute("src")){ v.removeAttribute("src"); v.load(); }
 }
@@ -496,17 +616,18 @@ async function startLive(){
   liveMsg("wait", "Connecting to Makkah live…");
   soundBtn();
   LV.key = liveKey(); LV.played = false;
-  const src = liveSrc(), direct = src !== RELAY;
+  const src = liveSrc(), direct = src !== RELAY, v = $("#video");
+  // iPads, iPhones and Macs play the stream with their own player: lighter on an old iPad
+  const native = /Apple/.test(navigator.vendor || "") && !!v.canPlayType("application/vnd.apple.mpegurl");
   try{
     if(!direct){
       const r = await fetch(RELAY, {cache: "no-store"});
       if(!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.error || `The stream isn't available (error ${r.status}).`); }
     }
-    await loadHls();
+    if(!native) await loadHls();
   }catch(e){ return retryLive("Makkah live isn't available right now", e.message); }
   if(!LV.on) return;
-  const v = $("#video");
-  if(window.Hls && Hls.isSupported()){
+  if(!native && window.Hls && Hls.isSupported()){
     const h = LV.hls = new Hls({liveSyncDurationCount: 3, maxBufferLength: 30, backBufferLength: 30, enableWorker: true});
     h.on(Hls.Events.ERROR, (ev, d) => {
       if(!d.fatal) return;
@@ -521,8 +642,13 @@ async function startLive(){
     h.loadSource(src);
     h.attachMedia(v);
   } else if(v.canPlayType("application/vnd.apple.mpegurl")){
-    if(direct) v.onerror = () => { if(!LV.played) directFailed(); };
+    v.onerror = () => {   // the built-in player gave up: go through the box, or reconnect
+      if(direct && !LV.played) directFailed();
+      else if(LV.on && !PREVIEW) retryLive("Makkah live was interrupted", "The connection to the stream dropped.");
+    };
     v.src = src; play();
+    // the built-in player: if it hasn't started in 45 seconds, try again
+    LV.slow = setTimeout(() => { if(LV.on && !$("#pmsg").hidden && v.getAttribute("src")) retryLive("Makkah live isn't available right now", "It didn't start."); }, 45000);
   } else {
     liveMsg("error", "This screen can't play Makkah live", "Its browser is too old for live video. Chrome or Edge will play it."); soundBtn();
   }
@@ -573,8 +699,10 @@ async function openSettings(){
 function closeLock(){ $("#lock").hidden = true; }
 
 // Full screen, for a TV or monitor plugged into a PC (the box's own screen is full screen already)
-const canFull = () => !PREVIEW && !!document.documentElement.requestFullscreen && !document.fullscreenElement && !(SESSION.box && SESSION.local);
-function fullScreen(){ document.documentElement.requestFullscreen().catch(() => {}); }
+const rootEl = document.documentElement, goFull = rootEl.requestFullscreen || rootEl.webkitRequestFullscreen;
+const standalone = navigator.standalone || (window.matchMedia && matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches);
+const canFull = () => !PREVIEW && !!goFull && !document.fullscreenElement && !(SESSION.box && SESSION.local) && !standalone && !APP;
+function fullScreen(){ try{ const p = goFull.call(rootEl); if(p && p.catch) p.catch(() => {}); }catch(e){} }
 document.addEventListener("fullscreenchange", () => { $("#fs").hidden = !canFull(); });
 $("#lockform").addEventListener("submit", async e => {
   e.preventDefault();
@@ -590,10 +718,217 @@ if(PREVIEW){
     if(e.origin !== location.origin || !e.data || e.data.type !== "azan-look") return;
     previewLook = e.data.look; lookKey = "";
     setLive(!!e.data.live, false);
-    applyLook(previewLook);
+    applyLook(withRamadan(previewLook));
   });
   if(parent !== window) parent.postMessage({type: "azan-preview-ready"}, location.origin);
 }
+
+// ---------------------------------------------------------------- TV app: plays the azan out loud
+// The screen asks the box twice a second what is playing and when it started, and plays the
+// same recording from the same point, so it sounds together with the phones. Browsers only allow
+// sound after the screen has been tapped (or clicked) once, so until then it shows a reminder.
+const TVA = {ctx:null, on: store.get("azanTvSound") !== "0", offset:null, rtt:Infinity, offAt:0, bufs:new Map(),
+             cur:null, done:0, shown:null, next:null, timer:null, error:"", lock:null, wasOn:false, off:false};
+const SPK2 = {on:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+              off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>'};
+function tvId(){
+  let id = store.get("azanTvId");
+  if (!id){ id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); store.set("azanTvId", id); }
+  return id;
+}
+function tvName(){
+  const q = new URLSearchParams(location.search).get("name");
+  if (q){ store.set("azanTvName", q.slice(0, 40)); return q.slice(0, 40); }
+  const mine = store.get("azanTvName"); if (mine) return mine;
+  const ua = navigator.userAgent || "";
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return "iPad";
+  if (/iPhone|iPod/.test(ua)) return "iPhone";
+  if (/AFT|Silk/.test(ua)) return "Fire TV";
+  if (/SMART-TV|SmartTV|Tizen|Web0S|webOS|NetCast|BRAVIA|HbbTV/i.test(ua)) return "Smart TV";
+  if (/Android/.test(ua)) return /Mobile/.test(ua) ? "Android phone" : "Android";
+  if (/CrOS/.test(ua)) return "Chromebook";
+  if (/Windows/.test(ua)) return "Windows PC";
+  if (/Macintosh/.test(ua)) return "Mac";
+  return "Screen";
+}
+const audioOK = () => !!(TVA.ctx && TVA.ctx.state === "running");
+function tvStatus(){
+  if (!TVA.on) return ["warn", "Azan sound is off on this screen"];
+  if (!(window.AudioContext || window.webkitAudioContext)) return ["bad", "This screen's browser can't play the azan"];
+  if (!audioOK()) return ["warn", "Tap the screen to let it play the azan"];
+  if (TVA.error) return ["bad", TVA.error];
+  return ["", "This screen plays the azan too"];
+}
+function tvUI(){
+  if (!TV) return;
+  const tap = $("#tvtap"), need = TVA.on && !audioOK() && !!(window.AudioContext || window.webkitAudioContext);
+  tap.hidden = !need;
+  document.body.classList.toggle("needtap", need);
+  if (need) tap.innerHTML = `${SPK2.off}<span>Tap here to turn on the azan sound<small>${TVA.wasOn ? "The sound was paused. One tap brings it back." : "Needed once each time the app is opened"}</small></span>`;
+  const b = $("#tvsound");
+  b.hidden = false;
+  b.innerHTML = TVA.on ? `${SPK2.on}<span>Azan sound on</span>` : `${SPK2.off}<span>Azan sound off</span>`;
+  b.setAttribute("aria-pressed", TVA.on ? "true" : "false");
+  b.title = TVA.on ? "This screen plays the azan. Press to keep it quiet." : "This screen stays quiet. Press to play the azan here too.";
+  if (S) render();
+}
+function audioCtx(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!TVA.ctx){
+    try{ TVA.ctx = new AC(); }catch(e){ return null; }
+    TVA.ctx.onstatechange = () => { if (audioOK()) TVA.wasOn = true; tvUI(); };
+  }
+  return TVA.ctx;
+}
+function unlock(){   // inside a tap: let this page make sound (and keep the screen on)
+  const c = audioCtx();
+  if (!c) return;
+  try{ if (navigator.audioSession) navigator.audioSession.type = "playback"; }catch(e){}   // play even when the iPad is set to silent
+  try{   // a moment of silence, played inside the tap: older iPads need this before they allow sound
+    const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource();
+    s.buffer = b; s.connect(c.destination); s.start(0);
+  }catch(e){}
+  if (c.resume) c.resume().then(tvUI, tvUI);
+  if (LV.on && LV.want && !LV.azanMuted){ const v = $("#video"); v.muted = false; v.play().catch(() => {}); soundBtn(); }
+  keepAwake();
+  setTimeout(tvUI, 300);
+}
+async function keepAwake(){
+  try{ if (navigator.wakeLock && document.visibilityState === "visible" && !TVA.lock){
+    TVA.lock = await navigator.wakeLock.request("screen");
+    TVA.lock.addEventListener("release", () => { TVA.lock = null; });
+  } }catch(e){}
+}
+const serverNow = () => Date.now() + (TVA.offset ?? 0);
+function fetchDecode(url){
+  return fetch(url).then(r => { if (!r.ok) throw new Error(`error ${r.status}`); return r.arrayBuffer(); })
+    .then(ab => new Promise((ok, bad) => audioCtx().decodeAudioData(ab, ok, e => bad(e || new Error("can't read it")))));
+}
+function getBuf(s){   // download and unpack a recording once (and keep the last few)
+  let e = TVA.bufs.get(s.id);
+  if (!e){
+    e = fetchDecode(s.url).then(buf => ({buf, raw:s.raw}), err => {
+      if (s.url === s.fallback) throw err;
+      return fetchDecode(s.fallback).then(buf => ({buf, raw:false}));   // the phone version, which any browser can read
+    });
+    TVA.bufs.set(s.id, e);
+    e.catch(() => TVA.bufs.delete(s.id));
+    while (TVA.bufs.size > 3) TVA.bufs.delete(TVA.bufs.keys().next().value);
+  }
+  return e;
+}
+function stopSound(markDone){
+  const cur = TVA.cur; TVA.cur = null;
+  if (!cur) return;
+  if (markDone) TVA.done = cur.seq;
+  if (!cur.src) return;
+  try{
+    const t = TVA.ctx.currentTime, g = cur.gain.gain;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + .6);
+    cur.src.stop(t + .65);
+  }catch(e){ try{ cur.src.stop(); }catch(e2){} }
+}
+async function startSound(p){
+  stopSound(false);
+  const cur = TVA.cur = {seq:p.seq, src:null, gain:null};
+  let e;
+  try{ e = await getBuf(p.sound); TVA.error = ""; }
+  catch(err){ if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; TVA.error = "Couldn't play the recording on this screen"; tvUI(); } return; }
+  if (TVA.cur !== cur || !audioOK()) { if (TVA.cur === cur) TVA.cur = null; return; }
+  const c = TVA.ctx, s = p.sound, buf = e.buf;
+  const lead = e.raw ? (s.lead || 0) : 0;                                  // the phones start with a moment of silence
+  const body = e.raw && s.max ? Math.min(buf.duration, s.max) : buf.duration;  // the length limit for the azan
+  const total = e.raw && s.repeat ? s.repeat : body;                       // takbeer repeats for a set time
+  const into = (serverNow() - p.started) / 1000 - lead;                   // how far the phones are by now
+  if (into >= total - .05){ TVA.cur = null; TVA.done = p.seq; return; }
+  const src = c.createBufferSource(), g = c.createGain();
+  src.buffer = buf; src.connect(g); g.connect(c.destination);
+  const when = c.currentTime + Math.max(0, -into), off = Math.max(0, into);
+  if (off > 0){ g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(1, when + .25); }   // joining part-way: fade in
+  if (e.raw && s.repeat){ src.loop = true; src.loopStart = 0; src.loopEnd = body; src.start(when, off % body); src.stop(when + total - off); }
+  else src.start(when, off, total - off);
+  src.onended = () => { if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; } };
+  cur.src = src; cur.gain = g;
+}
+function tvOff(off){   // switched off in Azan SIP: go quiet and dark until it's switched on again
+  if (off && !TVA.off){
+    TVA.off = true;
+    stopSound(true);
+    stopLive();
+  } else if (!off && TVA.off){
+    TVA.off = false;
+    if (LV.on) startLive();
+  }
+  $("#tvoff").hidden = !TVA.off;
+  if (off){ clearTimeout(TVA.timer); TVA.timer = setTimeout(tvPoll, 5000); }
+}
+function tvHandle(j){
+  const p = j.playing;
+  if (S){   // show "Playing now" straight away, without waiting for the next display update
+    const label = p ? p.label : null;
+    if (label && S.playing !== label){ S.playing = TVA.shown = label; render(); azanCheck(); }
+    else if (!label && TVA.shown && S.playing === TVA.shown){ S.playing = TVA.shown = null; render(); azanCheck(); }
+  }
+  if (TVA.cur && (!p || p.seq !== TVA.cur.seq)){
+    // stopped in the control panel: stop here too. Otherwise let it finish by itself
+    if (!p && j.last && j.last.seq === TVA.cur.seq && j.last.stopped) stopSound(true);
+    else if (p) stopSound(true);
+  }
+  if (p && TVA.on && audioOK() && !TVA.cur && TVA.done !== p.seq) startSound(p);
+  TVA.next = j.next;
+  if (j.next && TVA.on && TVA.ctx && j.next.at - serverNow() < 20 * 60000) getBuf(j.next.sound).catch(() => {});   // download it early
+}
+async function tvPoll(){
+  clearTimeout(TVA.timer);
+  const t0 = Date.now();
+  try{
+    const q = new URLSearchParams({id:tvId(), name:tvName(), sound:TVA.on ? "1" : "0",
+      audio: !(window.AudioContext || window.webkitAudioContext) ? "none" : audioOK() ? "on" : "tap", playing: TVA.cur ? TVA.cur.seq : ""});
+    const r = await fetch("/api/tv?" + q, {cache:"no-store"});
+    if (r.status === 403) return tvOff(true);   // "Let TV screens connect" was switched off
+    if (!r.ok) throw new Error(r.status);
+    if (TVA.off) tvOff(false);
+    const j = await r.json(), t1 = Date.now(), rtt = t1 - t0;
+    // the box's clock as seen here, from the quickest recent answers
+    if (TVA.offset === null || rtt <= TVA.rtt * 1.5 + 10 || t1 - TVA.offAt > 60000){ TVA.offset = j.now - (t0 + t1) / 2; TVA.rtt = rtt; TVA.offAt = t1; }
+    tvHandle(j);
+  }catch(e){}
+  tvNext();
+}
+function tvNext(){
+  // ask more often just before something starts, so the sound starts on time
+  const soon = TVA.next && TVA.next.at - serverNow() < 6000 && TVA.next.at - serverNow() > -3000;
+  TVA.timer = setTimeout(tvPoll, soon ? 200 : 500);
+}
+if (TV){
+  document.body.classList.add("tv");
+  $("#settings").hidden = true;
+  for (const ev of ["touchend", "click"]) addEventListener(ev, () => { if (TVA.on && !audioOK()) unlock(); }, true);
+  $("#tvsound").addEventListener("click", () => {
+    TVA.on = !TVA.on; store.set("azanTvSound", TVA.on ? "1" : "0");
+    if (TVA.on) unlock(); else stopSound(false);
+    tvUI();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    keepAwake();
+    if (TVA.ctx && TVA.ctx.state !== "running" && TVA.ctx.resume) TVA.ctx.resume().then(tvUI, tvUI);
+  });
+  setInterval(() => {   // after a call, Siri or an alarm the iPad may pause the sound: try to bring it back
+    if (TVA.ctx && TVA.on && TVA.ctx.state !== "running" && TVA.ctx.resume) TVA.ctx.resume().then(tvUI, tvUI);
+  }, 15000);
+  const c = audioCtx();   // some browsers (a PC set up as a kiosk) allow sound straight away
+  if (c && c.resume) c.resume().then(tvUI, tvUI);
+  tvUI(); tvPoll();
+}
+
+// the Android app's menu (Back on the remote) uses these
+if (TV) window.azanApp = {
+  state(){ return `live:${LV.on ? 1 : 0},sound:${TVA.on ? 1 : 0}`; },
+  toggleLive(){ setLive(!LV.on, true); },
+  toggleSound(){ $("#tvsound").click(); },
+};
 
 (async () => {
   try{ const c = store.get("azanLook"); if(c) applyLook(JSON.parse(c)); }catch(e){}

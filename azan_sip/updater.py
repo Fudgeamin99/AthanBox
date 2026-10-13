@@ -39,7 +39,8 @@ API = os.environ.get("AZAN_UPDATE_API") or f"https://api.github.com/repos/{REPO}
 UA = {"User-Agent": f"azan-sip/{__version__}", "Accept": "application/vnd.github+json"}
 
 # Never overwritten or deleted by an update.
-USER_FILES = {"config.toml", "config.toml.bak", "config.tmp", "timetable.csv", ".installed.json"}
+USER_FILES = {"config.toml", "config.toml.bak", "config.tmp", "timetable.csv", ".installed.json", ".sessions.json",
+              ".sip_bindings.json"}
 USER_DIRS = {"audio", "auth", "backups", ".git", "__pycache__"}
 KEEP_BACKUPS = 3
 

@@ -20,6 +20,8 @@ build/
 dist/
 *.spec
 AzanSIP*.exe
+.sip_bindings.json
+azan_sip/static/AzanTV.apk
 
 # Azan SIP Box passwords (hashed) - per box, never committed
 auth/

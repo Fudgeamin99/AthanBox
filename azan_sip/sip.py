@@ -137,20 +137,30 @@ class SipTarget:
 
 
 class SipCall:
-    def __init__(self, target: SipTarget, get_audio: Callable[[str], bytes], stop: threading.Event | None = None):
+    def __init__(self, target: SipTarget, get_audio: Callable[[str], bytes], stop: threading.Event | None = None,
+                 transport=None):
+        """transport: send and receive through Azan SIP's own SIP server socket (phones that signed in to it)
+        instead of a socket of this call's own."""
         self.t = target
         self.get_audio = get_audio
         self.stop = stop or threading.Event()
+        self.transport = transport
         self.user, self.host, self.port = parse_uri(target.uri)
-        self.remote = (socket.gethostbyname(self.host), self.port)
+        self.remote = transport.remote if transport else (socket.gethostbyname(self.host), self.port)
         self.lip = target.local_ip or rtp.local_ip_for(self.remote[0])
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(("0.0.0.0", target.sip_port))
-        self.lport = self.sock.getsockname()[1]
+        if transport:
+            self.sock = None
+            self.lport = transport.port
+        else:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind(("0.0.0.0", target.sip_port))
+            self.lport = self.sock.getsockname()[1]
         self.rtp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rtp_sock.bind(("0.0.0.0", 0))
         self.rtp_port = self.rtp_sock.getsockname()[1]
         self.call_id = f"{_rand(16)}@{self.lip}"
+        if transport:
+            transport.attach(self.call_id)
         self.from_domain = self.host if target.username else self.lip
         self.from_tag = _rand(8)
         self.to_tag = ""
@@ -196,20 +206,29 @@ class SipCall:
         h.append(f"Content-Length: {len(body.encode())}")
         return ("\r\n".join(h) + "\r\n\r\n" + body).encode()
 
-    def _send(self, data: bytes):
-        self.sock.sendto(data, self.remote)
+    def _send(self, data: bytes, addr=None):
+        if self.transport:
+            self.transport.send(data, addr or self.remote)
+        else:
+            self.sock.sendto(data, addr or self.remote)
 
     def _recv(self, timeout: float) -> SipMessage | None:
-        self.sock.settimeout(max(timeout, 0.01))
-        try:
-            data, addr = self.sock.recvfrom(65535)
-        except (socket.timeout, TimeoutError):
-            return None
-        except ConnectionResetError:  # Windows: ICMP port unreachable
-            return None
-        if not data.strip():
-            return None  # keep-alive
-        msg = SipMessage.parse(data)
+        if self.transport:
+            got = self.transport.recv(timeout)
+            if got is None:
+                return None
+            msg, addr = got
+        else:
+            self.sock.settimeout(max(timeout, 0.01))
+            try:
+                data, addr = self.sock.recvfrom(65535)
+            except (socket.timeout, TimeoutError):
+                return None
+            except ConnectionResetError:  # Windows: ICMP port unreachable
+                return None
+            if not data.strip():
+                return None  # keep-alive
+            msg = SipMessage.parse(data)
         if msg.method:  # request from the far end
             self._handle_request(msg, addr)
             return None
@@ -231,7 +250,7 @@ class SipCall:
             resp.append(f"Via: {v}")
         resp += [f"From: {msg.get('from')}", f"To: {msg.get('to')}", f"Call-ID: {msg.get('call-id')}",
                  f"CSeq: {msg.get('cseq')}", "Content-Length: 0"]
-        self.sock.sendto(("\r\n".join(resp) + "\r\n\r\n").encode(), addr)
+        self._send(("\r\n".join(resp) + "\r\n\r\n").encode(), addr)
 
     def _transaction(self, method: str, body: str = "", extra: list[str] | None = None,
                      in_dialog: bool = False, final_timeout: float = 32.0) -> tuple[SipMessage | None, str, int]:
@@ -297,7 +316,10 @@ class SipCall:
             log.exception("%s: call failed", self.t.uri)
             return False
         finally:
-            self.sock.close()
+            if self.sock:
+                self.sock.close()
+            if self.transport:
+                self.transport.close()
             self.rtp_sock.close()
 
     def _run(self) -> bool:

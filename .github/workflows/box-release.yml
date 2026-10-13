@@ -5,6 +5,8 @@
 #   app updates into this repository never publishes anything. The app's own release workflow
 #   (with the Windows AzanSIP.exe build) lives only in Fudgeamin99/ATHAN-TO-SIP.
 # - Each new release also publishes the Docker image (see compose.yaml).
+# - The Android TV app (AzanTV.apk) is the desktop app's, built in Fudgeamin99/ATHAN-TO-SIP: each new
+#   release attaches a copy of its newest one, and the Docker image carries it.
 # - To release from a branch before it's merged, push it as a new branch named release/<anything>
 #   (or push the tag box-vX.Y.Z on it). Its newest BOX_CHANGELOG.md version is published.
 name: Box release
@@ -74,6 +76,12 @@ jobs:
           gh release create "$tag" -R "$REPO" "${where[@]}" --title "$title" \
             --notes-file notes.md --latest
           echo "Released $tag"
+          if gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D apk; then
+            gh release upload "$tag" apk/AzanTV.apk -R "$REPO"
+            echo "Attached the Android app (AzanTV.apk)"
+          else
+            echo "::warning::Couldn't fetch AzanTV.apk from Fudgeamin99/ATHAN-TO-SIP"
+          fi
           echo "created=true" >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
@@ -88,6 +96,14 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      # The Android TV app, so screens on a network without internet can download it from the box.
+      # Without it, /apk sends them to the app's latest release on GitHub.
+      - name: Add the Android app (AzanTV.apk)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
+             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
 
       - name: Image name
         id: name
