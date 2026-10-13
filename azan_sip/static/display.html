@@ -727,7 +727,7 @@ if(PREVIEW){
 // The screen asks the box twice a second what is playing and when it started, and plays the
 // same recording from the same point, so it sounds together with the phones. Browsers only allow
 // sound after the screen has been tapped (or clicked) once, so until then it shows a reminder.
-const TVA = {ctx:null, on: store.get("azanTvSound") !== "0", offset:null, rtt:Infinity, offAt:0, bufs:new Map(),
+const TVA = {ctx:null, vol:1, on: store.get("azanTvSound") !== "0", offset:null, rtt:Infinity, offAt:0, bufs:new Map(),
              cur:null, done:0, shown:null, next:null, timer:null, error:"", lock:null, wasOn:false, off:false};
 const SPK2 = {on:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
               off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>'};
@@ -845,7 +845,8 @@ async function startSound(p){
   const src = c.createBufferSource(), g = c.createGain();
   src.buffer = buf; src.connect(g); g.connect(c.destination);
   const when = c.currentTime + Math.max(0, -into), off = Math.max(0, into);
-  if (off > 0){ g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(1, when + .25); }   // joining part-way: fade in
+  if (off > 0){ g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(TVA.vol, when + .25); }   // joining part-way: fade in
+  else g.gain.setValueAtTime(TVA.vol, when);
   if (e.raw && s.repeat){ src.loop = true; src.loopStart = 0; src.loopEnd = body; src.start(when, off % body); src.stop(when + total - off); }
   else src.start(when, off, total - off);
   src.onended = () => { if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; } };
@@ -865,6 +866,11 @@ function tvOff(off){   // switched off in Azan SIP: go quiet and dark until it's
 }
 function tvHandle(j){
   const p = j.playing;
+  const vol = typeof j.volume === "number" ? j.volume : 1;   // the volume set on the TV app page
+  if (vol !== TVA.vol){
+    TVA.vol = vol;
+    if (TVA.cur && TVA.cur.gain){ try{ TVA.cur.gain.gain.setTargetAtTime(vol, TVA.ctx.currentTime, .1); }catch(e){} }
+  }
   if (S){   // show "Playing now" straight away, without waiting for the next display update
     const label = p ? p.label : null;
     if (label && S.playing !== label){ S.playing = TVA.shown = label; render(); azanCheck(); }

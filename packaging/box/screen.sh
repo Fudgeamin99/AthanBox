@@ -24,12 +24,18 @@ ls /dev/dri/card* >/dev/null 2>&1 \
     || { echo "This computer has no screen output (no graphics found), so there is nothing to show the prayer times on."; exit 1; }
 
 apt-get update
-apt-get install -y --no-install-recommends cage chromium libgl1-mesa-dri fonts-dejavu-core \
-    alsa-utils dbus libpam-systemd
+apt-get install -y --no-install-recommends cage xwayland seatd chromium libgl1-mesa-dri \
+    fonts-dejavu-core alsa-utils dbus libpam-systemd
+# Sound firmware for small Intel computers (such as Atom laptops and tablets), from Debian's
+# non-free-firmware section; without it their speakers stay silent.
+apt-get install -y --no-install-recommends alsa-ucm-conf firmware-intel-sound 2>/dev/null \
+    || echo "Note: firmware-intel-sound isn't available (non-free-firmware isn't in the apt sources). Some laptops need it for sound."
+# seatd hands the screen to the kiosk: logind refuses to on some computers (such as an IdeaPad).
+systemctl enable --now seatd
 
 id azan-screen >/dev/null 2>&1 \
     || useradd --system --create-home --home-dir /var/lib/azan-screen --shell /usr/sbin/nologin azan-screen
-for group in video render input audio; do
+for group in video render input audio _seatd; do
     if getent group "$group" >/dev/null; then usermod -a -G "$group" azan-screen; fi
 done
 
@@ -67,6 +73,13 @@ EOF
     echo "Sound: the TV on card $card, device $dev"
 else
     rm -f /var/lib/azan-screen/.asoundrc
+    # Switch the built-in speaker on: some laptops' sound chips start with it off and need their
+    # ALSA profile (UCM) to route it, which a desktop would normally do.
+    for card in $(LC_ALL=C aplay -l 2>/dev/null | grep -vi 'hdmi\|displayport' | sed -n 's/^card \([0-9]*\): .*/\1/p' | sort -u); do
+        alsaucm -c "hw:$card" set _verb HiFi set _enadev Speaker >/dev/null 2>&1 || true
+        for ctl in Master Speaker PCM; do amixer -c "$card" -q sset "$ctl" 100% unmute >/dev/null 2>&1 || true; done
+    done
+    alsactl store 2>/dev/null || true
     echo "No TV found on HDMI or DisplayPort, so the computer's own speakers play the azan."
     echo "For a TV: plug it in, switch it on and run this again."
 fi
@@ -78,4 +91,4 @@ systemctl daemon-reload
 systemctl enable azan-sip-screen
 systemctl restart azan-sip-screen
 echo "Done. The prayer times are on the TV now, and after every restart."
-echo "To hear it, open the control panel, go to TV app and press Test chime."
+echo "To hear it, open the control panel, go to TV app and press Test chime. No sound? Restart the computer once."

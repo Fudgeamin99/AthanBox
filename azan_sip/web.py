@@ -471,8 +471,12 @@ class Service:
         """What TV screens ask about twice a second: what's playing (and since when, so they join in at
         the right place), how the last one ended, and what plays next (to download it early)."""
         sh = self.shared
+        try:  # General volume of the azan on TV screens, 0-100 % (the TV app page)
+            vol = max(0.0, min(100.0, float(self.cfg.get("general", {}).get("tv_volume", 100)))) / 100
+        except (TypeError, ValueError):
+            vol = 1.0
         out = {"now": int(time.time() * 1000), "version": VERSION, "playing": None, "last": sh.last,
-               "next": None}
+               "next": None, "volume": vol}
         p = sh.playing
         if p and p["screens"]:
             out["playing"] = {"seq": p["seq"], "label": p["label"], "started": int(p["started"] * 1000),
