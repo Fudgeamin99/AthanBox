@@ -16,6 +16,14 @@ for i in $(seq 1 30); do
 done
 echo "ok: panel answers - $(curl -fsS "$url/api/ping")"
 
+# Run from the repository folder (as in CI), the box should say it is the newest BOX_CHANGELOG.md version
+want=$(sed -n 's/^## \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' BOX_CHANGELOG.md 2>/dev/null | head -n 1)
+if [ -n "$want" ]; then
+    got=$(curl -fsS "$url/api/session" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("version"))')
+    [ "$got" = "$want" ] || { echo "FAIL: the box says it is version '$got' (expected $want)"; exit 1; }
+    echo "ok: the box says it is version $got"
+fi
+
 if curl -fsS "$url/api/session" | grep -q '"configured": false'; then
     loc=$(curl -s -o /dev/null -w '%{redirect_url}' "$url/")
     case "$loc" in */setup) ;; *) echo "FAIL: a new box should open first-time setup (went to '$loc')"; exit 1;; esac

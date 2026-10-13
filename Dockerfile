@@ -12,6 +12,7 @@ RUN useradd --uid 1000 --home-dir /data --no-create-home --shell /usr/sbin/nolog
  && mkdir -p /data/audio && chown -R azan:azan /data
 WORKDIR /app
 COPY azan_sip ./azan_sip
+COPY BOX_CHANGELOG.md ./
 COPY packaging/docker/entrypoint.sh /usr/local/bin/azan-sip-entrypoint
 
 # AZAN_DOCKER: Settings > Updates explains how to pull a new image instead of updating in place.

@@ -832,7 +832,7 @@ function pageSettings(){
   ${boxCardHTML()}
   <div class="card" id="upd"><h2>Updates</h2><p class="muted">Loading…</p></div>
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Activity log</h2><span class="muted">Also saved to azan.log</span></div><div class="log" id="fulllog" style="margin-top:12px"></div></div>
-  <div class="card"><h2>About</h2><p class="muted">Azan SIP ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>${SESSION.box?"Control panel: open <b>http://azan.local</b> on any computer or phone on this network.</p></div>":`Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
+  <div class="card"><h2>About</h2><p class="muted">Azan SIP${SESSION.box?" Box":""} ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>${SESSION.box?"Control panel: open <b>http://azan.local</b> on any computer or phone on this network.</p></div>":`Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
     <button class="btn danger" onclick="quitApp()">Quit Azan SIP</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`}`;
   renderLog(true);
   loadUpdate();
@@ -938,12 +938,14 @@ async function loadUpdate(){ try{ UPD = await api("/api/update"); }catch(e){ UPD
 function renderUpdate(){
   const el=$("#upd"); if(!el||!UPD) return;
   const short = c => c ? String(c).slice(0,7) : "";
-  const dk = UPD.mode==="docker", canUpdate = !dk || UPD.helper;
-  const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">${dk?"Newest image":"Latest on GitHub"}: ${esc(vname(UPD.latest_version))} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
-      <div class="d">${esc((UPD.latest_date||"").slice(0,10))}${dk?(UPD.image?` · <span class="mono">${esc(UPD.image)}</span>`:""):` · ${esc(UPD.latest_message||"")} · <span class="mono">${esc(short(UPD.latest_commit))}</span>`}</div></div></div>` : "";
+  const dk = UPD.mode==="docker", rel = UPD.mode==="download", canUpdate = !dk || UPD.helper;
+  // Docker images and installed boxes follow the Box releases, so link to the release notes
+  const notes = (dk||rel) && /^\d/.test(String(UPD.latest_version||"")) ? (UPD.latest_url || `${UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box"}/releases/tag/box-v${UPD.latest_version}`) : "";
+  const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">${dk?"Newest image":rel?"Newest release":"Latest on GitHub"}: ${esc(vname(UPD.latest_version))} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
+      <div class="d">${esc((UPD.latest_date||"").slice(0,10))}${dk?(UPD.image?` · <span class="mono">${esc(UPD.image)}</span>`:""):` · ${esc(UPD.latest_message||"")}${rel?"":` · <span class="mono">${esc(short(UPD.latest_commit))}</span>`}`}${notes?` · <a href="${esc(notes)}" target="_blank" rel="noopener">What's new</a>`:""}</div></div></div>` : "";
   const bk = UPD.backups||[];
   el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box")}" target="_blank" rel="noopener">GitHub: ${esc((UPD.repo||"").split("/").pop()||"azan-sip-box")}</a></div>
-    <p class="muted" style="margin:8px 0 10px">Installed: ${esc(vname(UPD.current_version||S&&S.version||""))}${UPD.current_commit?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":UPD.mode==="docker"?" · Docker container":""}.
+    <p class="muted" style="margin:8px 0 10px">Installed: ${esc(vname(UPD.current_version||S&&S.version||""))}${UPD.current_commit&&!rel?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":dk?" · Docker container":rel?" · updates to each new release":""}.
       Your settings, recordings and timetable are kept when updating.</p>
     ${UPD.error?`<div class="banner bad">${ICON.warn}<div>${esc(UPD.error)}</div></div>`:""}
     ${latest}

@@ -2,9 +2,9 @@
 
 The Azan SIP Box plays the azan (call to prayer) automatically at every prayer time on your VoIP desk phones and IP speakers. It runs on its own, around the clock, and you set it up from a control panel in your browser on any computer or phone on the same network.
 
-Right now it runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
+It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.3.0, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.3.1, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
@@ -49,6 +49,19 @@ Open `http://<the computer's address>:8765`, sign in with your password, and the
 - **Nothing to set up for the folder.** Docker creates `data` on first start, and the container takes it over itself.
 - **The image** is for 64-bit PCs (amd64) and ARM boards (arm64), and includes ffmpeg for MP3 recordings.
 
+## Run it on Debian
+
+On a small PC that stays on, such as a Dell Wyse thin client, install Debian 12 or 13 without a desktop, then run:
+
+```sh
+sudo apt install -y git
+git clone https://github.com/Fudgeamin99/azan-sip-box.git
+cd azan-sip-box
+sudo sh packaging/box/install.sh
+```
+
+It installs Python and ffmpeg, names the box `azan` on the network, asks for the factory password, and starts the Box on every boot. Open `http://azan.local` (or `http://<its address>`) and the setup wizard starts. The Box needs to be on the same network as your phone system.
+
 ## First-time setup
 
 A new box opens the **setup wizard** in the browser. It takes about five minutes:
@@ -86,6 +99,8 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 **With the Update button:** go to **Settings → Updates** and press **Check for updates**. If there's a new version, press **Update now**. The Box restarts with it in a few seconds, and your `data` folder is kept. If the new version won't start, the old one is put back.
 
 The button needs the `updater` part of the compose file above. It's a small helper, from the same image, that downloads the new image and restarts the `azan-sip` container with it. Because it can control Docker on that computer, it only listens on the computer itself (127.0.0.1, port 8770) and only does what the control panel asks, using a secret key the panel keeps in `data/auth`. If you leave it out, Settings → Updates says how to update by hand.
+
+**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back.
 
 **By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 
