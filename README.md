@@ -62,6 +62,21 @@ sudo sh packaging/box/install.sh
 
 It installs Python and ffmpeg, names the box `azan` on the network, asks for the factory password, and starts the Box on every boot. Open `http://azan.local` (or `http://<its address>`) and the setup wizard starts. The Box needs to be on the same network as your phone system.
 
+### Prayer times on a TV plugged into the box
+
+A Dell Wyse or another small PC can show the prayer-times screen on a TV plugged into its HDMI or DisplayPort, and play the azan through the TV's speakers at the same moment as the phones. Plug the TV in and switch it on, then run:
+
+```sh
+cd azan-sip-box
+git pull
+sudo sh packaging/box/screen.sh
+```
+
+It installs a small full-screen browser (cage and Chromium) and opens the TV app on the TV, on every boot, with no tap needed for the sound. It works with *Let TV screens connect* switched off, and it can't open the settings. The screen shows on the **TV app** page as *Screen on the box*, where *Test chime* checks the sound. Theme, layout and Ramadan screens come from the **Display** page.
+
+- **No sound from the TV:** run the command again with the TV switched on, so it picks the sound output the TV is on. `aplay -l` lists the outputs. To pick one by hand, say card `HdmiLpeAudio`, device `1`, run `sudo AZAN_SCREEN_SOUND=HdmiLpeAudio,1 sh packaging/box/screen.sh`.
+- **Switch it off:** `sudo sh packaging/box/screen.sh off`. Ctrl+Alt+F2 on a keyboard plugged into the box also opens a text login while the screen is on.
+
 ## First-time setup
 
 A new box opens the **setup wizard** in the browser. It takes about five minutes:
@@ -119,7 +134,7 @@ What's new in each version is under [Releases](https://github.com/Fudgeamin99/az
 | Docker | Run it on a NAS or home server | Released in 0.2.0. The Update button in Settings came in 0.3.0. |
 | 2 | Six-step setup wizard, with phone setup by QR code, and the prayer-times screen | Released in 0.3.0, with Makkah live and the Display page |
 | Desktop 1.11 | Ramadan mode, the SIP trunk, the TV app and the Android app from the desktop app | Released in 0.4.0 |
-| 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | Planned |
+| 3 | Debian disk image for the Dell Wyse 3040: full-screen prayer-times display, bulk flasher | The full-screen display is ready on Debian (`packaging/box/screen.sh`). The disk image and flasher are planned. |
 | 4 | Sticker tool: per-box password and QR code | Planned |
 
 ## About this repository
