@@ -4,6 +4,10 @@ Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version,
 `## x.y.z - title` section at the top and merge it to main: a release tagged `box-vx.y.z` is
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
+## 0.3.2 - Makkah live straight from the stream
+- New on the Display page: **Screens fetch the stream themselves**. Each screen then downloads Makkah live over its own internet connection instead of through the Box, so a Box on a cloud server uses no data for it. If the stream doesn't allow it, screens go through the Box as before.
+- **Check the stream** now also says whether screens can fetch the stream themselves.
+
 ## 0.3.1 - Updates from the control panel on Debian
 - On a box installed with the Debian installer, such as a Wyse thin client, **Settings → Updates** now installs each new Box release (the same versions as the Docker image) instead of every change made on GitHub. **Check for updates** shows the new version with a **What's new** link, and **Update now** installs it and restarts. The previous version is kept, so you can go back.
 - Settings shows the Box's own version number, such as 0.3.1, instead of the desktop app's.

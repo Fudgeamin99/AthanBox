@@ -59,7 +59,7 @@ DEFAULT_CONFIG = {
     "prayers": {"enabled": list(ADHAN_PRAYERS), "reminder_minutes": 0, "skip_days": []},
     "audio": {"azan": "tone", "volume_db": 0, "lead_in_ms": 400},
     "network": {"local_ip": "", "multicast_ttl": 4},
-    "live": {"url": ""},   # Makkah live stream (empty = Saudi Quran TV)
+    "live": {"url": "", "direct": False},   # Makkah live stream (empty = Saudi Quran TV); direct: screens fetch it themselves
     "targets": [{"name": "All phones (multicast)", "type": "multicast", "address": "224.5.6.20:10008",
                  "codec": "PCMU", "enabled": True}],
 }
@@ -290,6 +290,13 @@ class Service:
     def live_url(self) -> str:
         return ((self.cfg.get("live") or {}).get("url") or "").strip() or live.DEFAULT_URL
 
+    def live_screen(self) -> dict:
+        """Where screens get Makkah live: through the box, or (direct) from the stream itself, so the box
+        uses no data for it. The link is only shared with screens when they need it."""
+        if (self.cfg.get("live") or {}).get("direct") is True:
+            return {"direct": True, "url": self.live_url}
+        return {"direct": False}
+
     def configured(self) -> bool:
         return bool(self.cfg.get("general", {}).get("configured", True))
 
@@ -349,6 +356,7 @@ class Service:
                   "configured": self.cfg.get("general", {}).get("configured", True),
                   "setup_manual": self.setup_manual(),
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
+                  "live": self.live_screen(),
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info()}
             if app is None:
