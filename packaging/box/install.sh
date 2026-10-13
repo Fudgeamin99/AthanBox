@@ -17,6 +17,8 @@ sed -i 's/^#\?use-ipv6=.*/use-ipv6=no/; s/^#\?publish-aaaa-on-ipv4=.*/publish-aa
 systemctl restart avahi-daemon
 
 id azan >/dev/null 2>&1 || useradd --system --home /opt/azan-sip --shell /usr/sbin/nologin azan
+# The volume slider on the TV app page sets the computer's own volume
+if getent group audio >/dev/null; then usermod -a -G audio azan; fi
 mkdir -p /opt/azan-sip
 cp -r azan_sip audio BOX_CHANGELOG.md CHANGELOG.md README.md /opt/azan-sip/
 # Record which commit this is. Settings > Updates installs each new Box release from GitHub.

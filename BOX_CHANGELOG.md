@@ -6,6 +6,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.4.5 - The volume slider sets the computer's own volume
+
+- **Volume on the box's own screen:** the slider on the TV app page now sets the volume of the computer the Box runs on, such as a laptop or a Wyse, like its volume keys would. If that computer has no volume control (a TV on HDMI often doesn't), the box's screen turns the azan down itself, as before.
+- On a box that already has a screen, run `git pull` and `sudo sh packaging/box/screen.sh` once, so the Box may change the volume.
+
 ## 0.4.4 - Volume for the box's own screen
 
 - **The volume slider** on the TV app page now changes only the screen plugged into the box (a laptop or a Wyse on a TV), not iPads and other TV screens, which keep their own volume.

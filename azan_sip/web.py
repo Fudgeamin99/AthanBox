@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, live, look, ramadan, rtp, screens, sipserver, tomlw, updater
+from . import __version__, hostvol, live, look, ramadan, rtp, screens, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import FROZEN, app_dir
 from .sipreg import Registration, RegistrationManager
@@ -365,9 +365,24 @@ class Service:
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
             sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to Azan SIP
             g = cfg.get("general", {})
+            self._host_volume(g.get("tv_volume", 100))
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
                 self.thread.start()
+
+    def _host_volume(self, value):
+        """The volume slider on the TV app page: set the computer's own volume (in the background)."""
+        try:
+            pct = max(0.0, min(100.0, float(value if value not in (None, "") else 100)))
+        except (TypeError, ValueError):
+            pct = 100.0
+        if getattr(self, "_host_pct", None) == pct:
+            return
+        self._host_pct = pct
+
+        def run():
+            self.host_volume_set = hostvol.set_volume(pct)
+        threading.Thread(target=run, name="host-volume", daemon=True).start()
 
     @property
     def live_url(self) -> str:
@@ -471,9 +486,12 @@ class Service:
         """What TV screens ask about twice a second: what's playing (and since when, so they join in at
         the right place), how the last one ended, and what plays next (to download it early)."""
         sh = self.shared
-        try:  # General volume of the azan on TV screens, 0-100 % (the TV app page)
+        try:  # The box's own screen: the volume slider on the TV app page, 0-100 %. When the computer's
+              # own volume was set instead (hostvol), the screen plays at full volume.
             vol = max(0.0, min(100.0, float(self.cfg.get("general", {}).get("tv_volume", 100)))) / 100
         except (TypeError, ValueError):
+            vol = 1.0
+        if getattr(self, "host_volume_set", False):
             vol = 1.0
         out = {"now": int(time.time() * 1000), "version": VERSION, "playing": None, "last": sh.last,
                "next": None, "volume": vol}
