@@ -42,21 +42,19 @@ session  required  pam_unix.so
 session  required  pam_systemd.so
 EOF
 
-# The azan plays through the TV: use the HDMI/DisplayPort sound output with a TV plugged in,
-# or else the first one. AZAN_SCREEN_SOUND=card,device picks one by hand (see aplay -l).
+# The azan plays through the TV: use the HDMI/DisplayPort sound output with a TV plugged in.
+# With none (say a laptop on its own screen) the computer's own speakers play it.
+# AZAN_SCREEN_SOUND=card,device picks one by hand (see aplay -l).
 pick_sound() {
-    first=""
     for cd in $(LC_ALL=C aplay -l 2>/dev/null | grep -i 'hdmi\|displayport' \
                 | sed -n 's/^card [0-9]*: \([^ ]*\) .*, device \([0-9]*\):.*/\1,\2/p'); do
         card=${cd%,*} dev=${cd#*,}
-        [ -n "$first" ] || first=$cd
         if LC_ALL=C amixer -c "$card" cget "iface=PCM,name=ELD,device=$dev" 2>/dev/null | grep -q 'values=.*0x\(0[1-9a-f]\|[1-9a-f][0-9a-f]\)' \
            || LC_ALL=C amixer -c "$card" cget "iface=CARD,name='HDMI/DP,pcm=$dev Jack'" 2>/dev/null | grep -q 'values=on'; then
             echo "$cd"
             return
         fi
     done
-    echo "$first"
 }
 sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
 if [ -n "$sound" ]; then
@@ -69,7 +67,8 @@ EOF
     echo "Sound: the TV on card $card, device $dev"
 else
     rm -f /var/lib/azan-screen/.asoundrc
-    echo "No HDMI or DisplayPort sound found: the screen uses the computer's own sound output."
+    echo "No TV found on HDMI or DisplayPort, so the computer's own speakers play the azan."
+    echo "For a TV: plug it in, switch it on and run this again."
 fi
 chown -R azan-screen:azan-screen /var/lib/azan-screen
 

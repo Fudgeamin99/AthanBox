@@ -35,6 +35,13 @@ if [ ! -f /opt/azan-sip/auth/factory.json ]; then
     chown -R azan:azan /opt/azan-sip/auth
 fi
 
+# A laptop keeps running with its lid closed (from the next restart).
+if ls /proc/acpi/button/lid/*/state >/dev/null 2>&1; then
+    mkdir -p /etc/systemd/logind.conf.d
+    printf '[Login]\nHandleLidSwitch=ignore\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' \
+        > /etc/systemd/logind.conf.d/azan-sip-box.conf
+fi
+
 cp packaging/box/azan-sip-box.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now azan-sip-box
