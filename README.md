@@ -35,6 +35,17 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/data:ro
+
+  # Optional: fail2ban, the whitelist and the blacklist on the firewall (see "Security" below)
+  security:
+    image: ghcr.io/fudgeamin99/azan-sip-box:latest
+    container_name: azan-sip-security
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW]
+    restart: unless-stopped
+    entrypoint: ["python", "-I", "/usr/local/lib/azan-sip/security-helper.py", "watch", "/data"]
+    volumes:
+      - ./data:/data
 ```
 
 Then start it:
@@ -140,7 +151,7 @@ Open **Security** in the menu.
 - **Whitelist:** addresses and ranges that are never banned or blocked. The box's own network is on it from the start, so you can't lock yourself out from inside the masjid. Add your phone system or your home's address too.
 - **Blacklist:** addresses and ranges that are always blocked, with a note. The Box won't let you block the address you're using, or its own.
 
-Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.1, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/system-setup.sh` once in the `azan-sip-box` folder. In Docker there's no fail2ban, but the blacklist still works: the Box refuses those addresses on its control panel and SIP port itself.
+Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.1, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/system-setup.sh` once in the `azan-sip-box` folder. In Docker, fail2ban and the firewall run in the `security` part of the compose file above, from the same image. It needs the `NET_ADMIN` capability to change the computer's firewall, so it runs as root in a container of its own, while the Box itself stays user 1000. It uses nftables, or iptables on a NAS whose kernel has no nftables, such as many Synology models. SSH sign-ins aren't watched in Docker, since the container can't see the NAS's own SSH log. Without the `security` part, the blacklist still works for the control panel and SIP: the Box refuses those addresses itself. To add it to a Box already running in Docker, copy that part into your compose file and run `docker compose up -d` (or redeploy the project in your NAS's Docker app). After that, the Update button updates it along with the Box.
 
 ## Updating
 

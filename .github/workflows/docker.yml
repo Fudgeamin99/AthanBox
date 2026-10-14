@@ -6,7 +6,7 @@ name: Docker image
 
 on:
   pull_request:
-    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", "azan_sip/**", .github/workflows/docker.yml]
+    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", packaging/box/security-helper.py, "azan_sip/**", .github/workflows/docker.yml]
   workflow_dispatch:
 
 permissions:
@@ -54,6 +54,27 @@ jobs:
           [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer wrong' http://127.0.0.1:8770/status)" = 403 ] \
               || { echo "FAIL: the updater answered without the right key"; exit 1; }
           echo "ok: the updater answers the panel's key only"
+
+      - name: Check the security container (fail2ban and the firewall) starts and reports
+        run: |
+          docker run -d --name security --network host --cap-add NET_ADMIN --cap-add NET_RAW \
+                     -v "$RUNNER_TEMP/data:/data" --entrypoint python azan-sip-box:test \
+                     -I /usr/local/lib/azan-sip/security-helper.py watch /data
+          for i in $(seq 1 30); do sudo test -f "$RUNNER_TEMP/data/security/status.json" && break; sleep 1; done
+          sleep 3
+          sudo cat "$RUNNER_TEMP/data/security/status.json" | python3 -c '
+          import json, sys
+          s = json.load(sys.stdin)
+          print(json.dumps(s, indent=1))
+          assert s["container"], "not in container mode"
+          assert s["fail2ban"]["running"], "fail2ban is not running"
+          assert s["firewall"]["active"], "the whitelist and blacklist are not on the firewall"
+          assert s["jails"]["panel"]["active"] and s["jails"]["sip"]["active"], "a jail is not running"
+          ' || { docker logs security; exit 1; }
+          sudo nft list table inet azan_sip_lists
+          docker stop security
+          ! sudo nft list table inet azan_sip_lists 2>/dev/null || { echo "FAIL: the lists stayed on the firewall after stopping"; exit 1; }
+          echo "ok: the security container runs fail2ban, sets the firewall and cleans up when it stops"
 
   preview:
     needs: build

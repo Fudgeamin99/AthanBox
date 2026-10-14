@@ -982,7 +982,7 @@ function secSpan(s){
 }
 async function loadSecurity(refresh){
   try{ SEC = await api("/api/security"); }catch(e){ SEC = SEC || {error:e.message}; }
-  if(refresh && SEC && SEC.helper && !SEC.docker) api("/api/security/refresh", {}).then(()=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, 2500)).catch(()=>{});
+  if(refresh && SEC && SEC.helper) api("/api/security/refresh", {}).then(()=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, 2500)).catch(()=>{});
 }
 function pageSecurity(){
   if(!SEC){ $("#main").innerHTML = '<h1>Security</h1><p class="muted">Loading…</p>'; loadSecurity(true).then(()=>{ if(page==="security") render(); }); return; }
@@ -1012,7 +1012,7 @@ function secLive(){
   const st = SEC.status, f = SEC.settings.fail2ban, fb = st && st.fail2ban;
   const el = $("#sec-status"); if(!el) return;
   let b = "";
-  if(SEC.docker) b += `<div class="banner">${ICON.warn}<div>In Docker, fail2ban and the firewall aren't available. The blacklist still works for the control panel and SIP: the box refuses those addresses itself.</div></div>`;
+  if(SEC.docker && !SEC.helper) b += `<div class="banner">${ICON.warn}<div>In Docker, fail2ban and the firewall run in a container of their own, which this computer doesn't have yet. Copy the <b>security</b> section from the <a href="https://github.com/Fudgeamin99/azan-sip-box/blob/main/compose.yaml" target="_blank" rel="noopener">latest compose.yaml</a> into yours, then run <span class="kbd">docker compose up -d</span>. Until then the blacklist works for the control panel and SIP only: the box refuses those addresses itself.</div></div>`;
   else if(!SEC.helper && SEC.system && (SEC.system.running || SEC.system.ok)) b += `<div class="banner">${ICON.warn}<div>The box is setting up fail2ban and the firewall by itself. This takes a minute or two after an update.</div></div>`;
   else if(!SEC.helper && SEC.system) b += `<div class="banner bad">${ICON.warn}<div>The box couldn't set up fail2ban and the firewall: ${esc(SEC.system.message)} It tries again every hour.</div></div>`;
   else if(!SEC.helper) b += `<div class="banner">${ICON.warn}<div>Fail2ban and the firewall need a one-time setup on this box. On the box, in the azan-sip-box folder, run <span class="kbd">git pull</span> and then <span class="kbd">${esc(SEC.setup_command)}</span>. After that, updates set themselves up. Until then the blacklist works for the control panel and SIP only.</div></div>`;
@@ -1024,7 +1024,7 @@ function secLive(){
     : fb.running ? '<span class="pill ok">Running</span>' : f.enabled!==false ? '<span class="pill bad">Not running</span>' : '<span class="pill">Off</span>';
   const jails = (st && st.jails) || {}, on = f.enabled!==false;
   $("#sec-jails").innerHTML = SEC_JAILS.map(([k,t,d])=>{ const j = jails[k] || {};
-    const p = !on || f.jails[k]===false ? "" : j.active ? `<span class="pill ${j.banned_now?"warn":"ok"}">${j.banned_now||0} banned${j.failed?` · ${j.failed} wrong tries`:""}</span>` : st && fb.running ? '<span class="pill">Waiting</span>' : "";
+    const p = j.unavailable ? '<span class="pill">Not available in Docker</span>' : !on || f.jails[k]===false ? "" : j.active ? `<span class="pill ${j.banned_now?"warn":"ok"}">${j.banned_now||0} banned${j.failed?` · ${j.failed} wrong tries`:""}</span>` : st && fb.running ? '<span class="pill">Waiting</span>' : "";
     return `<div class="toggle-row"><div><div class="t">${esc(t)} ${p}</div><div class="d">${esc(d)}${j.total_banned?` Banned ${j.total_banned} time${j.total_banned===1?"":"s"} since fail2ban started.`:""}</div></div>
       <label class="switch"><input type="checkbox" ${f.jails[k]!==false?"checked":""} ${on?"":"disabled"} onchange="secF2b({jails:{${k}:this.checked}})" aria-label="${esc(t)}"><span></span></label></div>`; }).join("");
   const bans = [];
@@ -1047,7 +1047,7 @@ function secLists(){
   const you = SEC.client_ip, inWl = SEC.client_whitelisted;
   $("#sec-wl").innerHTML = `<h2>Whitelist</h2><p class="muted" style="margin-top:-6px">Addresses that are never banned or blocked, such as this box's network and your phone system. ${inWl?`You're connected from <span class="mono">${esc(you)}</span>, which is on the whitelist.`:`You're connected from <span class="mono">${esc(you)}</span>, which isn't on the whitelist.`}</p>
     ${secRows("whitelist")}${secAddForm("wl", inWl ? "" : you)}`;
-  $("#sec-bl").innerHTML = `<h2>Blacklist</h2><p class="muted" style="margin-top:-6px">Addresses that are always blocked: they can't reach the box at all${SEC.helper&&!SEC.docker?"":" (until fail2ban is set up: the control panel and SIP only)"}. The whitelist wins if an address is on both.</p>
+  $("#sec-bl").innerHTML = `<h2>Blacklist</h2><p class="muted" style="margin-top:-6px">Addresses that are always blocked: they can't reach the box at all${SEC.helper?"":" (until fail2ban is set up: the control panel and SIP only)"}. The whitelist wins if an address is on both.</p>
     ${secRows("blacklist")}${secAddForm("bl")}`;
 }
 function secAddForm(k, mine){
