@@ -286,6 +286,9 @@ class ClientTest(unittest.TestCase):
             {"name": "HDMI-A-1", "x": 0, "y": 0, "w": 1920, "h": 1080},
             {"name": "eDP-1", "x": 1920, "y": 0, "w": 1280, "h": 800}])
         self.assertEqual(ac.parse_wayland_info(""), [])
+        # Listed right one first (as cage does with two headless screens): left to right all the same
+        swapped = WAYLAND_INFO.replace("logical_x: 0,", "logical_x: 3200,")
+        self.assertEqual([s["name"] for s in ac.parse_wayland_info(swapped)], ["eDP-1", "HDMI-A-1"])
         both = ac.parse_wayland_info(WAYLAND_INFO)
         self.assertEqual(ac.shown_screens(both, closed=False), both)
         self.assertEqual([s["name"] for s in ac.shown_screens(both, closed=True)], ["HDMI-A-1"])   # lid closed

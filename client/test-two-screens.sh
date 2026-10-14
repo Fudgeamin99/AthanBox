@@ -48,8 +48,8 @@ cat "$out/screens.json"
 
 # Let the prayer times load on both, then take a picture of the two screens
 sleep 25
-wl grim -t ppm "$out/screens.ppm"
-wl grim "$out/screens.png" || true
+wl grim -t ppm - > "$out/screens.ppm"
+wl grim - > "$out/screens.png" || true
 python3 - "$out/screens.ppm" <<'PY'
 import re, sys
 data = open(sys.argv[1], "rb").read()

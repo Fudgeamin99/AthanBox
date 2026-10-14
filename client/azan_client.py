@@ -266,6 +266,7 @@ def parse_wayland_info(text: str) -> list[dict]:
             if t.startswith("flags:") and "current" in t and cur.get("mode"):
                 cur["w"], cur["h"] = cur["mode"][0] // cur["scale"], cur["mode"][1] // cur["scale"]
     found = [o for o in xdg if "x" in o and o.get("w")] or [o for o in wl if "x" in o and o.get("w")]
+    found.sort(key=lambda o: (o["x"], o["y"]))   # left to right: the first plays the azan and shows the settings
     return [{"name": o["name"][:40], "x": o["x"], "y": o["y"], "w": o["w"], "h": o["h"]} for o in found][:MAX_SCREENS]
 
 
