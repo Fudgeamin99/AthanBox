@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+if [ "$1" = configure ]; then
+    id azan-client >/dev/null 2>&1 \
+        || useradd --system --user-group --create-home --home-dir /var/lib/azan-sip-client --shell /usr/sbin/nologin azan-client
+    for group in video render input audio _seatd; do
+        if getent group "$group" >/dev/null; then usermod -a -G "$group" azan-client; fi
+    done
+    mkdir -p /var/lib/azan-sip-client
+    chown azan-client:azan-client /var/lib/azan-sip-client
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload
+        systemctl enable seatd >/dev/null 2>&1 || true
+        systemctl start seatd >/dev/null 2>&1 || true
+        systemctl enable azan-sip-client >/dev/null
+        systemctl restart azan-sip-client
+        if systemctl is-enabled azan-sip-screen >/dev/null 2>&1; then
+            systemctl disable azan-sip-client-screen >/dev/null 2>&1 || true
+            echo "The Azan SIP Box's own screen is on here, so the client's screen isn't started."
+            echo "To show another box's prayer times instead: sudo sh packaging/box/screen.sh off, then sudo systemctl enable --now azan-sip-client-screen"
+        elif ls /dev/dri/card* >/dev/null 2>&1; then
+            systemctl enable azan-sip-client-screen >/dev/null
+            systemctl restart azan-sip-client-screen || true
+        else
+            echo "This computer has no screen output (no graphics found), so there is nothing to show the prayer times on."
+        fi
+    fi
+    echo
+    echo "Azan SIP Client is installed. Choose the box on the screen, or run:"
+    echo "    azan-sip-client search             find Azan SIP Boxes on the network"
+    echo "    azan-sip-client connect <address>  show that box's prayer times here"
+    echo "On the box, switch on \"Let TV screens connect\" on the TV app page."
+fi
+exit 0

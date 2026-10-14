@@ -1,0 +1,47 @@
+# The Azan SIP Client (client/), the TV screen for a Dell Wyse: on each pull request that changes it,
+# runs its tests, builds the Debian package and installs it on Debian 12 and 13, so a missing
+# dependency or a broken install script is caught before a Box release attaches it.
+name: Wyse client
+
+on:
+  pull_request:
+    paths: ["client/**", .github/workflows/client.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: python3 -m unittest discover -s client -v
+      - name: Build the package
+        run: sh client/build-deb.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: azan-sip-client
+          path: client/dist/azan-sip-client_*_all.deb
+
+  install:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian: [bookworm, trixie]
+    container: debian:${{ matrix.debian }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install it as a Wyse would
+        run: |
+          set -eu
+          apt-get update
+          sh client/build-deb.sh
+          apt-get install -y ./client/dist/azan-sip-client.deb
+          azan-sip-client --version
+          id azan-client
+          test -x /usr/lib/azan-sip-client/kiosk
+          test -f /lib/systemd/system/azan-sip-client-screen.service
+          python3 -m unittest discover -s client -v

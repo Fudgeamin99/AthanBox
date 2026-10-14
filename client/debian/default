@@ -1,0 +1,4 @@
+# Settings for the Azan SIP Client's screen. Restart it after a change:
+#     sudo systemctl restart azan-sip-client-screen
+# The sound output for the azan, picked by hand (card,device from aplay -l), say:
+#AZAN_SCREEN_SOUND=HdmiLpeAudio,1

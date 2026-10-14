@@ -41,7 +41,7 @@ UA = {"User-Agent": f"azan-sip/{__version__}", "Accept": "application/vnd.github
 # Never overwritten or deleted by an update.
 USER_FILES = {"config.toml", "config.toml.bak", "config.tmp", "timetable.csv", ".installed.json", ".sessions.json",
               ".sip_bindings.json"}
-USER_DIRS = {"audio", "auth", "backups", ".git", "__pycache__"}
+USER_DIRS = {"audio", "auth", "backups", "security", ".git", "__pycache__"}
 KEEP_BACKUPS = 3
 
 # The Docker image sets AZAN_DOCKER=1: there the program is replaced by pulling a new image,

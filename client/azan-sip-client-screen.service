@@ -1,0 +1,30 @@
+[Unit]
+Description=Azan SIP Client - full-screen prayer times on the TV plugged into this computer
+# A login session on the first console, so the kiosk may use the screen, keyboard and sound
+# (the package adds /etc/pam.d/azan-client).
+After=azan-sip-client.service seatd.service systemd-user-sessions.service dbus.socket systemd-logind.service getty@tty1.service
+Wants=azan-sip-client.service seatd.service dbus.socket systemd-logind.service
+# One screen on tty1: the Azan SIP Box's own screen (packaging/box/screen.sh) uses it too
+Conflicts=getty@tty1.service azan-sip-screen.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+User=azan-client
+PAMName=azan-client
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=wayland LIBSEAT_BACKEND=seatd
+# cage shows one app full screen; -s still lets Ctrl+Alt+F2 reach a text login for maintenance
+ExecStart=/usr/bin/cage -s -- /usr/lib/azan-sip-client/kiosk
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

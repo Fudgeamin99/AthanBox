@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azan SIP Client · Screen settings</title>
+<style>
+:root{--bg:#0d4a3f;--card:rgba(255,255,255,.07);--line:rgba(255,255,255,.18);--muted:#cfe3dc;--accent:#f3e2b4;--bad:#ffb4a8;--warn:#f3e2b4}
+html,body{margin:0;min-height:100%;background:var(--bg);color:#fff;font:400 18px/1.45 system-ui,"DejaVu Sans",sans-serif}
+main{max-width:760px;margin:0 auto;padding:40px 24px 60px}
+h1{font-size:30px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 28px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:18px}
+h2{font-size:20px;margin:0 0 6px}
+p{margin:0 0 14px;color:var(--muted)}
+label{display:block;font-weight:600;margin:14px 0 6px}
+input[type=text]{width:100%;box-sizing:border-box;font:inherit;font-size:20px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#fff}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+button{font:600 18px system-ui,sans-serif;padding:11px 20px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+button.main{background:var(--accent);color:#14312a;border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.msg{margin-top:12px;min-height:1.4em}
+.msg.bad{color:var(--bad)}.msg.warn{color:var(--warn)}.msg.ok{color:#b9f0d0}
+.state{display:inline-block;padding:2px 10px;border-radius:99px;font-size:15px;font-weight:700;background:rgba(255,255,255,.12)}
+.state.ok{background:#b9f0d0;color:#14312a}.state.bad{background:var(--bad);color:#3a120c}
+#found button{display:block;width:100%;text-align:left;margin-top:8px}
+#vol{font-variant-numeric:tabular-nums;font-weight:700}
+footer{color:var(--muted);font-size:15px;margin-top:22px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Screen settings</h1>
+  <p class="sub">This screen shows the prayer times from your Azan SIP Box and plays the azan through the TV.</p>
+
+  <section>
+    <h2>Azan SIP Box <span id="state" class="state"></span></h2>
+    <p>Type the box's address, such as <b>192.168.1.20</b> or <b>azan.local</b>, or search the network for it. On the box, <i>Let TV screens connect</i> on the TV app page must be on.</p>
+    <label for="addr">The box's address</label>
+    <input type="text" id="addr" autocomplete="off" spellcheck="false" placeholder="192.168.1.20">
+    <label for="name">This screen's name <small style="font-weight:400;color:var(--muted)">(shown on the box's TV app page)</small></label>
+    <input type="text" id="name" maxlength="40" autocomplete="off">
+    <div class="row">
+      <button class="main" id="connect">Connect</button>
+      <button id="search">Search the network</button>
+    </div>
+    <div id="found"></div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section>
+    <h2>Azan volume on this screen: <span id="vol"></span></h2>
+    <p>Only this screen. The phones, the box's own screen and other TV screens keep theirs.</p>
+    <input type="range" id="volume" min="0" max="100" step="5">
+    <div class="row"><button id="test">Play a test chime here</button></div>
+  </section>
+
+  <div class="row">
+    <button class="main" id="back">Back to the prayer times</button>
+  </div>
+  <footer id="foot"></footer>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const STATE = {ok:["Connected","ok"], not_allowed:["TV screens not allowed yet","bad"], unreachable:["Not answering","bad"],
+               not_azan:["Not an Azan SIP Box","bad"], none:["Not chosen yet",""]};
+let ST = {};
+async function api(path, body){
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {cache:"no-store"});
+  return r.json();
+}
+function msg(text, kind){ const m = $("#msg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+function show(st, fill){
+  ST = st;
+  const [t, k] = STATE[st.state] || [st.state, ""];
+  $("#state").textContent = t; $("#state").className = "state " + k;
+  if (fill){
+    $("#addr").value = (st.box || "").replace(/^http:\/\//, "");
+    $("#name").value = st.name || "";
+    $("#volume").value = st.volume;
+  }
+  $("#vol").textContent = $("#volume").value + "%";
+  $("#back").disabled = !st.box;
+  $("#foot").textContent = `Azan SIP Client ${st.version}`;
+}
+async function connect(address){
+  msg("Connecting…"); $("#connect").disabled = true;
+  try{
+    const r = await api("/client/api/connect", {address, name: $("#name").value});
+    if (!r.ok) return msg(r.error, "bad");
+    show(r, true);
+    if (r.warning) return msg(r.warning, "warn");
+    msg("Connected. Showing the prayer times…", "ok");
+    setTimeout(() => location.assign("/"), 1200);
+  }catch(e){ msg("This screen's own program isn't answering. Restart the computer.", "bad"); }
+  finally{ $("#connect").disabled = false; }
+}
+$("#connect").onclick = () => connect($("#addr").value);
+$("#addr").addEventListener("keydown", e => { if (e.key === "Enter") connect($("#addr").value); });
+$("#search").onclick = async () => {
+  $("#search").disabled = true; $("#found").innerHTML = ""; msg("Searching the network…");
+  try{
+    const r = await api("/client/api/search");
+    msg(r.boxes.length ? "Found. Press the box to connect to it." : "No box found. Check it's switched on and on the same network, or type its address.", r.boxes.length ? "" : "bad");
+    for (const b of r.boxes){
+      const btn = document.createElement("button");
+      const where = b.host + (b.port !== 80 ? ":" + b.port : "");
+      btn.textContent = `${where}  \u00b7  Azan SIP ${b.version || ""}` + (b.state === "not_allowed" ? "  (TV screens not allowed yet)" : "");
+      btn.onclick = () => { $("#addr").value = where; connect(where); };
+      $("#found").appendChild(btn);
+    }
+  }catch(e){ msg("Searching didn't work.", "bad"); }
+  finally{ $("#search").disabled = false; }
+};
+let saveT;
+$("#volume").oninput = () => {
+  $("#vol").textContent = $("#volume").value + "%";
+  clearTimeout(saveT); saveT = setTimeout(() => api("/client/api/settings", {volume: +$("#volume").value}), 250);
+};
+$("#name").onchange = () => { if (ST.box) api("/client/api/settings", {name: $("#name").value}); };
+$("#test").onclick = () => {   // the box's chime, at this screen's volume
+  const c = new (window.AudioContext || window.webkitAudioContext)(), v = $("#volume").value / 100, notes = [659.25, 523.25, 587.33, 392.0];
+  notes.forEach((f, i) => {
+    const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + .1 + i * .6;
+    o.frequency.value = f; o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.4 * v, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .6);
+    o.start(t); o.stop(t + .62);
+  });
+};
+$("#back").onclick = () => location.assign("/");
+// Left open on the TV: go back to the prayer times after a few minutes without a touch
+let idle;
+const still = () => { clearTimeout(idle); idle = setTimeout(() => { if (ST.box && ST.state === "ok") location.assign("/"); }, 180000); };
+for (const ev of ["mousemove", "keydown", "touchstart", "input"]) addEventListener(ev, still, true);
+still();
+api("/client/api/status").then(st => show(st, true));
+setInterval(() => api("/client/api/status").then(st => show(st, false)).catch(() => {}), 4000);
+</script>
+</body>
+</html>

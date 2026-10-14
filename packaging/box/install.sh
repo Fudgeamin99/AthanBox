@@ -47,5 +47,8 @@ fi
 cp packaging/box/azan-sip-box.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now azan-sip-box
+# What needs root: fail2ban, whitelist and blacklist (the Security page), and setting up each
+# new version's system parts by itself after an update
+sh packaging/box/system-setup.sh
 echo "Done. Open http://azan.local on a computer or phone on the same network."
 echo "To show the prayer times on a TV plugged into this box: sudo sh packaging/box/screen.sh"

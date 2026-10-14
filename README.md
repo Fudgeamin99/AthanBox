@@ -4,7 +4,7 @@ The Azan SIP Box plays the azan (call to prayer) automatically at every prayer t
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.4.4, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.6.0, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
@@ -77,6 +77,24 @@ It installs a small full-screen browser (cage and Chromium) and opens the TV app
 - **No sound from the TV:** run the command again with the TV switched on, so it picks the sound output the TV is on. `aplay -l` lists the outputs. To pick one by hand, say card `HdmiLpeAudio`, device `1`, run `sudo AZAN_SCREEN_SOUND=HdmiLpeAudio,1 sh packaging/box/screen.sh`.
 - **Switch it off:** `sudo sh packaging/box/screen.sh off`. Ctrl+Alt+F2 on a keyboard plugged into the box also opens a text login while the screen is on.
 
+### A TV screen on a Dell Wyse
+
+A spare Dell Wyse (or any small PC) can be a TV screen for a Box somewhere else on the network: it shows the Box's prayer-times screen full screen on the TV plugged into it, and plays the azan through the TV's speakers at the same moment as the phones, at its own volume. It starts by itself on every boot, and if the Box restarts or the network drops it shows *Connecting to the Azan SIP Box* and goes back to the prayer times by itself. Use one Wyse per TV, in as many rooms as you like.
+
+1. On the Box, open **TV app** and switch on **Let TV screens connect**.
+2. Install Debian 12 or 13 on the Wyse without a desktop (in the installer, tick only *SSH server* and *standard system utilities*), and plug in the TV.
+3. On the Wyse, run:
+
+```sh
+sudo apt update && sudo apt install -y wget
+wget https://github.com/Fudgeamin99/azan-sip-box/releases/latest/download/azan-sip-client.deb
+sudo apt install -y ./azan-sip-client.deb
+```
+
+4. Choose the Box: on the TV, type its address (such as `192.168.1.20` or `azan.local`) or press **Search the network**, then **Connect**. Over SSH instead: `azan-sip-client search`, then `azan-sip-client connect 192.168.1.20 --name "Main hall"`.
+
+The Wyse shows on the Box's **TV app** page under its name, where *Test chime* checks the sound. To change the Box, the name or the volume later, move the mouse and press **Screen settings** at the top of the screen (or press **S** on a keyboard), or run `azan-sip-client volume 60` over SSH. The Wyse can only show the prayer times: it can't change the Box's settings. More in [`client/README.md`](client/README.md).
+
 ## First-time setup
 
 A new box opens the **setup wizard** in the browser. It takes about five minutes:
@@ -114,13 +132,23 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 - `AZAN_PASSWORD` is the box's factory password. Under **Settings → Password and reset** you can choose your own, which then replaces it.
 - **Factory reset** on the same page removes settings, recordings and your own password, and goes back to `AZAN_PASSWORD`.
 
+## Security: fail2ban, whitelist and blacklist
+
+Open **Security** in the menu.
+
+- **Fail2ban** bans an address for a while after too many wrong passwords: SSH sign-ins to the box, the control panel's password, and SIP sign-ins (Register to Azan SIP). A banned address can't reach the box on any port. Choose how many wrong tries are allowed, over how long, and how long the ban lasts. **Banned right now** lists who is banned, with **Unban** and **Always block**.
+- **Whitelist:** addresses and ranges that are never banned or blocked. The box's own network is on it from the start, so you can't lock yourself out from inside the masjid. Add your phone system or your home's address too.
+- **Blacklist:** addresses and ranges that are always blocked, with a note. The Box won't let you block the address you're using, or its own.
+
+Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.1, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/system-setup.sh` once in the `azan-sip-box` folder. In Docker there's no fail2ban, but the blacklist still works: the Box refuses those addresses on its control panel and SIP port itself.
+
 ## Updating
 
 **With the Update button:** go to **Settings → Updates** and press **Check for updates**. If there's a new version, press **Update now**. The Box restarts with it in a few seconds, and your `data` folder is kept. If the new version won't start, the old one is put back.
 
 The button needs the `updater` part of the compose file above. It's a small helper, from the same image, that downloads the new image and restarts the `azan-sip` container with it. Because it can control Docker on that computer, it only listens on the computer itself (127.0.0.1, port 8770) and only does what the control panel asks, using a secret key the panel keeps in `data/auth`. If you leave it out, Settings → Updates says how to update by hand.
 
-**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back.
+**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back. When a new version needs system changes too (packages such as fail2ban, or system services), the box makes them by itself a minute or two after updating: a small service that runs as root downloads that release from GitHub and runs its `packaging/box/system-setup.sh`. The control panel itself never gets root. A box installed before 0.5.1 needs this set up once: run `git pull` and `sudo sh packaging/box/system-setup.sh` in the `azan-sip-box` folder.
 
 **By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 

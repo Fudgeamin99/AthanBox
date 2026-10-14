@@ -6,10 +6,36 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
-## 0.4.5 - The volume slider sets the computer's own volume
+## 0.6.1 - The volume slider sets the computer's own volume
 
-- **Volume on the box's own screen:** the slider on the TV app page now sets the volume of the computer the Box runs on, such as a laptop or a Wyse, like its volume keys would. If that computer has no volume control (a TV on HDMI often doesn't), the box's screen turns the azan down itself, as before.
-- On a box that already has a screen, run `git pull` and `sudo sh packaging/box/screen.sh` once, so the Box may change the volume.
+- **Volume on the box's own screen:** the slider on the TV app page now sets the volume of the computer the Box runs on, such as a laptop with its screen, like its volume keys would. If that computer has no volume control (a TV on HDMI often doesn't), the box's screen turns the azan down itself, as before.
+- **Debian:** nothing to run. A minute or two after **Update now**, the box sets itself up to change the volume.
+- **Docker:** nothing changes. A container can't set the NAS's volume, so the slider keeps turning down the box's own screen.
+
+## 0.6.0 - A TV screen on a Dell Wyse
+
+- **Azan SIP Client**, a new program for a Dell Wyse (or any small PC) running Debian: it turns the Wyse into a TV screen for a Box elsewhere on the network. It shows the Box's prayer-times screen full screen on the TV plugged into it from every boot, and plays the azan through the TV's speakers at the same moment as the phones, with no tap needed.
+- **Its own volume:** the Wyse's volume is set on the Wyse, so each room can be louder or quieter.
+- **Finds the Box** by its address or by searching the network, and **reconnects by itself** after the Box restarts or updates, or the network drops, showing *Connecting to the Azan SIP Box* meanwhile.
+- **Only shows:** the Wyse can't change the Box's settings. It needs *Let TV screens connect* on the TV app page, and shows there under its own name.
+- Install it with `sudo apt install ./azan-sip-client.deb`, attached to this release. See "A TV screen on a Dell Wyse" in the README.
+- **Debian:** the Box itself doesn't change. The client is a separate package for the Wyse, not part of the Box's install.
+- **Docker:** nothing changes. The image and compose file are the same, and a Wyse connects to a Box in Docker the same way, on port 8765.
+
+## 0.5.1 - Updates set up their system parts by themselves
+
+- **On Debian, no more sudo commands after updating.** When a new version needs system changes, such as installing fail2ban, the box makes them by itself a minute or two after **Update now**. A small service that runs as root downloads that release from GitHub and runs its setup. The control panel still never gets root, and nothing that runs as root comes from files the panel can change. If it can't finish (say there's no internet), it tries again every hour, and the Security page says what went wrong.
+- **One last time on a box installed earlier:** update to 0.5.1, then in the azan-sip-box folder run `git pull` and `sudo sh packaging/box/system-setup.sh`. That also sets up fail2ban and the firewall for the Security page.
+- **Docker:** nothing changes. The image already carries everything, and the Update button replaces the whole container.
+
+## 0.5.0 - Security: fail2ban, whitelist and blacklist
+
+- **Security** in the menu, on the Box. Changes apply straight away, without a restart.
+- **Fail2ban** bans an address after too many wrong passwords: SSH sign-ins to the box, the control panel's password and SIP sign-ins (Register to Azan SIP). A banned address is blocked on every port. Choose the wrong tries allowed (5 by default), over how long (10 minutes) and how long the ban lasts (1 hour, longer for repeat offenders). **Banned right now** lists who is banned, with **Unban** and **Always block**.
+- **Whitelist:** addresses and ranges that are never banned or blocked. It starts with the box's own network, so you can't lock yourself out from inside the masjid.
+- **Blacklist:** addresses and ranges that are always blocked, with an optional note. The Box refuses to block the address you're using, its own address or anything already covered by the whitelist.
+- On Debian, `install.sh` sets this up. On a box installed earlier, update it, then run `git pull` and `sudo sh packaging/box/security.sh` once. In Docker the blacklist works for the control panel and SIP, without fail2ban.
+- Wrong control panel passwords are now written to the log, with the address they came from.
 
 ## 0.4.4 - Volume for the box's own screen
 
