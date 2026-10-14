@@ -1,0 +1,10 @@
+[Unit]
+Description=Azan SIP Box - set up each new version's system parts after an update
+
+[Path]
+# Replaced on every update and rollback
+PathChanged=/opt/azan-sip/BOX_CHANGELOG.md
+Unit=azan-sip-system.service
+
+[Install]
+WantedBy=multi-user.target

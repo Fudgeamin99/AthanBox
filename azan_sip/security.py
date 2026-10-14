@@ -9,7 +9,7 @@ The owner's choices are kept in security/settings.json next to config.toml:
 - blacklist: addresses and ranges that are always blocked.
 
 The control panel runs as an ordinary user, so a small helper that runs as root
-(packaging/box/security-helper.py, set up by packaging/box/security.sh) applies them: systemd starts it
+(packaging/box/security-helper.py, set up by packaging/box/system-setup.sh) applies them: systemd starts it
 whenever settings.json or request.json change. It reports back in /run/azan-sip-security/status.json.
 
 The blacklist also works without the helper (in Docker, say): the control panel and the SIP server
@@ -35,7 +35,11 @@ log = logging.getLogger("azan-sip")
 
 STATUS_FILE = Path("/run/azan-sip-security/status.json")
 HELPER = Path("/usr/local/lib/azan-sip/security-helper.py")
-SETUP_COMMAND = "sudo sh packaging/box/security.sh"
+# Debian: the box sets up each version's system parts by itself after an update (azan-sip-system.service,
+# from packaging/box/system-setup.sh). A box installed before 0.5.1 needs that set up once by hand.
+SYSTEM_STATE = Path("/var/lib/azan-sip/system.json")
+SYSTEM_UPDATER = Path("/usr/local/lib/azan-sip/system-update.py")
+SETUP_COMMAND = "sudo sh packaging/box/system-setup.sh"
 MAX_ENTRIES = 500
 JAILS = ("sshd", "panel", "sip")
 DEFAULT_FAIL2BAN = {"enabled": True, "jails": {k: True for k in JAILS}, "maxretry": 5, "findtime": 600,
@@ -219,6 +223,20 @@ class Security:
         except (OSError, ValueError):
             return None
 
+    @staticmethod
+    def system_status() -> dict | None:
+        """How the box is getting on with setting up the installed version's system parts."""
+        if not SYSTEM_UPDATER.is_file():
+            return None
+        try:
+            s = json.loads(SYSTEM_STATE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            s = {}
+        if not isinstance(s, dict):
+            s = {}
+        return {"auto": True, "version": str(s.get("version") or ""), "ok": bool(s.get("ok")),
+                "running": bool(s.get("running")), "message": str(s.get("message") or "")[:300]}
+
     def state(self, client_ip: str) -> dict:
         st = self.helper_status()
         installed = HELPER.is_file() or st is not None
@@ -234,7 +252,7 @@ class Security:
             e["you"] = bool(a and a.version == n.version and a in n)
         return {"settings": s, "status": st, "helper": installed, "docker": self.docker,
                 "pending": bool(st) and installed and st.get("rev") != s["rev"],
-                "setup_command": SETUP_COMMAND, "client_ip": str(a) if a else client_ip,
+                "setup_command": SETUP_COMMAND, "system": None if self.docker else self.system_status(), "client_ip": str(a) if a else client_ip,
                 "client_whitelisted": bool(a and (a.is_loopback or _contains(allow, a))),
                 "bantimes": BANTIMES, "findtimes": FINDTIMES, "fail2ban_on_path": bool(shutil.which("fail2ban-client"))}
 
