@@ -1,0 +1,11 @@
+[Unit]
+Description=Azan SIP Box - refresh the list of banned addresses every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=azan-sip-security.service
+
+[Install]
+WantedBy=timers.target

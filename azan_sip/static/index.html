@@ -228,6 +228,7 @@ ol.steps .muted{font-size:13px}
     <button data-page="tv" title="Show the prayer times on a TV and play the azan through it, from an iPad, an Android device or a smart TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M7 21h10M9.5 9.5v5l4-2.5z"/></svg>TV app</button>
     <button id="tvbtn" hidden onclick="openScreen('/display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
     <button onclick="openScreen('/display?live=1')" title="Makkah live with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Makkah live</button>
+    <button data-page="security" id="secbtn" hidden title="Fail2ban, whitelist and blacklist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Security</button>
     <!-- Settings is always the last item in the menu: add new pages above it -->
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
     <div class="spacer"></div>
@@ -321,7 +322,7 @@ async function loadSession(){
     }
   }
   if(SESSION.box && !SESSION.logged_in) await unlock();
-  if(SESSION.box) $("#tvbtn").hidden = false;
+  if(SESSION.box){ $("#tvbtn").hidden = false; $("#secbtn").hidden = false; }
   if(SESSION.box && SESSION.local) kioskReturn();
 }
 // The prayer-times screen: in place on the box's own screen, in a new tab on a phone or PC
@@ -444,6 +445,7 @@ async function poll(){
   if(page==="settings") renderLog();
   if(page==="phones" && CFG) refreshRegPills();
   if(page==="tv"){ const el=$("#tvlist"); if(el) el.innerHTML = tvListHTML(); }
+  if(page==="security" && SEC && ++secTick % 3 === 0) loadSecurity().then(secLive);
   }catch(e){ console.error(e); }
 }
 setInterval(poll, 2000);
@@ -485,11 +487,11 @@ function sw(path, checked, extra=""){ return `<label class="switch"><input type=
 
 // ---------------------------------------------------------------- pages
 document.querySelectorAll("nav button[data-page]").forEach(b=>b.onclick=()=>go(b.dataset.page));
-function go(p){ page=p; location.hash=p; editing=null; render(); window.scrollTo(0,0); if(p==="times") schedulePreview(0); }
+function go(p){ page=p; location.hash=p; editing=null; if(p==="security") SEC=null; render(); window.scrollTo(0,0); if(p==="times") schedulePreview(0); }
 function render(){
   document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
-  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, settings:pageSettings}[page]||pageOverview)();
+  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, security:pageSecurity, settings:pageSettings}[page]||pageOverview)();
 }
 function stoppedHTML(){ return `<div class="stopped card"><h1>Azan SIP is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
 
@@ -964,6 +966,115 @@ function pageTV(){
       <li>If the box is off or restarting, the TV shows that the azan isn't running and reconnects by itself.</li>
     </ul></div>`;
 }
+
+// ---- Security (Azan SIP Box): fail2ban, whitelist and blacklist. Changes apply straight away, without
+// the Save bar: the box's root helper picks them up within a second or two.
+let SEC = null, secTick = 0;
+const SEC_JAILS = [["sshd","SSH sign-ins","Someone signing in to the box itself over SSH, with the wrong password."],
+  ["panel","Control panel","Wrong passwords on this page (http://azan.local)."],
+  ["sip","SIP sign-ins","Phones or phone systems signing in to Azan SIP (Register to Azan SIP) with the wrong password."]];
+function secSpan(s){
+  s = +s; if(s < 0) return "Until it's unbanned";
+  if(s === 7*86400) return "1 week";
+  if(s % 86400 === 0) return s === 86400 ? "1 day" : `${s/86400} days`;
+  if(s % 3600 === 0) return s === 3600 ? "1 hour" : `${s/3600} hours`;
+  return `${Math.round(s/60)} minutes`;
+}
+async function loadSecurity(refresh){
+  try{ SEC = await api("/api/security"); }catch(e){ SEC = SEC || {error:e.message}; }
+  if(refresh && SEC && SEC.helper && !SEC.docker) api("/api/security/refresh", {}).then(()=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, 2500)).catch(()=>{});
+}
+function pageSecurity(){
+  if(!SEC){ $("#main").innerHTML = '<h1>Security</h1><p class="muted">Loading…</p>'; loadSecurity(true).then(()=>{ if(page==="security") render(); }); return; }
+  if(SEC.error && !SEC.settings){ $("#main").innerHTML = `<h1>Security</h1><div class="banner bad">${ICON.warn}<div>${esc(SEC.error)}</div></div>`; return; }
+  const f = SEC.settings.fail2ban;
+  $("#main").innerHTML = `<h1>Security</h1><p class="sub">Ban addresses that keep guessing passwords, and choose addresses that are always let in or always blocked. Changes apply straight away.</p>
+  <div id="sec-status"></div>
+  <div class="card"><div class="toggle-row" style="padding-top:0"><div><div class="t">Fail2ban <span id="sec-f2b-pill"></span></div>
+      <div class="d">Bans an address for a while after too many wrong passwords. A banned address can't reach the box at all.</div></div>
+    <label class="switch"><input type="checkbox" ${f.enabled!==false?"checked":""} onchange="secF2b({enabled:this.checked})" aria-label="Fail2ban"><span></span></label></div>
+    <div id="sec-jails"></div>
+    <div class="grid3" style="margin-top:14px">
+      <div class="field"><label>Wrong tries allowed</label><input type="number" min="1" max="100" value="${+f.maxretry||5}" onchange="secF2b({maxretry:+this.value})"></div>
+      <div class="field"><label>Counted over</label><select onchange="secF2b({findtime:+this.value})">${[...new Set([...(SEC.findtimes||[]), +f.findtime])].sort((a,b)=>a-b).map(n=>opt(n, secSpan(n), f.findtime)).join("")}</select></div>
+      <div class="field"><label>Ban for</label><select onchange="secF2b({bantime:+this.value})">${[...new Set([...(SEC.bantimes||[]), +f.bantime])].map(n=>opt(n, secSpan(n), f.bantime)).join("")}</select></div>
+    </div>
+    <div class="toggle-row"><div><div class="t">Ban repeat offenders for longer</div><div class="d">Each new ban of the same address lasts twice as long as the one before.</div></div>
+      <label class="switch"><input type="checkbox" ${f.increment!==false?"checked":""} onchange="secF2b({increment:this.checked})" aria-label="Ban repeat offenders for longer"><span></span></label></div></div>
+  <div class="card" id="sec-bans"></div>
+  <div class="card" id="sec-wl"></div>
+  <div class="card" id="sec-bl"></div>`;
+  secLive(); secLists();
+}
+// the parts that change by themselves: status, jails and banned addresses
+function secLive(){
+  if(page!=="security" || !SEC || !SEC.settings) return;
+  const st = SEC.status, f = SEC.settings.fail2ban, fb = st && st.fail2ban;
+  const el = $("#sec-status"); if(!el) return;
+  let b = "";
+  if(SEC.docker) b += `<div class="banner">${ICON.warn}<div>In Docker, fail2ban and the firewall aren't available. The blacklist still works for the control panel and SIP: the box refuses those addresses itself.</div></div>`;
+  else if(!SEC.helper) b += `<div class="banner">${ICON.warn}<div>Fail2ban and the firewall aren't set up on this box yet. On the box, in the azan-sip-box folder, run <span class="kbd">git pull</span> and then <span class="kbd">${esc(SEC.setup_command)}</span>. Until then the blacklist works for the control panel and SIP only.</div></div>`;
+  else if(!st) b += `<div class="banner">${ICON.warn}<div>Waiting for the box to apply the settings…</div></div>`;
+  for(const e of (st && st.errors) || []) b += `<div class="banner bad">${ICON.warn}<div>${esc(e)}</div></div>`;
+  el.innerHTML = b;
+  const pill = $("#sec-f2b-pill");
+  if(pill) pill.innerHTML = SEC.pending ? '<span class="pill">Applying…</span>' : !st ? "" : !fb.installed ? '<span class="pill warn">Not installed</span>'
+    : fb.running ? '<span class="pill ok">Running</span>' : f.enabled!==false ? '<span class="pill bad">Not running</span>' : '<span class="pill">Off</span>';
+  const jails = (st && st.jails) || {}, on = f.enabled!==false;
+  $("#sec-jails").innerHTML = SEC_JAILS.map(([k,t,d])=>{ const j = jails[k] || {};
+    const p = !on || f.jails[k]===false ? "" : j.active ? `<span class="pill ${j.banned_now?"warn":"ok"}">${j.banned_now||0} banned${j.failed?` · ${j.failed} wrong tries`:""}</span>` : st && fb.running ? '<span class="pill">Waiting</span>' : "";
+    return `<div class="toggle-row"><div><div class="t">${esc(t)} ${p}</div><div class="d">${esc(d)}${j.total_banned?` Banned ${j.total_banned} time${j.total_banned===1?"":"s"} since fail2ban started.`:""}</div></div>
+      <label class="switch"><input type="checkbox" ${f.jails[k]!==false?"checked":""} ${on?"":"disabled"} onchange="secF2b({jails:{${k}:this.checked}})" aria-label="${esc(t)}"><span></span></label></div>`; }).join("");
+  const bans = [];
+  for(const [k,t] of SEC_JAILS) for(const x of ((jails[k]||{}).banned||[])) bans.push({...x, jail:t});
+  $("#sec-bans").innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Banned right now</h2>${st&&st.updated?`<span class="muted" style="font-size:13px">Checked ${esc(st.updated.slice(11,16))}</span>`:""}</div>
+    ${bans.length ? `<table style="margin-top:10px"><tr><th>Address</th><th>Why</th><th>Until</th><th></th></tr>${bans.map(x=>`<tr><td class="mono">${esc(x.ip)}</td><td>${esc(x.jail)}</td><td class="muted">${esc(!x.until ? "" : x.until.startsWith("9999") ? "Until it's unbanned" : x.until.slice(0,16))}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn small" onclick="secUnban('${esc(x.ip)}')">Unban</button> <button class="btn small danger" onclick="secBlockBanned('${esc(x.ip)}')">Always block</button></td></tr>`).join("")}</table>`
+      : `<p class="muted" style="margin:8px 0 0">${!on ? "Fail2ban is off." : fb && fb.running ? "Nobody is banned." : "Nothing to show until fail2ban is running."}</p>`}`;
+}
+function secRows(which){
+  const L = SEC.settings[which];
+  const fixed = which==="whitelist" ? `<div class="tvrow"><div style="flex:1;min-width:0"><div class="t mono">127.0.0.1 · ::1</div><div class="d">Localhost: the box itself. Always allowed.</div></div></div>` : "";
+  return fixed + (L.length || fixed ? L.map(e=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(e.ip)}</span>
+      ${e.you?' <span class="pill ok">You\'re connected from here</span>':""}${e.allowed?' <span class="pill warn">On the whitelist, so not blocked</span>':""}</div>
+      <div class="d">${esc(e.note||"")}${e.note&&e.added?" · ":""}${e.added?"Added "+esc(e.added):""}</div></div>
+      <button class="btn small ${which==="blacklist"?"":"danger"}" onclick="secRemove('${which}','${esc(e.ip)}', ${!!e.you})">Remove</button></div>`).join("")
+    : `<p class="muted" style="margin:4px 0 0">Nothing blocked.</p>`);
+}
+function secLists(){
+  const you = SEC.client_ip, inWl = SEC.client_whitelisted;
+  $("#sec-wl").innerHTML = `<h2>Whitelist</h2><p class="muted" style="margin-top:-6px">Addresses that are never banned or blocked, such as this box's network and your phone system. ${inWl?`You're connected from <span class="mono">${esc(you)}</span>, which is on the whitelist.`:`You're connected from <span class="mono">${esc(you)}</span>, which isn't on the whitelist.`}</p>
+    ${secRows("whitelist")}${secAddForm("wl", inWl ? "" : you)}`;
+  $("#sec-bl").innerHTML = `<h2>Blacklist</h2><p class="muted" style="margin-top:-6px">Addresses that are always blocked: they can't reach the box at all${SEC.helper&&!SEC.docker?"":" (until fail2ban is set up: the control panel and SIP only)"}. The whitelist wins if an address is on both.</p>
+    ${secRows("blacklist")}${secAddForm("bl")}`;
+}
+function secAddForm(k, mine){
+  return `<div class="grid3" style="margin-top:14px;align-items:end">
+    <div class="field" style="margin:0"><label>IP address or range</label><input type="text" id="sec-${k}-ip" placeholder="${k==="wl"?"192.168.1.0/24":"203.0.113.7"}" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')secAdd('${k}')"></div>
+    <div class="field" style="margin:0"><label>Note (optional)</label><input type="text" id="sec-${k}-note" maxlength="80" placeholder="${k==="wl"?"Grandstream UCM":"Kept guessing passwords"}" onkeydown="if(event.key==='Enter')secAdd('${k}')"></div>
+    <div class="row"><button class="btn primary" onclick="secAdd('${k}')">${k==="wl"?"Add to whitelist":"Block"}</button>${mine?`<button class="btn small" onclick="secAdd('wl','${esc(mine)}','My device')">Add my address</button>`:""}</div></div>
+    <div class="hint" style="margin-top:8px">One address, such as 203.0.113.7, or a range, such as 203.0.113.0/24. IPv6 works too.</div>`;
+}
+async function secF2b(change){
+  await act(async()=>{ SEC = await api("/api/security/fail2ban", change); secLive(); secSoon(); }, "Saved");
+}
+async function secAdd(k, ip, note){
+  const which = k==="wl" ? "whitelist" : "blacklist";
+  ip = ip ?? $(`#sec-${k}-ip`).value; note = note ?? $(`#sec-${k}-note`).value;
+  await act(async()=>{ SEC = await api("/api/security/add", {list:which, ip, note}); secLists(); secLive(); secSoon(); },
+    which==="whitelist" ? "Added to the whitelist" : "Blocked");
+}
+async function secRemove(which, ip, mine){
+  if(mine && !confirm(`You're connected from inside ${ip}. Without it on the whitelist, fail2ban can ban this device after too many wrong passwords. Remove it anyway?`)) return;
+  await act(async()=>{ SEC = await api("/api/security/remove", {list:which, ip}); secLists(); secLive(); secSoon(); }, `Removed from the ${which}`);
+}
+async function secUnban(ip){ await act(async()=>{ await api("/api/security/unban", {ip}); secSoon(); }, `Unbanning ${ip}…`); }
+async function secBlockBanned(ip){
+  if(!confirm(`Block ${ip} for good? It goes on the blacklist and stays blocked after its ban runs out.`)) return;
+  await secAdd("bl", ip, "Banned by fail2ban");
+}
+// refresh a few times while the box applies a change
+function secSoon(){ [1200, 3000, 6000].forEach(ms=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, ms)); }
 
 // ---- Ramadan page: dates, extra sounds on the phones, Isha, the display and Eid
 const RDEF = {mode:"auto", start:"", days:30, suhoor_on:true, suhoor_minutes:10, suhoor_sound:"tone",

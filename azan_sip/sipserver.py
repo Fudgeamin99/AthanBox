@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import __version__, rtp
+from . import __version__, rtp, security
 from .sip import SipCall, SipMessage, SipTarget, _rand
 
 log = logging.getLogger("azan-sip")
@@ -140,8 +140,8 @@ class SipServer(threading.Thread):
                 if self.stop_event.is_set():
                     break
                 continue
-            if not data.strip():
-                continue                      # keep-alive
+            if not data.strip() or security.FILTER.blocked(addr[0]):
+                continue                      # keep-alive, or on the blacklist (Security page)
             try:
                 msg = SipMessage.parse(data)
             except Exception:
