@@ -77,6 +77,24 @@ It installs a small full-screen browser (cage and Chromium) and opens the TV app
 - **No sound from the TV:** run the command again with the TV switched on, so it picks the sound output the TV is on. `aplay -l` lists the outputs. To pick one by hand, say card `HdmiLpeAudio`, device `1`, run `sudo AZAN_SCREEN_SOUND=HdmiLpeAudio,1 sh packaging/box/screen.sh`.
 - **Switch it off:** `sudo sh packaging/box/screen.sh off`. Ctrl+Alt+F2 on a keyboard plugged into the box also opens a text login while the screen is on.
 
+### A TV screen on a Dell Wyse
+
+A spare Dell Wyse (or any small PC) can be a TV screen for a Box somewhere else on the network: it shows the Box's prayer-times screen full screen on the TV plugged into it, and plays the azan through the TV's speakers at the same moment as the phones, at its own volume. It starts by itself on every boot, and if the Box restarts or the network drops it shows *Connecting to the Azan SIP Box* and goes back to the prayer times by itself. Use one Wyse per TV, in as many rooms as you like.
+
+1. On the Box, open **TV app** and switch on **Let TV screens connect**.
+2. Install Debian 12 or 13 on the Wyse without a desktop (in the installer, tick only *SSH server* and *standard system utilities*), and plug in the TV.
+3. On the Wyse, run:
+
+```sh
+sudo apt update && sudo apt install -y wget
+wget https://github.com/Fudgeamin99/azan-sip-box/releases/latest/download/azan-sip-client.deb
+sudo apt install -y ./azan-sip-client.deb
+```
+
+4. Choose the Box: on the TV, type its address (such as `192.168.1.20` or `azan.local`) or press **Search the network**, then **Connect**. Over SSH instead: `azan-sip-client search`, then `azan-sip-client connect 192.168.1.20 --name "Main hall"`.
+
+The Wyse shows on the Box's **TV app** page under its name, where *Test chime* checks the sound. To change the Box, the name or the volume later, move the mouse and press **Screen settings** at the top of the screen (or press **S** on a keyboard), or run `azan-sip-client volume 60` over SSH. The Wyse can only show the prayer times: it can't change the Box's settings. More in [`client/README.md`](client/README.md).
+
 ## First-time setup
 
 A new box opens the **setup wizard** in the browser. It takes about five minutes:

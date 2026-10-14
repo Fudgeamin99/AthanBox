@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.5.0 - A TV screen on a Dell Wyse
+
+- **Azan SIP Client**, a new program for a Dell Wyse (or any small PC) running Debian: it turns the Wyse into a TV screen for a Box elsewhere on the network. It shows the Box's prayer-times screen full screen on the TV plugged into it from every boot, and plays the azan through the TV's speakers at the same moment as the phones, with no tap needed.
+- **Its own volume:** the Wyse's volume is set on the Wyse, so each room can be louder or quieter.
+- **Finds the Box** by its address or by searching the network, and **reconnects by itself** after the Box restarts or updates, or the network drops, showing *Connecting to the Azan SIP Box* meanwhile.
+- **Only shows:** the Wyse can't change the Box's settings. It needs *Let TV screens connect* on the TV app page, and shows there under its own name.
+- Install it with `sudo apt install ./azan-sip-client.deb`, attached to this release. See "A TV screen on a Dell Wyse" in the README.
+
 ## 0.4.4 - Volume for the box's own screen
 
 - **The volume slider** on the TV app page now changes only the screen plugged into the box (a laptop or a Wyse on a TV), not iPads and other TV screens, which keep their own volume.

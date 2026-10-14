@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azan SIP Client</title>
+<style>
+html,body{margin:0;height:100%;background:#0d4a3f;color:#fff;font-family:system-ui,"DejaVu Sans",sans-serif;overflow:hidden}
+main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;text-align:center;padding:0 8vw;box-sizing:border-box}
+#clock{font-size:14vh;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+h1{font-size:4.6vh;margin:0}
+p{font-size:2.8vh;color:#cfe3dc;max-width:70vw;margin:0;line-height:1.4}
+.dot{display:inline-block;width:1.4vh;height:1.4vh;border-radius:50%;background:#f3e2b4;margin:0 .5vh;animation:b 1.4s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes b{0%,80%,100%{opacity:.2}40%{opacity:1}}
+button{font:600 2.4vh system-ui,sans-serif;padding:1.4vh 3vh;border-radius:1.4vh;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <div id="clock"></div>
+  <h1 id="title">Connecting to the Azan SIP Box</h1>
+  <div><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+  <p id="msg">The prayer times come back by themselves as soon as the box answers.</p>
+  <button onclick="location.assign('/client/')">Screen settings</button>
+</main>
+<script>
+const to = new URLSearchParams(location.search).get("to") || "/";
+const dest = /^\/(?!\/)/.test(to) ? to : "/";
+const MSG = {
+  unreachable: box => `The box at ${box} isn't answering. Check it's switched on and this screen's network cable is in. The prayer times come back by themselves as soon as it answers.`,
+  not_allowed: () => "The box doesn't let TV screens connect. In its control panel, open TV app and switch on “Let TV screens connect”. This screen then connects by itself.",
+  not_azan: box => `Something answers at ${box}, but it isn't an Azan SIP Box. Press Screen settings to choose the box.`,
+};
+function tick(){ document.getElementById("clock").textContent = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", hour12:false}); }
+async function check(){
+  try{
+    const st = await (await fetch("/client/api/status", {cache:"no-store"})).json();
+    if (!st.box) return location.replace("/client/");
+    if (st.state === "ok") return location.replace(dest);
+    const m = MSG[st.state];
+    if (m) document.getElementById("msg").textContent = m(st.box.replace(/^http:\/\//, ""));
+  }catch(e){}
+  setTimeout(check, 2000);
+}
+tick(); setInterval(tick, 1000); setTimeout(check, 1500);
+</script>
+</body>
+</html>
