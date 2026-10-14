@@ -29,6 +29,8 @@ log = logging.getLogger("azan-sip-updater")
 
 SOCK = os.environ.get("AZAN_DOCKER_SOCKET", "/var/run/docker.sock")
 TARGET = os.environ.get("AZAN_UPDATE_TARGET", "azan-sip")          # the Box's container_name
+# fail2ban and the firewall (the optional "security" service), updated with the Box when it exists
+SECURITY = os.environ.get("AZAN_UPDATE_SECURITY", "azan-sip-security")
 TOKEN_FILE = Path(os.environ.get("AZAN_UPDATER_TOKEN_FILE", "/data/auth/updater-token"))
 PORT = int(os.environ.get("AZAN_UPDATER_PORT", "8770"))
 LABEL_VERSION = "org.opencontainers.image.version"
@@ -76,11 +78,11 @@ def docker(method: str, path: str, body: dict | None = None, timeout: float = 60
     return raw
 
 
-def container() -> dict:
+def container(name: str = TARGET) -> dict:
     try:
-        return docker("GET", f"/containers/{quote(TARGET)}/json")
+        return docker("GET", f"/containers/{quote(name)}/json")
     except DockerError as exc:
-        raise DockerError(f"Can't find the container '{TARGET}' ({exc}). Set AZAN_UPDATE_TARGET in compose.yaml "
+        raise DockerError(f"Can't find the container '{name}' ({exc}). Set AZAN_UPDATE_TARGET in compose.yaml "
                           "to the Box's container_name.") from exc
 
 
@@ -185,8 +187,23 @@ def _create_body(c: dict, ref: str) -> dict:
 
 
 def recreate() -> dict:
-    """Replace the Box's container with one from the newest image already pulled."""
-    c = container()
+    """Replace the Box's container, and the security container if there is one, with ones from the
+    newest image already pulled."""
+    result = _recreate(container())
+    if SECURITY and result["updated"]:
+        try:
+            sec = docker("GET", f"/containers/{quote(SECURITY)}/json")
+        except DockerError:
+            sec = None   # not set up on this computer
+        if sec and sec["Config"]["Image"] == container()["Config"]["Image"]:
+            try:
+                _recreate(sec)
+            except DockerError as exc:   # the Box itself is updated; the old security container is back
+                log.error("Couldn't update %s: %s", SECURITY, exc)
+    return result
+
+
+def _recreate(c: dict) -> dict:
     ref = c["Config"]["Image"]
     new = image(ref)
     version = describe(new["Id"], new.get("Config"))

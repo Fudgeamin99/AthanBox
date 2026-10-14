@@ -11,8 +11,13 @@ requests such as "unban this address" to request.json). systemd notices the chan
 - writes what is happening (jails, banned addresses, errors) to /run/azan-sip-security/status.json,
   which the control panel shows. A timer runs it every minute too, to keep that list fresh.
 
-It is installed to /usr/local/lib/azan-sip by packaging/box/security.sh, outside /opt/azan-sip,
-so the azan user can't change the code that runs as root. Everything it reads from /opt/azan-sip
+In Docker the same script runs in a container of its own (the "security" service in compose.yaml,
+with the host's network and the NET_ADMIN capability): "watch /data" keeps fail2ban running there and
+checks the settings every two seconds instead of systemd. The SSH jail isn't available there, and on a
+host without nftables (some NAS kernels) the whitelist, blacklist and bans use iptables instead.
+
+On Debian it is installed to /usr/local/lib/azan-sip by packaging/box/system-setup.sh, outside
+/opt/azan-sip, so the azan user can't change the code that runs as root. Everything it reads from /opt/azan-sip
 is untrusted: addresses are parsed with ipaddress, numbers are clamped and nothing else is used.
 Standard library only.
 """
@@ -24,6 +29,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -31,11 +37,15 @@ import time
 from pathlib import Path
 
 RUN = Path("/run/azan-sip-security")
-STATUS = RUN / "status.json"
+# Docker: the status goes to the shared /data volume, where the control panel's container reads it
+STATUS = Path(os.environ.get("AZAN_SECURITY_STATUS") or RUN / "status.json")
 STATE = RUN / "state.json"
 JAIL_FILE = Path("/etc/fail2ban/jail.d/azan-sip.local")
 FILTER_DIR = Path("/etc/fail2ban/filter.d")
 TABLE = "azan_sip_lists"
+CHAIN = "AZAN-SIP-LISTS"   # the same lists with iptables, where the kernel has no nftables
+CONTAINER = False          # running in Docker ("watch"): no systemd, no SSH jail
+FIREWALL: str | None = None   # "nft", "iptables" or None, found by firewall_kind()
 # The Security page's names for the jails, and fail2ban's
 JAILS = {"sshd": "sshd", "panel": "azan-sip-panel", "sip": "azan-sip-sip"}
 MAX_ENTRIES = 2000
@@ -153,7 +163,38 @@ def f2b_installed() -> bool:
 
 
 def f2b_running() -> bool:
+    if CONTAINER:
+        return run("fail2ban-client", "ping").returncode == 0
     return run("systemctl", "is-active", "--quiet", "fail2ban").returncode == 0
+
+
+def f2b_start():
+    if CONTAINER:
+        Path("/run/fail2ban").mkdir(parents=True, exist_ok=True)
+        return run("fail2ban-client", "-x", "start", timeout=90)
+    return run("systemctl", "restart", "fail2ban", timeout=90)
+
+
+def f2b_stop():
+    if CONTAINER:
+        if f2b_running():
+            run("fail2ban-client", "stop", timeout=60)
+    elif f2b_running() or run("systemctl", "is-enabled", "--quiet", "fail2ban").returncode == 0:
+        run("systemctl", "disable", "--now", "fail2ban", timeout=60)
+
+
+def firewall_kind() -> str | None:
+    """nftables if the kernel has it, else iptables (legacy or nft-based, whichever works)."""
+    if shutil.which("nft") and run("nft", "list", "tables").returncode == 0:
+        return "nft"
+    if shutil.which("iptables") and run("iptables", "-S", "INPUT").returncode == 0:
+        return "iptables"
+    if CONTAINER and shutil.which("iptables-legacy") and run("iptables-legacy", "-S", "INPUT").returncode == 0:
+        # an older kernel (such as a Synology NAS): fail2ban's actions call plain "iptables"
+        for name in ("iptables", "ip6tables"):
+            run("update-alternatives", "--set", name, f"/usr/sbin/{name}-legacy")
+        return "iptables"
+    return None
 
 
 def jail_text(s: dict, log: Path) -> str:
@@ -168,12 +209,13 @@ def jail_text(s: dict, log: Path) -> str:
         f"maxretry = {s['maxretry']}",
         f"bantime.increment = {'true' if s['increment'] else 'false'}",
         # a banned address is blocked on every port, TCP and UDP (SIP is UDP)
-        "banaction = nftables[type=allports]",
-        "banaction_allports = nftables[type=allports]",
-        "protocol = tcp,udp",
+        *(["banaction = nftables[type=allports]", "banaction_allports = nftables[type=allports]",
+           "protocol = tcp,udp"] if FIREWALL != "iptables" else
+          ["banaction = iptables-allports", "banaction_allports = iptables-allports", "protocol = all"]),
         "",
         "[sshd]",
-        f"enabled = {'true' if s['jails']['sshd'] else 'false'}",
+        # in Docker the host's SSH sign-ins can't be seen
+        f"enabled = {'true' if s['jails']['sshd'] and not CONTAINER else 'false'}",
         "backend = systemd",
         "",
     ]
@@ -197,12 +239,12 @@ def apply_fail2ban(s: dict, log: Path, errors: list) -> None:
         changed |= write_root_file(FILTER_DIR / f"{name}.conf", FILTER_TEXT.format(regex=regex))
     changed |= write_root_file(JAIL_FILE, jail_text(s, log))
     if not s["enabled"]:
-        if f2b_running() or run("systemctl", "is-enabled", "--quiet", "fail2ban").returncode == 0:
-            run("systemctl", "disable", "--now", "fail2ban", timeout=60)
+        f2b_stop()
         return
-    run("systemctl", "enable", "--quiet", "fail2ban")
+    if not CONTAINER:
+        run("systemctl", "enable", "--quiet", "fail2ban")
     if not f2b_running():
-        r = run("systemctl", "restart", "fail2ban", timeout=90)
+        r = f2b_start()
     elif changed:
         r = run("fail2ban-client", "reload", timeout=90)
     else:
@@ -278,20 +320,60 @@ def nft_text(s: dict) -> str:
               "    ip saddr @block4 drop\n    ip6 saddr @block6 drop\n  }\n}\n")
 
 
-def nft_present() -> bool:
-    return run("nft", "list", "table", "inet", TABLE).returncode == 0
+def lists_present() -> bool:
+    if FIREWALL == "nft":
+        return run("nft", "list", "table", "inet", TABLE).returncode == 0
+    if FIREWALL == "iptables":
+        return run("iptables", "-C", "INPUT", "-j", CHAIN).returncode == 0
+    return False
+
+
+def iptables_apply(s: dict) -> subprocess.CompletedProcess:
+    """The whitelist and blacklist as a chain of their own, jumped to first from INPUT."""
+    for cmd, version in (("iptables", 4), ("ip6tables", 6)):
+        if not shutil.which(cmd) or run(cmd, "-S", "INPUT").returncode != 0:
+            if version == 4:
+                return run(cmd, "-S", "INPUT")
+            continue   # no IPv6 firewall on this host
+        run(cmd, "-N", CHAIN)
+        r = run(cmd, "-F", CHAIN)
+        if r.returncode != 0:
+            return r
+        rules = [["-i", "lo", "-j", "RETURN"]]
+        rules += [["-s", str(n), "-j", "RETURN"] for n in ipaddress.collapse_addresses(n for n in s["allow"] if n.version == version)]
+        rules += [["-s", str(n), "-j", "DROP"] for n in ipaddress.collapse_addresses(n for n in s["block"] if n.version == version)]
+        for rule in rules:
+            r = run(cmd, "-A", CHAIN, *rule)
+            if r.returncode != 0:
+                return r
+        if run(cmd, "-C", "INPUT", "-j", CHAIN).returncode != 0:
+            r = run(cmd, "-I", "INPUT", "1", "-j", CHAIN)
+            if r.returncode != 0:
+                return r
+    return subprocess.CompletedProcess([], 0, "", "")
+
+
+def remove_lists():
+    """Take the whitelist and blacklist out of the firewall (the Docker container is stopping)."""
+    if FIREWALL == "nft":
+        run("nft", "delete", "table", "inet", TABLE)
+    elif FIREWALL == "iptables":
+        for cmd in ("iptables", "ip6tables"):
+            run(cmd, "-D", "INPUT", "-j", CHAIN)
+            run(cmd, "-F", CHAIN)
+            run(cmd, "-X", CHAIN)
 
 
 def apply_firewall(s: dict, state: dict, errors: list) -> None:
-    if not shutil.which("nft"):
+    if FIREWALL is None:
         return
-    text = nft_text(s)
-    digest = hashlib.sha256(text.encode()).hexdigest()
-    if state.get("nft") == digest and nft_present():
+    text = nft_text(s) if FIREWALL == "nft" else json.dumps([str(n) for n in s["allow"] + s["block"]] + [len(s["allow"])])
+    digest = hashlib.sha256((FIREWALL + text).encode()).hexdigest()
+    if state.get("nft") == digest and lists_present():
         return
-    r = run("nft", "-f", "-", stdin=text)
+    r = run("nft", "-f", "-", stdin=text) if FIREWALL == "nft" else iptables_apply(s)
     if r.returncode != 0:
-        errors.append("The firewall didn't accept the lists: " + (r.stderr.strip().splitlines() or ["unknown error"])[-1])
+        errors.append("The firewall didn't accept the lists: " + ((r.stderr or r.stdout).strip().splitlines() or ["unknown error"])[-1])
         state.pop("nft", None)
         return
     state["nft"] = digest
@@ -321,7 +403,9 @@ def once(base: Path) -> None:
     errors: list[str] = []
     log = base / "azan.log"
     digest = hashlib.sha256(json.dumps([raw, log.is_file()], sort_keys=True).encode()).hexdigest()
-    if raw and state.get("settings") != digest:
+    # Docker has no systemd to restart fail2ban if it stops, so start it again here
+    restart = CONTAINER and s["enabled"] and f2b_installed() and not f2b_running()
+    if raw and (state.get("settings") != digest or restart):
         apply_fail2ban(s, log, errors)
         apply_firewall(s, state, errors)
         state["settings"], state["rev"] = digest, s["rev"]
@@ -336,7 +420,7 @@ def once(base: Path) -> None:
     jails = {}
     for key, name in JAILS.items():
         st = jail_status(name) if running else None
-        jails[key] = dict(st or {}, active=st is not None)
+        jails[key] = dict(st or {}, active=st is not None, unavailable=CONTAINER and key == "sshd")
     if s["jails"]["panel"] or s["jails"]["sip"]:
         if not log.is_file():
             errors.append(f"{log} doesn't exist yet, so the control panel and SIP jails are waiting for it")
@@ -348,11 +432,14 @@ def once(base: Path) -> None:
         "fail2ban": {"installed": installed, "running": running,
                      "version": (run("fail2ban-client", "--version").stdout.strip().split() or [""])[-1] if installed else ""},
         "jails": jails,
-        "firewall": {"installed": bool(shutil.which("nft")), "active": nft_present(),
+        "firewall": {"installed": FIREWALL is not None, "kind": FIREWALL or "", "active": lists_present(),
                      "blocked": len(s["block"]), "allowed": len(s["allow"])},
-        "errors": errors,
+        "container": CONTAINER,
+        "errors": errors + ([] if FIREWALL else ["This computer's firewall can't be changed (neither nftables nor iptables "
+                                                 "works here), so bans and the blacklist only cover the control panel and SIP"]),
     }
-    fd, tmp = tempfile.mkstemp(dir=RUN, prefix=".status.")
+    STATUS.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=STATUS.parent, prefix=".status.")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(status, f)
     os.chmod(tmp, 0o644)
@@ -364,14 +451,47 @@ def once(base: Path) -> None:
     os.replace(tmp, STATE)
 
 
+def watch(base: Path) -> int:
+    """Docker: apply changes within two seconds, refresh the status every minute, until stopped."""
+    global CONTAINER, FIREWALL
+    CONTAINER = True
+    FIREWALL = firewall_kind()
+    STATE.unlink(missing_ok=True)   # a restarted container keeps its /run: apply everything again
+    print(f"azan-sip-security: watching {base}/security, firewall: {FIREWALL or 'none'}", flush=True)
+
+    def stop(*_):
+        f2b_stop()
+        remove_lists()
+        print("azan-sip-security: stopped", flush=True)
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    seen, last = None, 0.0
+    while True:
+        now = (mtime(base / "security" / "settings.json"), mtime(base / "security" / "request.json"))
+        # wait for the Box to start and write its settings (and own the folder) the first time
+        if now[0] and (now != seen or time.monotonic() - last > 60):
+            seen, last = now, time.monotonic()
+            try:
+                once(base)
+            except Exception as exc:
+                print(f"azan-sip-security: {exc}", file=sys.stderr, flush=True)
+        time.sleep(2)
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 3 or argv[1] != "apply":
-        print("usage: security-helper.py apply /opt/azan-sip", file=sys.stderr)
+    global FIREWALL
+    if len(argv) != 3 or argv[1] not in ("apply", "watch"):
+        print("usage: security-helper.py apply /opt/azan-sip   (Debian, started by systemd)\n"
+              "       security-helper.py watch /data           (Docker)", file=sys.stderr)
         return 2
     base = Path(argv[2])
     if os.geteuid() != 0:
         print("Please run as root", file=sys.stderr)
         return 1
+    if argv[1] == "watch":
+        return watch(base)
+    FIREWALL = firewall_kind()
     # A change made while this was running is applied by going round again (systemd doesn't start
     # a second copy while this one runs).
     for _ in range(5):

@@ -34,6 +34,9 @@ from . import rtp
 log = logging.getLogger("azan-sip")
 
 STATUS_FILE = Path("/run/azan-sip-security/status.json")
+# Docker: the helper runs in a container of its own (the "security" service in compose.yaml) and
+# writes its status next to the settings, every minute; an older status means it isn't running.
+DOCKER_STATUS_MAX_AGE = 180
 HELPER = Path("/usr/local/lib/azan-sip/security-helper.py")
 # Debian: the box sets up each version's system parts by itself after an update (azan-sip-system.service,
 # from packaging/box/system-setup.sh). A box installed before 0.5.1 needs that set up once by hand.
@@ -142,6 +145,7 @@ class Security:
     def __init__(self, base: Path, docker: bool = False):
         self.folder = Path(base) / "security"
         self.docker = docker
+        self.status_file = self.folder / "status.json" if docker else STATUS_FILE
         self.lock = threading.Lock()
         self.settings = self._load()
         self._publish()
@@ -218,7 +222,9 @@ class Security:
     # -- what the page shows
     def helper_status(self) -> dict | None:
         try:
-            st = json.loads(STATUS_FILE.read_text(encoding="utf-8"))
+            if self.docker and time.time() - self.status_file.stat().st_mtime > DOCKER_STATUS_MAX_AGE:
+                return None   # the security container has stopped
+            st = json.loads(self.status_file.read_text(encoding="utf-8"))
             return st if isinstance(st, dict) else None
         except (OSError, ValueError):
             return None
@@ -239,7 +245,8 @@ class Security:
 
     def state(self, client_ip: str) -> dict:
         st = self.helper_status()
-        installed = HELPER.is_file() or st is not None
+        # the Docker image always has the helper, so there only a fresh status counts
+        installed = st is not None if self.docker else (HELPER.is_file() or st is not None)
         with self.lock:
             s = json.loads(json.dumps(self.settings))
         a = address(client_ip)

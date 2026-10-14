@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.0 - Fail2ban and the firewall in Docker
+
+- **The Security page works fully in Docker.** Fail2ban bans addresses that keep guessing the control panel or SIP password, and the whitelist and blacklist go on the computer's firewall, so a banned or blocked address can't reach it on any port. Before, Docker only had the blacklist, enforced by the Box itself on the control panel and SIP.
+- **NAS boxes without nftables**, such as many Synology models, use iptables instead, found by itself.
+- **Docker, once:** add the new `security` part of `compose.yaml` (it's in the README's Docker section) to your compose file and run `docker compose up -d`, or redeploy the project in your NAS's Docker app. The Update button can't add a new container, but after this it updates the security container along with the Box. Until it's added, the Security page says how. SSH sign-ins aren't watched in Docker.
+- **Debian:** nothing to run, and nothing changes in how it works. A minute or two after **Update now**, the box installs the new version of its security helper by itself.
+
 ## 0.6.1 - The volume slider sets the computer's own volume
 
 - **Volume on the box's own screen:** the slider on the TV app page now sets the volume of the computer the Box runs on, such as a laptop with its screen, like its volume keys would. If that computer has no volume control (a TV on HDMI often doesn't), the box's screen turns the azan down itself, as before.
