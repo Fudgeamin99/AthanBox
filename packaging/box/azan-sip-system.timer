@@ -1,0 +1,11 @@
+[Unit]
+Description=Azan SIP Box - retry setting up the installed version's system parts
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Unit=azan-sip-system.service
+
+[Install]
+WantedBy=timers.target

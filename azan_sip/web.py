@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, live, look, ramadan, rtp, screens, sipserver, tomlw, updater
+from . import __version__, live, look, ramadan, rtp, screens, security, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import FROZEN, app_dir
 from .sipreg import Registration, RegistrationManager
@@ -320,6 +320,7 @@ class Service:
         self.sounds = screens.Sounds()
         self.shared.screens_listening = self.tvs.listening
         self._tv_next = (0.0, None, None)
+        self.security: security.Security | None = None   # the Security page (box mode only)
         self.load()
 
     # -- config
@@ -397,6 +398,7 @@ class Service:
     def start_box(self):
         """Box mode: until first-time setup is done, a one-time code (QR on the screen) lets a phone in."""
         self.box = True
+        self.security = security.Security(self.base, docker=updater.DOCKER)
         if not self.configured():
             self.auth.new_setup_code()
         if not self.auth.has_password():
@@ -419,6 +421,8 @@ class Service:
                         f.unlink(missing_ok=True)
             self.auth.reset_to_factory()
             self.tvs.clear()   # TV screens can't connect until they're allowed again
+            if self.security:
+                self.security.reset()   # this network on the whitelist again, nothing blocked
             self.wizard = {"rev": self.wizard["rev"] + 1, "state": None, "driver": ""}
             self.app, self.cfg, self.error = None, {}, None
             self.load()
@@ -1006,6 +1010,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.rfile.read(n) if n else b""
 
     def do_GET(self):
+        if security.FILTER.blocked(self.client_address[0]):   # on the blacklist (Security page)
+            return self._send(403, b"Forbidden", "text/plain")
         if not self._host_ok():
             return self._send(403, b"Forbidden", "text/plain")
         svc = self.service
@@ -1110,6 +1116,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(svc.update_status())
             if p == "/api/tv-links":   # the TV app page: addresses and QR codes for TV screens
                 return self._json(svc.tv_links(self._page_host()))
+            if p == "/api/security":   # the Security page: fail2ban, whitelist and blacklist
+                if not svc.security:
+                    return self._json({"ok": False, "error": "Security settings are only on the Azan SIP Box"}, 404)
+                return self._json(svc.security.state(self.client_address[0]))
             if p.startswith("/audio/"):
                 f = svc.audio_dir / Path(unquote(p[7:])).name
                 if f.is_file() and f.suffix.lower() in AUDIO_EXT:
@@ -1122,7 +1132,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": str(exc)}, 500)
 
     def do_POST(self):
-        if not self._host_ok() or self.headers.get("X-Azan-Panel") != "1":
+        if security.FILTER.blocked(self.client_address[0]) or not self._host_ok() or self.headers.get("X-Azan-Panel") != "1":
             return self._send(403, b"Forbidden", "text/plain")
         svc = self.service
         url = urlparse(self.path)
@@ -1219,6 +1229,26 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/screens":
                 svc.set_screens(bool(req.get("on")))
                 return self._json({"ok": True, **svc.tv_links(self._page_host())})
+            if p.startswith("/api/security/") and not svc.security:
+                raise ValueError("Security settings are only on the Azan SIP Box")
+            if p == "/api/security/fail2ban":
+                svc.security.set_fail2ban(req)
+                return self._json({"ok": True, **svc.security.state(self.client_address[0])})
+            if p in ("/api/security/add", "/api/security/remove"):
+                which = str(req.get("list") or "")
+                if p.endswith("add"):
+                    svc.security.add(which, str(req.get("ip") or ""), str(req.get("note") or ""),
+                                     self.client_address[0], [box_ip(), *local_ips()])
+                else:
+                    svc.security.remove(which, str(req.get("ip") or ""))
+                return self._json({"ok": True, **svc.security.state(self.client_address[0])})
+            if p == "/api/security/unban":
+                ips = req.get("ips") if isinstance(req.get("ips"), list) else [req.get("ip")]
+                svc.security.request(unban=[str(x) for x in ips if x])
+                return self._json({"ok": True})
+            if p == "/api/security/refresh":
+                svc.security.request()
+                return self._json({"ok": True})
             if p == "/api/live/test":
                 return self._json({"ok": True, **svc.live.test(str(req.get("url") or ""))})
             if p == "/api/preview":

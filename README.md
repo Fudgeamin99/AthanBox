@@ -4,7 +4,7 @@ The Azan SIP Box plays the azan (call to prayer) automatically at every prayer t
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.4.4, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.6.0, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
@@ -132,13 +132,23 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 - `AZAN_PASSWORD` is the box's factory password. Under **Settings → Password and reset** you can choose your own, which then replaces it.
 - **Factory reset** on the same page removes settings, recordings and your own password, and goes back to `AZAN_PASSWORD`.
 
+## Security: fail2ban, whitelist and blacklist
+
+Open **Security** in the menu.
+
+- **Fail2ban** bans an address for a while after too many wrong passwords: SSH sign-ins to the box, the control panel's password, and SIP sign-ins (Register to Azan SIP). A banned address can't reach the box on any port. Choose how many wrong tries are allowed, over how long, and how long the ban lasts. **Banned right now** lists who is banned, with **Unban** and **Always block**.
+- **Whitelist:** addresses and ranges that are never banned or blocked. The box's own network is on it from the start, so you can't lock yourself out from inside the masjid. Add your phone system or your home's address too.
+- **Blacklist:** addresses and ranges that are always blocked, with a note. The Box won't let you block the address you're using, or its own.
+
+Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.1, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/system-setup.sh` once in the `azan-sip-box` folder. In Docker there's no fail2ban, but the blacklist still works: the Box refuses those addresses on its control panel and SIP port itself.
+
 ## Updating
 
 **With the Update button:** go to **Settings → Updates** and press **Check for updates**. If there's a new version, press **Update now**. The Box restarts with it in a few seconds, and your `data` folder is kept. If the new version won't start, the old one is put back.
 
 The button needs the `updater` part of the compose file above. It's a small helper, from the same image, that downloads the new image and restarts the `azan-sip` container with it. Because it can control Docker on that computer, it only listens on the computer itself (127.0.0.1, port 8770) and only does what the control panel asks, using a secret key the panel keeps in `data/auth`. If you leave it out, Settings → Updates says how to update by hand.
 
-**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back.
+**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back. When a new version needs system changes too (packages such as fail2ban, or system services), the box makes them by itself a minute or two after updating: a small service that runs as root downloads that release from GitHub and runs its `packaging/box/system-setup.sh`. The control panel itself never gets root. A box installed before 0.5.1 needs this set up once: run `git pull` and `sudo sh packaging/box/system-setup.sh` in the `azan-sip-box` folder.
 
 **By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 
