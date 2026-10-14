@@ -25,6 +25,13 @@ install -m 755 packaging/box/system-update.py /usr/local/lib/azan-sip/system-upd
 cp packaging/box/azan-sip-system.service packaging/box/azan-sip-system.path \
    packaging/box/azan-sip-system.timer /etc/systemd/system/
 
+# --- The volume slider on the TV app page sets the computer's own volume (0.6.1)
+if getent group audio >/dev/null && ! id -nG azan | tr ' ' '\n' | grep -qx audio; then
+    usermod -a -G audio azan
+    # The Box picks up its new group when it restarts (--no-block, as below)
+    systemctl restart --no-block azan-sip-box
+fi
+
 systemctl daemon-reload
 systemctl enable azan-sip-security.service azan-sip-system.service
 systemctl enable --now azan-sip-security.path azan-sip-security.timer azan-sip-system.path azan-sip-system.timer

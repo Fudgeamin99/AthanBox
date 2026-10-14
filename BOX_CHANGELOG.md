@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.6.1 - The volume slider sets the computer's own volume
+
+- **Volume on the box's own screen:** the slider on the TV app page now sets the volume of the computer the Box runs on, such as a laptop with its screen, like its volume keys would. If that computer has no volume control (a TV on HDMI often doesn't), the box's screen turns the azan down itself, as before.
+- **Debian:** nothing to run. A minute or two after **Update now**, the box sets itself up to change the volume.
+- **Docker:** nothing changes. A container can't set the NAS's volume, so the slider keeps turning down the box's own screen.
+
 ## 0.6.0 - A TV screen on a Dell Wyse
 
 - **Azan SIP Client**, a new program for a Dell Wyse (or any small PC) running Debian: it turns the Wyse into a TV screen for a Box elsewhere on the network. It shows the Box's prayer-times screen full screen on the TV plugged into it from every boot, and plays the azan through the TV's speakers at the same moment as the phones, with no tap needed.

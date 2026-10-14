@@ -84,6 +84,8 @@ else
     echo "For a TV: plug it in, switch it on and run this again."
 fi
 chown -R azan-screen:azan-screen /var/lib/azan-screen
+# The volume slider on the TV app page sets the computer's volume: the Box needs the audio group
+if getent group audio >/dev/null && id azan >/dev/null 2>&1; then usermod -a -G audio azan; systemctl restart azan-sip-box; fi
 
 install -m 755 packaging/box/azan-sip-screen.sh /usr/local/bin/azan-sip-screen
 cp packaging/box/azan-sip-screen.service /etc/systemd/system/
