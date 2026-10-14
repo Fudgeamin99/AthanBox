@@ -1,6 +1,7 @@
 # The Azan SIP Client (client/), the TV screen for a Dell Wyse: on each pull request that changes it,
-# runs its tests, builds the Debian package and installs it on Debian 12 and 13, so a missing
-# dependency or a broken install script is caught before a Box release attaches it.
+# runs its tests, builds the Debian package and installs it on Debian 12 and 13 (64-bit) and on
+# 32-bit Debian 12 (an old 32-bit laptop), so a missing dependency or a broken install script is
+# caught before a Box release attaches it.
 name: Wyse client
 
 on:
@@ -45,3 +46,22 @@ jobs:
           test -x /usr/lib/azan-sip-client/kiosk
           test -f /lib/systemd/system/azan-sip-client-screen.service
           python3 -m unittest discover -s client -v
+
+  # 32-bit PCs and laptops: Debian 12 is the last version with a 32-bit installer. JavaScript
+  # actions can't run in a 32-bit container, so this one runs it by hand.
+  install-32bit:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install it on 32-bit Debian 12
+        run: |
+          docker run --rm --platform linux/386 -v "$PWD:/src" -w /src debian:bookworm sh -euc '
+            test "$(dpkg --print-architecture)" = i386
+            apt-get update
+            sh client/build-deb.sh
+            apt-get install -y ./client/dist/azan-sip-client.deb
+            azan-sip-client --version
+            dpkg-query -W -f "\${Package} \${Version} \${Architecture}\n" chromium cage seatd python3
+            id azan-client
+            python3 -m unittest discover -s client -v'

@@ -21,8 +21,10 @@ StandardError=journal
 UtmpIdentifier=tty1
 UtmpMode=user
 Environment=XDG_SESSION_TYPE=wayland LIBSEAT_BACKEND=seatd
-# cage shows one app full screen; -s still lets Ctrl+Alt+F2 reach a text login for maintenance
-ExecStart=/usr/bin/cage -s -- /usr/lib/azan-sip-client/kiosk
+# cage shows one app full screen; -s still lets Ctrl+Alt+F2 reach a text login for maintenance.
+# -m last: on a laptop with a TV plugged in, the prayer times fill the TV instead of being
+# stretched across the TV and the laptop's own screen.
+ExecStart=/usr/bin/cage -s -m last -- /usr/lib/azan-sip-client/kiosk
 Restart=always
 RestartSec=5
 

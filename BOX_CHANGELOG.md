@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.1 - The Wyse client on laptops and 32-bit PCs
+
+- **Laptops as TV screens:** the Azan SIP Client now works on an old laptop as well as a Wyse. With no TV plugged in, it shows the prayer times on the laptop's own screen and plays the azan through its built-in speakers, switching them on where a laptop starts with them off. With a TV on HDMI, the prayer times fill the TV instead of being stretched across both screens, and the azan plays through the TV. The laptop keeps going with its lid closed.
+- **64-bit and 32-bit:** the same `azan-sip-client.deb` installs on 64-bit and 32-bit computers. For a 32-bit one, install Debian 12 (i386); Debian 13 no longer has a 32-bit installer. It's now checked on 32-bit Debian before each release.
+- To update a Wyse or laptop already running the client, download `azan-sip-client.deb` again and run `sudo apt install ./azan-sip-client.deb`.
+- **Debian:** only the client package changes. The Box's own Debian install is unchanged.
+- **Docker:** nothing changes. The image and compose file stay the same.
+
 ## 0.7.0 - Fail2ban and the firewall in Docker
 
 - **The Security page works fully in Docker.** Fail2ban bans addresses that keep guessing the control panel or SIP password, and the whitelist and blacklist go on the computer's firewall, so a banned or blocked address can't reach it on any port. Before, Docker only had the blacklist, enforced by the Box itself on the control panel and SIP.

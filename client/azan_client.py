@@ -35,7 +35,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 BOX_PORTS = (80, 8765)          # a box on Debian answers on both; Docker and the desktop app on 8765

@@ -30,8 +30,24 @@ ctl.!default { type hw; card $card }
 ASOUND
     echo "Sound: the TV on card $card, device $dev"
 else
-    rm -f "$HOME/.asoundrc"
-    echo "Sound: no TV found on HDMI or DisplayPort, so the computer's own sound output plays the azan"
+    # No TV: the computer's own speakers or sound output (a laptop's speakers, a Wyse's line out).
+    # The first output that isn't HDMI, since on some laptops the HDMI card comes first.
+    own=$(LC_ALL=C aplay -l 2>/dev/null | grep -vi 'hdmi\|displayport' \
+          | sed -n 's/^card [0-9]*: \([^ ]*\) .*, device \([0-9]*\):.*/\1,\2/p' | head -n 1)
+    if [ -n "$own" ]; then
+        card=${own%,*} dev=${own#*,}
+        cat > "$HOME/.asoundrc" <<ASOUND
+# Written by the Azan SIP Client at each start: no TV, so the computer's own sound (card $card, device $dev).
+pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
+ctl.!default { type hw; card $card }
+ASOUND
+        # Some laptops' sound chips start with the built-in speaker off: their ALSA profile switches it on
+        alsaucm -c "hw:$card" set _verb HiFi set _enadev Speaker >/dev/null 2>&1 || true
+        echo "Sound: no TV found on HDMI or DisplayPort, so the computer's own speakers play the azan (card $card, device $dev)"
+    else
+        rm -f "$HOME/.asoundrc"
+        echo "Sound: no sound output found"
+    fi
 fi
 # The volume is set on the screen (Screen settings): the sound card itself stays at full volume.
 for card in $(LC_ALL=C aplay -l 2>/dev/null | sed -n 's/^card \([0-9]*\): .*/\1/p' | sort -u); do
