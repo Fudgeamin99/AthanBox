@@ -9,16 +9,24 @@ http://127.0.0.1:8771 only:
 * The azan's volume on the TV app is this screen's own: it replaces the box's TV volume.
 * When the box can't be reached (a restart, an update, the network), the screen shows "Connecting to
   the Azan SIP Box" and goes back to the prayer times by itself as soon as the box answers again.
-* /client/ is this screen's own settings: which box, its name on the box's TV app page, and the volume.
+* /client/ is this screen's own settings: which box, its name on the box's TV app page, the volume
+  and updates. The volume also has buttons on the prayer-times screen itself (web/screen.js).
+* With more than one screen plugged in (two TVs, or a laptop and a TV), every screen shows the prayer
+  times: /client/wall puts one copy of the TV app on each, and only the first one makes a sound.
+  "watch-screens" (run by the kiosk inside cage) keeps the list of screens in screens.json.
+  A laptop's own screen is left out while its lid is closed, and the TV gets the prayer times alone.
+* "update" run as root (azan-sip-client-update.service does, when Screen settings asks for it)
+  installs the newest azan-sip-client.deb from the Box's GitHub releases.
 
 Run "azan-sip-client serve" (the azan-sip-client service does). The other commands talk to it:
-    azan-sip-client status | search | connect <address> [--name NAME] | volume [0-100]
+    azan-sip-client status | search | connect <address> [--name NAME] | volume [0-100] | update
 Only Python's standard library is used.
 """
 from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import http.client
 import ipaddress
 import json
@@ -35,7 +43,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 BOX_PORTS = (80, 8765)          # a box on Debian answers on both; Docker and the desktop app on 8765
@@ -46,6 +54,15 @@ CHECK_EVERY = 5                 # seconds between checks on the box
 PASS_HEADERS = ("content-type", "content-length", "cache-control", "content-disposition", "content-range",
                 "accept-ranges", "etag", "last-modified", "location", "x-content-type-options")
 INJECT = b'<script src="/client/screen.js"></script>'
+VOLUME_STEP = 10                # the volume buttons on the screen
+MAX_SCREENS = 8
+# Updates: the newest client is attached to every Box release
+RELEASES = os.environ.get("AZAN_CLIENT_RELEASES", "https://api.github.com/repos/Fudgeamin99/azan-sip-box/releases/latest")
+OFFICIAL = "https://github.com/Fudgeamin99/azan-sip-box/releases/download/"
+DEB_ASSET = re.compile(r"^azan-sip-client_(\d{1,4}(?:\.\d{1,4}){1,3})_all\.deb$")
+# Written by azan-sip-client-update.service (root), read by the client and Screen settings
+UPDATE_STATE = Path(os.environ.get("AZAN_CLIENT_UPDATE_STATE", "/var/lib/azan-sip-client-update/state.json"))
+UPDATE_CACHE = Path("/var/cache/azan-sip-client-update")
 
 
 # ------------------------------------------------------------------ settings
@@ -64,6 +81,22 @@ def save_config(c: dict):
     tmp = CONFIG.with_suffix(".tmp")
     tmp.write_text(json.dumps(c, indent=2) + "\n", "utf-8")
     os.replace(tmp, CONFIG)
+
+
+def write_json(path: Path, obj, mode: int = 0o644):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(obj, indent=1) + "\n", "utf-8")
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def read_json(path: Path) -> dict:
+    try:
+        j = json.loads(path.read_text("utf-8"))
+        return j if isinstance(j, dict) else {}
+    except (OSError, ValueError):
+        return {}
 
 
 def volume_of(c: dict) -> int:
@@ -187,6 +220,247 @@ def _resolve(host: str) -> str | None:
         return None
 
 
+# ------------------------------------------------------------------ the screens plugged in
+INTERNAL = re.compile(r"^(eDP|LVDS|DSI)", re.I)   # a laptop's own screen
+
+
+def screens_file() -> Path:
+    return CONFIG.parent / "screens.json"
+
+
+def parse_wayland_info(text: str) -> list[dict]:
+    """The screens cage shows and where each sits on its desktop, from what wayland-info prints:
+    each xdg_output's name, logical_x/_y and logical_width/_height (or, without xdg-output, each
+    wl_output's x, y, scale and current mode)."""
+    xdg, wl, cur = [], [], None
+    for line in text.splitlines():
+        t = line.strip()
+        if t.startswith("interface:"):
+            cur = None
+            if "'wl_output'" in t:
+                cur = {"kind": "wl", "scale": 1, "w": 0, "h": 0, "name": ""}
+                wl.append(cur)
+            continue
+        if t == "xdg_output_v1":
+            cur = {"kind": "xdg", "name": ""}
+            xdg.append(cur)
+            continue
+        if cur is None:
+            continue
+        m = re.match(r"name: '?([^',]*)'?$", t)
+        if m and not cur["name"]:
+            cur["name"] = m.group(1)
+        m = re.match(r"logical_x: (-?\d+), logical_y: (-?\d+)", t)
+        if m:
+            cur["x"], cur["y"] = int(m.group(1)), int(m.group(2))
+        m = re.match(r"logical_width: (\d+), logical_height: (\d+)", t)
+        if m:
+            cur["w"], cur["h"] = int(m.group(1)), int(m.group(2))
+        if cur["kind"] == "wl":
+            m = re.match(r"x: (-?\d+), y: (-?\d+), scale: (\d+)", t)
+            if m:
+                cur["x"], cur["y"], cur["scale"] = int(m.group(1)), int(m.group(2)), max(1, int(m.group(3)))
+            m = re.match(r"width: (\d+) px, height: (\d+) px", t)
+            if m:
+                cur["mode"] = (int(m.group(1)), int(m.group(2)))
+            if t.startswith("flags:") and "current" in t and cur.get("mode"):
+                cur["w"], cur["h"] = cur["mode"][0] // cur["scale"], cur["mode"][1] // cur["scale"]
+    found = [o for o in xdg if "x" in o and o.get("w")] or [o for o in wl if "x" in o and o.get("w")]
+    return [{"name": o["name"][:40], "x": o["x"], "y": o["y"], "w": o["w"], "h": o["h"]} for o in found][:MAX_SCREENS]
+
+
+def lid_closed() -> bool:
+    for f in Path("/proc/acpi/button/lid").glob("*/state"):
+        try:
+            if "closed" in f.read_text():
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def shown_screens(screens: list[dict], closed: bool) -> list[dict]:
+    """The screens to show the prayer times on: a laptop's own screen is left out while its lid is
+    closed (with a TV plugged in), since nobody sees it."""
+    if closed:
+        outside = [s for s in screens if not INTERNAL.match(s["name"])]
+        if outside:
+            return outside
+    return screens
+
+
+def read_screens() -> tuple[list[dict], list[dict]]:
+    """(the screens to show the prayer times on, every screen cage spreads the browser over)."""
+    j = read_json(screens_file())
+
+    def clean(items):
+        out = []
+        for s in items if isinstance(items, list) else []:
+            try:
+                out.append({"name": str(s.get("name", ""))[:40], "x": int(s["x"]), "y": int(s["y"]),
+                            "w": max(1, int(s["w"])), "h": max(1, int(s["h"]))})
+            except (AttributeError, KeyError, TypeError, ValueError):
+                pass
+        return out[:MAX_SCREENS]
+    shown = clean(j.get("screens"))
+    return shown, clean(j.get("outputs")) or shown
+
+
+def wall_needed() -> bool:
+    """The browser is spread over more than one screen (even if one is a closed laptop's), so the
+    prayer times go where each screen to show them on is, instead of across them all."""
+    shown, outputs = read_screens()
+    return len(outputs) > 1 and bool(shown)
+
+
+def watch_screens(every: float = 3):
+    """Run by the kiosk inside cage: keeps screens.json up to date as screens are plugged in and out
+    (and a laptop's lid is opened and closed)."""
+    last = None
+    while True:
+        try:
+            text = subprocess.run(["wayland-info"], capture_output=True, text=True, timeout=10).stdout
+            outputs = parse_wayland_info(text)
+        except (OSError, subprocess.SubprocessError):
+            outputs = []
+        now = {"screens": shown_screens(outputs, lid_closed()), "outputs": outputs}
+        if now != last:
+            write_json(screens_file(), now)
+            log("Screens: " + (", ".join(f"{s['name'] or '?'} {s['w']}x{s['h']} at {s['x']},{s['y']}"
+                                         + ("" if s in now["screens"] else " (lid closed)") for s in outputs) or "not known"))
+            last = now
+        time.sleep(every)
+
+
+# ------------------------------------------------------------------ updates
+def vtuple(v: str) -> tuple:
+    return tuple(int(x) for x in re.findall(r"\d+", str(v))[:4])
+
+
+def latest_release(timeout: float = 20) -> dict:
+    """The newest client, from the latest Box release on GitHub: version, url, digest, size."""
+    req = urllib.request.Request(RELEASES, headers={"Accept": "application/vnd.github+json",
+                                                    "User-Agent": f"azan-sip-client/{__version__}"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        j = json.loads(r.read(5_000_000))
+    for a in j.get("assets") or []:
+        m = DEB_ASSET.match(str(a.get("name", "")))
+        if m:
+            return {"version": m.group(1), "url": str(a.get("browser_download_url") or ""),
+                    "digest": str(a.get("digest") or ""), "size": int(a.get("size") or 0), "tag": str(j.get("tag_name", ""))}
+    raise ValueError("The latest release has no azan-sip-client package")
+
+
+class Updates:
+    """What GitHub says is the newest client, asked at most every half hour (or when asked to)."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.last, self.at = None, 0.0
+
+    def check(self, force: bool = False) -> dict:
+        with self.lock:
+            if force or self.last is None or time.time() - self.at > 1800:
+                try:
+                    self.last = {"latest": latest_release()["version"], "error": None}
+                except (OSError, ValueError, http.client.HTTPException) as e:
+                    log(f"Checking for updates failed: {e}")
+                    self.last = {"latest": None, "error": "This screen couldn't reach GitHub to check for updates. Is it connected to the internet?"}
+                self.at = time.time()
+            return dict(self.last)
+
+
+def installed_version() -> str:
+    try:
+        v = subprocess.run(["dpkg-query", "-W", "-f=${Version}", "azan-sip-client"], capture_output=True,
+                           text=True, timeout=30).stdout.strip()
+        return v or __version__
+    except (OSError, subprocess.SubprocessError):
+        return __version__
+
+
+def fetch_deb(rel: dict, folder: Path) -> Path:
+    """Downloads the release's package into folder and checks it: the checksum GitHub gives for it,
+    and that it is the Azan SIP Client at that version. Raises ValueError (or OSError) if not."""
+    folder.mkdir(mode=0o755, parents=True, exist_ok=True)
+    deb = folder / f"azan-sip-client_{rel['version']}_all.deb"
+    try:
+        sha = hashlib.sha256()
+        req = urllib.request.Request(rel["url"], headers={"User-Agent": f"azan-sip-client/{__version__}"})
+        with urllib.request.urlopen(req, timeout=120) as r, open(deb, "wb") as f:
+            got = 0
+            while chunk := r.read(65536):
+                got += len(chunk)
+                if got > 50_000_000:
+                    raise ValueError("the download is far bigger than the client")
+                sha.update(chunk)
+                f.write(chunk)
+        os.chmod(deb, 0o644)   # apt reads it as its own user
+        if rel.get("digest", "").startswith("sha256:") and rel["digest"][7:].lower() != sha.hexdigest():
+            raise ValueError("the download doesn't match the release's checksum")
+        out = subprocess.run(["dpkg-deb", "-f", str(deb), "Package", "Version"], capture_output=True, text=True, timeout=60).stdout
+        info = dict(line.split(": ", 1) for line in out.splitlines() if ": " in line)
+        if (info.get("Package"), info.get("Version")) != ("azan-sip-client", rel["version"]):
+            raise ValueError("the download isn't the Azan SIP Client package")
+    except BaseException:
+        deb.unlink(missing_ok=True)
+        raise
+    return deb
+
+
+def self_update(say=print) -> int:
+    """As root: downloads the newest azan-sip-client.deb from GitHub and installs it with apt (which
+    restarts the client and the screen). Progress goes to UPDATE_STATE for Screen settings."""
+    st = {"started": time.time()}
+
+    def step(name: str, **kw):
+        st.update(step=name, at=time.time(), **kw)
+        write_json(UPDATE_STATE, st)
+        if kw.get("message") or kw.get("error"):
+            say(kw.get("message") or kw.get("error"))
+
+    if os.geteuid() != 0:
+        say("Updating needs root: run it as root (su -), or press Update now in Screen settings.")
+        return 1
+    step("checking")
+    try:
+        rel = latest_release(timeout=60)
+    except (OSError, ValueError, http.client.HTTPException) as e:
+        step("failed", error=f"Couldn't get the update from GitHub ({e}). Check this computer's internet connection.")
+        return 1
+    have = installed_version()
+    if vtuple(rel["version"]) <= vtuple(have):
+        step("done", version=have, message=f"Already up to date: Azan SIP Client {have}.")
+        return 0
+    if RELEASES.startswith("https://api.github.com/") and not rel["url"].startswith(OFFICIAL):
+        step("failed", error="The update isn't from the Azan SIP Box's own releases, so it wasn't installed.")
+        return 1
+    step("downloading", version=rel["version"], message=f"Downloading Azan SIP Client {rel['version']}...")
+    try:
+        deb = fetch_deb(rel, UPDATE_CACHE)
+    except (OSError, ValueError, http.client.HTTPException) as e:
+        step("failed", error=f"Downloading the update failed: {e}.")
+        return 1
+    step("installing", message=f"Installing Azan SIP Client {rel['version']}. The screen restarts by itself.")
+    env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
+    try:
+        # New versions may need new Debian packages: refresh the package lists first (a failure
+        # here only matters if one is missing)
+        subprocess.run(["apt-get", "-o", "DPkg::Lock::Timeout=600", "update"], capture_output=True, timeout=1800, env=env)
+        r = subprocess.run(["apt-get", "-y", "-o", "DPkg::Lock::Timeout=600", "-o", "Dpkg::Options::=--force-confdef",
+                            "-o", "Dpkg::Options::=--force-confold", "install", str(deb)],
+                           capture_output=True, text=True, timeout=3600, env=env)
+        why = "" if r.returncode == 0 else " ".join((r.stderr or r.stdout).strip().splitlines()[-3:])[:400]
+    except (OSError, subprocess.SubprocessError) as e:
+        why = str(e)
+    deb.unlink(missing_ok=True)
+    if why:
+        step("failed", error=f"Installing the update failed: {why}")
+        return 1
+    step("done", version=rel["version"], message=f"Updated to Azan SIP Client {rel['version']}.")
+    return 0
+
+
 # ------------------------------------------------------------------ the box, checked in the background
 class Watch:
     """Checks the box every few seconds, so the screen knows whether it's there."""
@@ -228,6 +502,7 @@ def log(msg: str):
 # ------------------------------------------------------------------ HTTP
 class Handler(BaseHTTPRequestHandler):
     watch: Watch = None
+    updates: Updates = None
     server_version = "azan-sip-client"
     protocol_version = "HTTP/1.1"
 
@@ -263,20 +538,30 @@ class Handler(BaseHTTPRequestHandler):
     def _status(self) -> dict:
         c, w = load_config(), self.watch.get()
         return {"state": w["state"], "box_version": w.get("version"), "box": c.get("box"),
-                "name": c.get("name") or default_name(), "volume": volume_of(c), "version": __version__}
+                "name": c.get("name") or default_name(), "volume": volume_of(c), "version": __version__,
+                **dict(zip(("screens", "outputs"), read_screens()))}
+
+    def _update_status(self, force: bool) -> dict:
+        u = (self.updates or Updates()).check(force)
+        return {"current": __version__, **u, "available": bool(u["latest"]) and vtuple(u["latest"]) > vtuple(__version__),
+                "update": read_json(UPDATE_STATE)}
 
     # -- the screen's own pages and settings
-    def _client_get(self, p: str):
+    def _client_get(self, p: str, query: str = ""):
         if p in ("/client", "/client/"):
             return self._file("settings.html")
         if p == "/client/connecting":
             return self._file("connecting.html")
+        if p == "/client/wall":
+            return self._file("wall.html")
         if p == "/client/screen.js":
             return self._file("screen.js")
         if p == "/client/api/status":
             return self._json(self._status())
         if p == "/client/api/search":
             return self._json({"boxes": search()})
+        if p == "/client/api/update":
+            return self._json(self._update_status("check=1" in query))
         return self._send(404, b"Not found")
 
     def _file(self, name: str):
@@ -313,10 +598,22 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/client/api/settings":
             if "volume" in req:
                 c["volume"] = volume_of({"volume": req["volume"]})
+            elif "volume_step" in req:   # the buttons on the screen: one step up or down
+                try:
+                    c["volume"] = volume_of({"volume": volume_of(c) + VOLUME_STEP * max(-10, min(10, int(req["volume_step"])))})
+                except (TypeError, ValueError):
+                    return self._json({"ok": False, "error": "Bad request"}, 400)
             if "name" in req:
                 c["name"] = str(req["name"]).strip()[:40]
             save_config(c)
             return self._json({"ok": True, **self._status()})
+        if p == "/client/api/update":
+            # azan-sip-client-update.path sees this and runs the update as root
+            # (azan-sip-client-update.service), which reads nothing from here
+            at = time.time()
+            (CONFIG.parent / "update-now").write_text(f"{at}\n")
+            log("Update asked for in Screen settings")
+            return self._json({"ok": True, "asked": at})
         return self._json({"ok": False, "error": "Not found"}, 404)
 
     def do_HEAD(self):
@@ -328,11 +625,14 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlsplit(self.path)
         p = url.path
         if p == "/client" or p.startswith("/client/"):
-            return self._client_get(p)
+            return self._client_get(p, url.query)
         c = load_config()
         if not c.get("box"):
             return self._redirect("/client/")
         if p == "/":   # where the kiosk starts: the TV app, with this screen's name on the box's list
+            # Two screens or more: the prayer times on each (never a wall inside a wall)
+            if wall_needed() and self.headers.get("Sec-Fetch-Dest") != "iframe":
+                return self._redirect("/client/wall")
             return self._redirect("/tv?" + urllib.parse.urlencode({"name": c.get("name") or default_name()}))
         self._proxy(c, url)
 
@@ -373,7 +673,7 @@ class Handler(BaseHTTPRequestHandler):
             if (page and r.status == 200 and ctype.startswith("text/html")) or (url.path == "/api/tv" and r.status == 200):
                 body = r.read()
                 if url.path == "/api/tv":
-                    body = self._own_volume(body, c)
+                    body = self._own_volume(body, c, self._mirror())
                 else:
                     body = body.replace(b"</body>", INJECT + b"</body>", 1) if b"</body>" in body else body + INJECT
                 return self._send(r.status, body, ctype, {k: v for k, v in r.getheaders()
@@ -399,13 +699,19 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             con.close()
 
+    def _mirror(self) -> bool:
+        """Asked by a copy of the TV app on a second screen (/client/wall gives those mirror=1)."""
+        ref = urllib.parse.urlsplit(self.headers.get("Referer") or "")
+        return urllib.parse.parse_qs(ref.query).get("mirror") == ["1"]
+
     @staticmethod
-    def _own_volume(body: bytes, c: dict) -> bytes:
-        """The azan plays at this screen's own volume, not the box's (the TV app applies "volume")."""
+    def _own_volume(body: bytes, c: dict, mirror: bool = False) -> bytes:
+        """The azan plays at this screen's own volume, not the box's (the TV app applies "volume").
+        A second screen's copy stays silent, so the azan isn't heard twice."""
         try:
             j = json.loads(body)
             if isinstance(j, dict):
-                j["volume"] = volume_of(c) / 100
+                j["volume"] = 0 if mirror else volume_of(c) / 100
                 return json.dumps(j).encode()
         except ValueError:
             pass
@@ -415,6 +721,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve(port: int = PORT):
     watch = Watch()
     Handler.watch = watch
+    Handler.updates = Updates()
     threading.Thread(target=watch.run, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
@@ -454,10 +761,30 @@ def main(argv=None):
     c.add_argument("--name", help="this screen's name on the box's TV app page")
     v = sub.add_parser("volume", help="show or set the azan's volume on this screen")
     v.add_argument("percent", nargs="?", type=int, help="0 to 100")
+    u = sub.add_parser("update", help="install the newest Azan SIP Client from GitHub (as root)")
+    u.add_argument("--check", action="store_true", help="only say whether there is a newer version")
+    sub.add_parser("watch-screens", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
 
     if a.cmd == "serve":
         return serve(a.port)
+    if a.cmd == "watch-screens":
+        return watch_screens()
+    if a.cmd == "update":
+        if a.check or os.geteuid() != 0:
+            try:
+                rel = latest_release()
+            except (OSError, ValueError, http.client.HTTPException) as e:
+                sys.exit(f"Couldn't check for updates: {e}")
+            have = installed_version()
+            if vtuple(rel["version"]) <= vtuple(have):
+                print(f"Azan SIP Client {have} is the newest version.")
+                return
+            print(f"Azan SIP Client {rel['version']} is available (this computer has {have}).")
+            if not a.check:
+                print("To install it, run this as root (su -), or press Update now in Screen settings.")
+            return
+        sys.exit(self_update())
     if a.cmd == "search":
         print("Looking for Azan SIP Boxes on the network...")
         boxes = call("/client/api/search")["boxes"]

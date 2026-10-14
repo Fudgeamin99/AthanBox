@@ -1,9 +1,12 @@
 """Tests for the Azan SIP Client, against a small stand-in for the box:
     python3 -m unittest discover -s client"""
+import hashlib
 import http.client
 import json
 import os
+import shutil
 import socket
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -44,6 +47,69 @@ class FakeBox(BaseHTTPRequestHandler):
         return self._send(404, b"no", "text/plain")
 
 
+# What wayland-info prints inside cage with a TV and a laptop's own screen (HiDPI, scale 2)
+WAYLAND_INFO = """interface: 'wl_compositor',                              version:  4, name: 1
+interface: 'wl_output',                                  version:  4, name: 12
+	x: 0, y: 0, scale: 1,
+	physical_width: 600 mm, physical_height: 340 mm,
+	make: 'Samsung', model: 'TV',
+	subpixel_orientation: unknown, output_transform: normal,
+	mode:
+		width: 1920 px, height: 1080 px, refresh: 60.000 Hz,
+		flags: current preferred
+	mode:
+		width: 1280 px, height: 720 px, refresh: 60.000 Hz,
+		flags: none
+	name: HDMI-A-1
+interface: 'wl_output',                                  version:  4, name: 13
+	x: 1920, y: 0, scale: 2,
+	make: 'BOE', model: '0x0abc',
+	mode:
+		width: 2560 px, height: 1600 px, refresh: 60.000 Hz,
+		flags: current preferred
+	name: eDP-1
+interface: 'zxdg_output_manager_v1',                     version:  3, name: 7
+	xdg_output_v1
+		output: 12
+		name: 'HDMI-A-1'
+		description: 'Samsung TV'
+		logical_x: 0, logical_y: 0
+		logical_width: 1920, logical_height: 1080
+	xdg_output_v1
+		output: 13
+		name: 'eDP-1'
+		description: 'Built-in display'
+		logical_x: 1920, logical_y: 0
+		logical_width: 1280, logical_height: 800
+interface: 'wl_seat',                                    version:  7, name: 8
+"""
+
+
+class FakeGitHub(BaseHTTPRequestHandler):
+    deb = b""
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        base = f"http://127.0.0.1:{self.server.server_address[1]}"
+        if self.path == "/releases/latest":
+            body = json.dumps({"tag_name": "box-v9.9.0", "assets": [
+                {"name": "AzanTV.apk", "browser_download_url": base + "/apk", "size": 1},
+                {"name": "azan-sip-client.deb", "browser_download_url": base + "/deb", "size": len(self.deb)},
+                {"name": "azan-sip-client_9.9.9_all.deb", "browser_download_url": base + "/deb", "size": len(self.deb),
+                 "digest": "sha256:" + hashlib.sha256(self.deb).hexdigest()}]}).encode()
+        elif self.path == "/deb":
+            body = self.deb
+        else:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
 def serve(handler, port=0):
     s = ThreadingHTTPServer(("127.0.0.1", port), handler)
     threading.Thread(target=s.serve_forever, daemon=True).start()
@@ -63,13 +129,18 @@ class ClientTest(unittest.TestCase):
         ac.CONFIG = Path(cls.tmp.name) / "client.json"
         cls.box = serve(FakeBox)
         cls.box_base = f"http://127.0.0.1:{cls.box.server_address[1]}"
+        ac.UPDATE_STATE = Path(cls.tmp.name) / "update" / "state.json"
+        cls.github = serve(FakeGitHub)
+        ac.RELEASES = f"http://127.0.0.1:{cls.github.server_address[1]}/releases/latest"
         ac.Handler.watch = ac.Watch()
+        ac.Handler.updates = ac.Updates()
         cls.client = serve(ac.Handler)
         cls.port = cls.client.server_address[1]
 
     @classmethod
     def tearDownClass(cls):
         cls.box.shutdown()
+        cls.github.shutdown()
         cls.client.shutdown()
         cls.tmp.cleanup()
 
@@ -77,11 +148,13 @@ class ClientTest(unittest.TestCase):
         FakeBox.allowed = True
         FakeBox.seen = []
         ac.save_config({"box": self.box_base, "name": "Main hall", "volume": 60})
+        ac.screens_file().unlink(missing_ok=True)
 
-    def get(self, path, method="GET", body=None, host="127.0.0.1"):
+    def get(self, path, method="GET", body=None, host="127.0.0.1", headers=None):
         c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
         c.request(method, path, body=body, headers={"Host": f"{host}:{self.port}", "Cookie": "mine=1",
-                                                    **({"Content-Type": "application/json"} if body else {})})
+                                                    **({"Content-Type": "application/json"} if body else {}),
+                                                    **(headers or {})})
         r = c.getresponse()
         data = r.read()
         c.close()
@@ -189,6 +262,99 @@ class ClientTest(unittest.TestCase):
         _, body = self.get("/client/api/status")
         st = json.loads(body)
         self.assertEqual((st["box"], st["name"], st["volume"], st["version"]), (self.box_base, "Main hall", 60, ac.__version__))
+
+
+    # -- the volume buttons on the screen
+    def test_volume_buttons(self):
+        steps = []
+        for n in (1, -1, -1, 5, 1):
+            _, body = self.get("/client/api/settings", "POST", json.dumps({"volume_step": n}))
+            steps.append(json.loads(body)["volume"])
+        self.assertEqual(steps, [70, 60, 50, 100, 100])
+        _, body = self.get("/client/api/settings", "POST", json.dumps({"volume_step": "x"}))
+        self.assertFalse(json.loads(body)["ok"])
+        _, body = self.get("/client/api/settings", "POST", json.dumps({"volume_step": -20}))
+        self.assertEqual(json.loads(body)["volume"], 0)
+
+    # -- two screens or more
+    def test_screens_from_wayland_info(self):
+        self.assertEqual(ac.parse_wayland_info(WAYLAND_INFO), [
+            {"name": "HDMI-A-1", "x": 0, "y": 0, "w": 1920, "h": 1080},
+            {"name": "eDP-1", "x": 1920, "y": 0, "w": 1280, "h": 800}])
+        # A compositor without xdg-output: from each output's position, mode and scale
+        self.assertEqual(ac.parse_wayland_info(WAYLAND_INFO.split("interface: 'zxdg")[0]), [
+            {"name": "HDMI-A-1", "x": 0, "y": 0, "w": 1920, "h": 1080},
+            {"name": "eDP-1", "x": 1920, "y": 0, "w": 1280, "h": 800}])
+        self.assertEqual(ac.parse_wayland_info(""), [])
+        both = ac.parse_wayland_info(WAYLAND_INFO)
+        self.assertEqual(ac.shown_screens(both, closed=False), both)
+        self.assertEqual([s["name"] for s in ac.shown_screens(both, closed=True)], ["HDMI-A-1"])   # lid closed
+        self.assertEqual(ac.shown_screens(both[1:], closed=True), both[1:])   # the laptop's screen is all there is
+
+    def test_two_screens_show_the_prayer_times_on_each(self):
+        two = [{"name": "HDMI-A-1", "x": 0, "y": 0, "w": 1920, "h": 1080}, {"name": "HDMI-A-2", "x": 1920, "y": 0, "w": 1280, "h": 720}]
+        ac.write_json(ac.screens_file(), {"screens": two, "outputs": two})
+        _, body = self.get("/client/api/status")
+        st = json.loads(body)
+        self.assertEqual((st["screens"], st["outputs"]), (two, two))
+        r, _ = self.get("/")
+        self.assertEqual(r.getheader("Location"), "/client/wall")
+        r, body = self.get("/client/wall")
+        self.assertEqual(r.status, 200)
+        self.assertIn(b"mirror", body)
+        r, _ = self.get("/", headers={"Sec-Fetch-Dest": "iframe"})   # never a wall inside a wall
+        self.assertEqual(r.getheader("Location"), "/tv?name=Main+hall")
+        # A laptop with its lid closed and a TV: the prayer times on the TV only, not across both
+        ac.write_json(ac.screens_file(), {"screens": two[1:], "outputs": [{"name": "eDP-1", "x": 0, "y": 0, "w": 1920, "h": 1080}, two[1]]})
+        r, _ = self.get("/")
+        self.assertEqual(r.getheader("Location"), "/client/wall")
+        ac.write_json(ac.screens_file(), {"screens": two[:1], "outputs": two[:1]})
+        r, _ = self.get("/")
+        self.assertEqual(r.getheader("Location"), "/tv?name=Main+hall")
+        ac.write_json(ac.screens_file(), {"screens": "nonsense", "outputs": [{"x": "a"}]})
+        self.assertEqual(ac.read_screens(), ([], []))
+
+    def test_second_screen_is_silent(self):
+        mirror = {"Referer": f"http://127.0.0.1:{self.port}/tv?name=Main+hall&mirror=1"}
+        _, body = self.get("/api/tv?id=x&sound=1", headers=mirror)
+        self.assertEqual(json.loads(body)["volume"], 0)
+        _, body = self.get("/api/tv?id=x&sound=1", headers={"Referer": f"http://127.0.0.1:{self.port}/tv?name=Main+hall"})
+        self.assertEqual(json.loads(body)["volume"], 0.6)
+
+    # -- updates
+    def test_update_check_and_update_now(self):
+        _, body = self.get("/client/api/update?check=1")
+        u = json.loads(body)
+        self.assertEqual((u["current"], u["latest"], u["available"], u["error"]), (ac.__version__, "9.9.9", True, None))
+        trigger = ac.CONFIG.parent / "update-now"
+        trigger.unlink(missing_ok=True)
+        _, body = self.get("/client/api/update", "POST", "{}")
+        self.assertTrue(json.loads(body)["ok"])
+        self.assertTrue(trigger.exists())   # azan-sip-client-update.path starts the update from this
+        ac.write_json(ac.UPDATE_STATE, {"started": 1, "step": "installing", "version": "9.9.9"})
+        _, body = self.get("/client/api/update")
+        self.assertEqual(json.loads(body)["update"]["step"], "installing")
+        self.assertGreater(ac.vtuple("0.10.0"), ac.vtuple("0.9.9"))
+
+    @unittest.skipUnless(shutil.which("dpkg-deb"), "needs dpkg-deb")
+    def test_update_download_is_checked(self):
+        pkg = Path(self.tmp.name) / "pkg"
+        (pkg / "DEBIAN").mkdir(parents=True, exist_ok=True)
+        (pkg / "DEBIAN" / "control").write_text("Package: azan-sip-client\nVersion: 9.9.9\nArchitecture: all\n"
+                                                "Maintainer: x <x@example.com>\nDescription: test\n")
+        out = Path(self.tmp.name) / "test.deb"
+        subprocess.run(["dpkg-deb", "--root-owner-group", "--build", str(pkg), str(out)], check=True, capture_output=True)
+        FakeGitHub.deb = out.read_bytes()
+        rel = ac.latest_release()
+        self.assertEqual(rel["version"], "9.9.9")
+        cache = Path(self.tmp.name) / "cache"
+        deb = ac.fetch_deb(rel, cache)
+        self.assertEqual(deb.read_bytes(), FakeGitHub.deb)
+        with self.assertRaises(ValueError):   # not what GitHub says it is
+            ac.fetch_deb({**rel, "digest": "sha256:" + "0" * 64}, cache)
+        self.assertFalse(deb.exists())
+        with self.assertRaises(ValueError):   # another version than the release's
+            ac.fetch_deb({**rel, "version": "9.9.8"}, cache)
 
 
 if __name__ == "__main__":

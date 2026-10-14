@@ -62,12 +62,19 @@ until python3 -c 'import urllib.request as u; u.urlopen("http://127.0.0.1:8771/c
     sleep 1
 done
 
+# Every screen plugged in shows the prayer times: cage spreads the browser over all of them, and the
+# client puts a copy of the prayer times on each from the list this keeps up to date.
+rm -f "$HOME/screens.json"
+azan-sip-client watch-screens &
+
 # After a power cut Chromium offers to "restore pages": tell it the last exit was a normal one.
 prefs="$HOME/chromium/Default/Preferences"
 [ -f "$prefs" ] && sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]*"/"exit_type":"Normal"/' "$prefs"
 
 # no-user-gesture-required: the azan plays without anyone tapping the screen first.
+# AZAN_CHROMIUM_FLAGS in /etc/default/azan-sip-client adds flags of your own.
+# shellcheck disable=SC2086
 exec chromium --kiosk --ozone-platform=wayland --user-data-dir="$HOME/chromium" \
     --autoplay-policy=no-user-gesture-required --no-first-run --no-default-browser-check \
     --noerrdialogs --hide-crash-restore-bubble --disable-features=Translate --disable-pinch \
-    --overscroll-history-navigation=0 --password-store=basic "http://127.0.0.1:8771/"
+    --overscroll-history-navigation=0 --password-store=basic $AZAN_CHROMIUM_FLAGS "http://127.0.0.1:8771/"

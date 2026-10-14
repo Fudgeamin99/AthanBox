@@ -23,7 +23,8 @@ cat > "$root/usr/bin/azan-sip-client" <<'SH'
 exec python3 /usr/lib/azan-sip-client/azan_client.py "$@"
 SH
 chmod 755 "$root/usr/bin/azan-sip-client"
-install -m 644 azan-sip-client.service azan-sip-client-screen.service "$root/lib/systemd/system/"
+install -m 644 azan-sip-client.service azan-sip-client-screen.service azan-sip-client-update.service \
+    azan-sip-client-update.path "$root/lib/systemd/system/"
 install -m 644 debian/azan-client.pam "$root/etc/pam.d/azan-client"
 install -m 644 debian/default "$root/etc/default/azan-sip-client"
 install -m 644 README.md "$root/usr/share/doc/azan-sip-client/"

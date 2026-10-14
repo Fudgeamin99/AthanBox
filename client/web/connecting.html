@@ -22,7 +22,7 @@ button{font:600 2.4vh system-ui,sans-serif;padding:1.4vh 3vh;border-radius:1.4vh
   <h1 id="title">Connecting to the Azan SIP Box</h1>
   <div><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
   <p id="msg">The prayer times come back by themselves as soon as the box answers.</p>
-  <button onclick="location.assign('/client/')">Screen settings</button>
+  <button onclick="top.location.assign('/client/')">Screen settings</button>
 </main>
 <script>
 const to = new URLSearchParams(location.search).get("to") || "/";
@@ -36,7 +36,7 @@ function tick(){ document.getElementById("clock").textContent = new Date().toLoc
 async function check(){
   try{
     const st = await (await fetch("/client/api/status", {cache:"no-store"})).json();
-    if (!st.box) return location.replace("/client/");
+    if (!st.box) return top.location.replace("/client/");
     if (st.state === "ok") return location.replace(dest);
     const m = MSG[st.state];
     if (m) document.getElementById("msg").textContent = m(st.box.replace(/^http:\/\//, ""));

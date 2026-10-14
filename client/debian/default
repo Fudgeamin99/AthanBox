@@ -2,3 +2,5 @@
 #     sudo systemctl restart azan-sip-client-screen
 # The sound output for the azan, picked by hand (card,device from aplay -l), say:
 #AZAN_SCREEN_SOUND=HdmiLpeAudio,1
+# Extra flags for the screen's browser (Chromium), say to make everything bigger:
+#AZAN_CHROMIUM_FLAGS=--force-device-scale-factor=1.5
