@@ -1013,7 +1013,9 @@ function secLive(){
   const el = $("#sec-status"); if(!el) return;
   let b = "";
   if(SEC.docker) b += `<div class="banner">${ICON.warn}<div>In Docker, fail2ban and the firewall aren't available. The blacklist still works for the control panel and SIP: the box refuses those addresses itself.</div></div>`;
-  else if(!SEC.helper) b += `<div class="banner">${ICON.warn}<div>Fail2ban and the firewall aren't set up on this box yet. On the box, in the azan-sip-box folder, run <span class="kbd">git pull</span> and then <span class="kbd">${esc(SEC.setup_command)}</span>. Until then the blacklist works for the control panel and SIP only.</div></div>`;
+  else if(!SEC.helper && SEC.system && (SEC.system.running || SEC.system.ok)) b += `<div class="banner">${ICON.warn}<div>The box is setting up fail2ban and the firewall by itself. This takes a minute or two after an update.</div></div>`;
+  else if(!SEC.helper && SEC.system) b += `<div class="banner bad">${ICON.warn}<div>The box couldn't set up fail2ban and the firewall: ${esc(SEC.system.message)} It tries again every hour.</div></div>`;
+  else if(!SEC.helper) b += `<div class="banner">${ICON.warn}<div>Fail2ban and the firewall need a one-time setup on this box. On the box, in the azan-sip-box folder, run <span class="kbd">git pull</span> and then <span class="kbd">${esc(SEC.setup_command)}</span>. After that, updates set themselves up. Until then the blacklist works for the control panel and SIP only.</div></div>`;
   else if(!st) b += `<div class="banner">${ICON.warn}<div>Waiting for the box to apply the settings…</div></div>`;
   for(const e of (st && st.errors) || []) b += `<div class="banner bad">${ICON.warn}<div>${esc(e)}</div></div>`;
   el.innerHTML = b;

@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.5.1 - Updates set up their system parts by themselves
+
+- **On Debian, no more sudo commands after updating.** When a new version needs system changes, such as installing fail2ban, the box makes them by itself a minute or two after **Update now**. A small service that runs as root downloads that release from GitHub and runs its setup. The control panel still never gets root, and nothing that runs as root comes from files the panel can change. If it can't finish (say there's no internet), it tries again every hour, and the Security page says what went wrong.
+- **One last time on a box installed earlier:** update to 0.5.1, then in the azan-sip-box folder run `git pull` and `sudo sh packaging/box/system-setup.sh`. That also sets up fail2ban and the firewall for the Security page.
+- **Docker:** nothing changes. The image already carries everything, and the Update button replaces the whole container.
+
 ## 0.5.0 - Security: fail2ban, whitelist and blacklist
 
 - **Security** in the menu, on the Box. Changes apply straight away, without a restart.

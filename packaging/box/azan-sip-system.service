@@ -1,0 +1,18 @@
+[Unit]
+Description=Azan SIP Box - set up the system parts of the installed version (from its GitHub release)
+# Started by azan-sip-system.path after each update, by the timer (to retry after a failure, say
+# without internet), and once at start-up.
+After=network-online.target azan-sip-box.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+# Lives outside /opt/azan-sip, so the azan user can't change what runs as root. The code it runs
+# comes from the release on GitHub; only the version number is read from /opt/azan-sip.
+ExecStart=/usr/bin/python3 -I /usr/local/lib/azan-sip/system-update.py /opt/azan-sip
+WorkingDirectory=/
+TimeoutStartSec=2400
+
+[Install]
+WantedBy=multi-user.target

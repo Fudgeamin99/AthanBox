@@ -122,7 +122,7 @@ Open **Security** in the menu.
 - **Whitelist:** addresses and ranges that are never banned or blocked. The box's own network is on it from the start, so you can't lock yourself out from inside the masjid. Add your phone system or your home's address too.
 - **Blacklist:** addresses and ranges that are always blocked, with a note. The Box won't let you block the address you're using, or its own.
 
-Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.0, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/security.sh` once in the `azan-sip-box` folder. In Docker there's no fail2ban, but the blacklist still works: the Box refuses those addresses on its control panel and SIP port itself.
+Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.1, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/system-setup.sh` once in the `azan-sip-box` folder. In Docker there's no fail2ban, but the blacklist still works: the Box refuses those addresses on its control panel and SIP port itself.
 
 ## Updating
 
@@ -130,7 +130,7 @@ Changes apply straight away, without a restart. On Debian, `install.sh` sets thi
 
 The button needs the `updater` part of the compose file above. It's a small helper, from the same image, that downloads the new image and restarts the `azan-sip` container with it. Because it can control Docker on that computer, it only listens on the computer itself (127.0.0.1, port 8770) and only does what the control panel asks, using a secret key the panel keeps in `data/auth`. If you leave it out, Settings → Updates says how to update by hand.
 
-**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back.
+**Installed on Debian:** the same button installs each new release from GitHub, and keeps the previous version so you can go back. When a new version needs system changes too (packages such as fail2ban, or system services), the box makes them by itself a minute or two after updating: a small service that runs as root downloads that release from GitHub and runs its `packaging/box/system-setup.sh`. The control panel itself never gets root. A box installed before 0.5.1 needs this set up once: run `git pull` and `sudo sh packaging/box/system-setup.sh` in the `azan-sip-box` folder.
 
 **By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 
