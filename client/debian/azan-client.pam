@@ -1,0 +1,5 @@
+# The Azan SIP Client's screen (azan-sip-client-screen.service): a session on the first console.
+auth     required  pam_unix.so nullok
+account  required  pam_unix.so
+session  required  pam_unix.so
+session  required  pam_systemd.so

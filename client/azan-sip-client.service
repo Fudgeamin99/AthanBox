@@ -1,0 +1,20 @@
+[Unit]
+Description=Azan SIP Client - the Azan SIP Box's prayer times and azan on this computer's screen
+After=network-online.target avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/azan-sip-client serve
+Restart=always
+RestartSec=3
+User=azan-client
+Group=azan-client
+StateDirectory=azan-sip-client
+Environment=AZAN_CLIENT_CONFIG=/var/lib/azan-sip-client/client.json
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
