@@ -6,6 +6,15 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.5.0 - Security: fail2ban, whitelist and blacklist
+
+- **Security** in the menu, on the Box. Changes apply straight away, without a restart.
+- **Fail2ban** bans an address after too many wrong passwords: SSH sign-ins to the box, the control panel's password and SIP sign-ins (Register to Azan SIP). A banned address is blocked on every port. Choose the wrong tries allowed (5 by default), over how long (10 minutes) and how long the ban lasts (1 hour, longer for repeat offenders). **Banned right now** lists who is banned, with **Unban** and **Always block**.
+- **Whitelist:** addresses and ranges that are never banned or blocked. It starts with the box's own network, so you can't lock yourself out from inside the masjid.
+- **Blacklist:** addresses and ranges that are always blocked, with an optional note. The Box refuses to block the address you're using, its own address or anything already covered by the whitelist.
+- On Debian, `install.sh` sets this up. On a box installed earlier, update it, then run `git pull` and `sudo sh packaging/box/security.sh` once. In Docker the blacklist works for the control panel and SIP, without fail2ban.
+- Wrong control panel passwords are now written to the log, with the address they came from.
+
 ## 0.4.4 - Volume for the box's own screen
 
 - **The volume slider** on the TV app page now changes only the screen plugged into the box (a laptop or a Wyse on a TV), not iPads and other TV screens, which keep their own volume.

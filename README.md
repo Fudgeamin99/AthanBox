@@ -114,6 +114,16 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 - `AZAN_PASSWORD` is the box's factory password. Under **Settings → Password and reset** you can choose your own, which then replaces it.
 - **Factory reset** on the same page removes settings, recordings and your own password, and goes back to `AZAN_PASSWORD`.
 
+## Security: fail2ban, whitelist and blacklist
+
+Open **Security** in the menu.
+
+- **Fail2ban** bans an address for a while after too many wrong passwords: SSH sign-ins to the box, the control panel's password, and SIP sign-ins (Register to Azan SIP). A banned address can't reach the box on any port. Choose how many wrong tries are allowed, over how long, and how long the ban lasts. **Banned right now** lists who is banned, with **Unban** and **Always block**.
+- **Whitelist:** addresses and ranges that are never banned or blocked. The box's own network is on it from the start, so you can't lock yourself out from inside the masjid. Add your phone system or your home's address too.
+- **Blacklist:** addresses and ranges that are always blocked, with a note. The Box won't let you block the address you're using, or its own.
+
+Changes apply straight away, without a restart. On Debian, `install.sh` sets this up (it installs fail2ban and nftables). On a box installed before version 0.5.0, update it from Settings → Updates first, then run `git pull` and `sudo sh packaging/box/security.sh` once in the `azan-sip-box` folder. In Docker there's no fail2ban, but the blacklist still works: the Box refuses those addresses on its control panel and SIP port itself.
+
 ## Updating
 
 **With the Update button:** go to **Settings → Updates** and press **Check for updates**. If there's a new version, press **Update now**. The Box restarts with it in a few seconds, and your `data` folder is kept. If the new version won't start, the old one is put back.

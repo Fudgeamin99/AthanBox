@@ -1,0 +1,10 @@
+[Unit]
+Description=Azan SIP Box - apply Security page changes straight away
+
+[Path]
+PathChanged=/opt/azan-sip/security/settings.json
+PathChanged=/opt/azan-sip/security/request.json
+Unit=azan-sip-security.service
+
+[Install]
+WantedBy=multi-user.target

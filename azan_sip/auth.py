@@ -16,6 +16,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
 import threading
@@ -167,6 +168,9 @@ class Auth:
             ok = self.verify(password)
         if not ok:
             self._failed(ip)
+            # Fail2ban reads this line (Security page); keep the address at the end
+            logging.getLogger("azan-sip").warning("Wrong control panel %s from %s",
+                                                  "setup code" if setup_code else "password", ip)
             raise LoginError("That setup code has expired. Use the password on the sticker."
                                   if setup_code else "Wrong password")
         with self.lock:
