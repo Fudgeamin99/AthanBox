@@ -4,7 +4,7 @@ The Azan SIP Box plays the azan (call to prayer) automatically at every prayer t
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.6.1, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.7.1, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
@@ -88,12 +88,12 @@ It installs a small full-screen browser (cage and Chromium) and opens the TV app
 - **No sound from the TV:** run the command again with the TV switched on, so it picks the sound output the TV is on. `aplay -l` lists the outputs. To pick one by hand, say card `HdmiLpeAudio`, device `1`, run `sudo AZAN_SCREEN_SOUND=HdmiLpeAudio,1 sh packaging/box/screen.sh`.
 - **Switch it off:** `sudo sh packaging/box/screen.sh off`. Ctrl+Alt+F2 on a keyboard plugged into the box also opens a text login while the screen is on.
 
-### A TV screen on a Dell Wyse
+### A TV screen on a Dell Wyse or a laptop
 
-A spare Dell Wyse (or any small PC) can be a TV screen for a Box somewhere else on the network: it shows the Box's prayer-times screen full screen on the TV plugged into it, and plays the azan through the TV's speakers at the same moment as the phones, at its own volume. It starts by itself on every boot, and if the Box restarts or the network drops it shows *Connecting to the Azan SIP Box* and goes back to the prayer times by itself. Use one Wyse per TV, in as many rooms as you like.
+A spare Dell Wyse, an old laptop or any small PC can be a TV screen for a Box somewhere else on the network: it shows the Box's prayer-times screen full screen on the TV plugged into it, and plays the azan through the TV's speakers at the same moment as the phones, at its own volume. It starts by itself on every boot, and if the Box restarts or the network drops it shows *Connecting to the Azan SIP Box* and goes back to the prayer times by itself. Use one Wyse per TV, in as many rooms as you like.
 
 1. On the Box, open **TV app** and switch on **Let TV screens connect**.
-2. Install Debian 12 or 13 on the Wyse without a desktop (in the installer, tick only *SSH server* and *standard system utilities*), and plug in the TV.
+2. Install Debian 12 or 13 on the Wyse or laptop without a desktop (in the installer, tick only *SSH server* and *standard system utilities*), and plug in the TV. For a 32-bit PC or laptop, use Debian 12's **i386** installer: Debian 13 no longer has one for 32-bit computers.
 3. On the Wyse, run:
 
 ```sh
@@ -103,6 +103,8 @@ sudo apt install -y ./azan-sip-client.deb
 ```
 
 4. Choose the Box: on the TV, type its address (such as `192.168.1.20` or `azan.local`) or press **Search the network**, then **Connect**. Over SSH instead: `azan-sip-client search`, then `azan-sip-client connect 192.168.1.20 --name "Main hall"`.
+
+**On a laptop:** with no TV plugged in, it shows the prayer times on the laptop's own screen and plays the azan through its speakers. With a TV on HDMI, the prayer times and the azan go to the TV instead, and the laptop keeps going with its lid closed. Keep it plugged into power. It works on 64-bit and 32-bit laptops alike.
 
 The Wyse shows on the Box's **TV app** page under its name, where *Test chime* checks the sound. To change the Box, the name or the volume later, move the mouse and press **Screen settings** at the top of the screen (or press **S** on a keyboard), or run `azan-sip-client volume 60` over SSH. The Wyse can only show the prayer times: it can't change the Box's settings. More in [`client/README.md`](client/README.md).
 

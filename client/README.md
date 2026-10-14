@@ -1,9 +1,10 @@
-# Azan SIP Client (for a Dell Wyse)
+# Azan SIP Client (for a Dell Wyse or a laptop)
 
-A TV screen for the Azan SIP Box, on a Dell Wyse thin client or any small computer running Debian.
+A TV screen for the Azan SIP Box, on a Dell Wyse thin client, a laptop or any small computer running
+Debian, 64-bit or 32-bit (Debian 12's i386 for a 32-bit computer).
 The Wyse connects to the box over the network, shows its prayer-times screen full screen on the TV,
 and plays the azan through the TV's speakers at the same moment as the phones. Its volume is its
-own. Install instructions for users are in the main [README](../README.md#a-tv-screen-on-a-dell-wyse).
+own. Install instructions for users are in the main [README](../README.md#a-tv-screen-on-a-dell-wyse-or-a-laptop).
 
 ## How it works
 
@@ -17,7 +18,13 @@ TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on
   `web/screen.js` to the page (the *Screen settings* button, and *Connecting to the Azan SIP Box*
   while the box can't be reached, back to the prayer times by itself when it answers).
 - **azan-sip-client-screen.service** runs `kiosk.sh` in cage on the first console, like the box's
-  own screen (`packaging/box/screen.sh`). It picks the TV's sound output at every start.
+  own screen (`packaging/box/screen.sh`). It picks the TV's sound output at every start, or the
+  computer's own speakers when no TV is plugged in (switching a laptop's built-in speaker on).
+  `cage -m last` puts the prayer times on the TV only, not stretched across a laptop's screen too.
+- **Laptops** keep running with the lid closed (`/etc/systemd/logind.conf.d/azan-sip-client.conf`,
+  removed again when the package is removed).
+- **32-bit:** the package is `Architecture: all` (Python and shell only), so the same .deb installs on
+  64-bit and 32-bit Debian. CI installs it on Debian 12 and 13 (amd64) and Debian 12 (i386).
 - **Screen settings** (`/client/`, or press **S** on a keyboard) chooses the box (by address or by
   searching the network), the screen's name on the box's TV app page, and the volume.
 - The box sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the

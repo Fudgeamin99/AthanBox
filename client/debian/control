@@ -6,12 +6,12 @@ Homepage: https://github.com/Fudgeamin99/azan-sip-box
 Section: misc
 Priority: optional
 Depends: python3 (>= 3.9), cage, xwayland, seatd, chromium, libgl1-mesa-dri, fonts-dejavu-core, alsa-utils, dbus, libpam-systemd, iproute2, libnss-mdns
-Recommends: avahi-daemon, alsa-ucm-conf
-Suggests: firmware-intel-sound
-Description: Azan SIP Box prayer times and azan on a TV (for a Dell Wyse)
- Turns a small Debian computer, such as a Dell Wyse thin client, into a TV
- screen for the Azan SIP Box. It shows the box's prayer-times screen full
- screen on the TV plugged into it, from every boot, and plays the azan
- through the TV's speakers at the same moment as the phones, at a volume of
- its own. It finds the box on the network, and reconnects by itself after
- the box restarts or the network drops.
+Recommends: avahi-daemon, alsa-ucm-conf, firmware-intel-sound
+Description: Azan SIP Box prayer times and azan on a TV, a Wyse or a laptop
+ Turns a small Debian computer, such as a Dell Wyse thin client or an old
+ laptop, 64-bit or 32-bit, into a TV screen for the Azan SIP Box. It shows
+ the box's prayer-times screen full screen on the TV plugged into it (or the
+ laptop's own screen), from every boot, and plays the azan through the TV's
+ speakers (or the laptop's) at the same moment as the phones, at a volume
+ of its own. It finds the box on the network, and reconnects by itself
+ after the box restarts or the network drops.
