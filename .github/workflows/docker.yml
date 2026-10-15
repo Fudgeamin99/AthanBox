@@ -6,7 +6,7 @@ name: Docker image
 
 on:
   pull_request:
-    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", packaging/box/security-helper.py, packaging/fetch-apk.sh, "azan_sip/**", .github/workflows/docker.yml]
+    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", packaging/box/security-helper.py, packaging/apk.sh, "android/**", "azan_sip/**", .github/workflows/docker.yml]
   workflow_dispatch:
 
 permissions:
@@ -18,13 +18,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       # The Android TV app, as in the release image, so screens on a network without internet can download it from AthanBox.
-      # Without it, /apk sends them to the app's latest release on GitHub.
+      # Without it, /apk sends them to the latest release on GitHub.
       - name: Add the Android app (AzanTV.apk)
         env:
           GH_TOKEN: ${{ github.token }}
-          APP_TOKEN: ${{ secrets.ATHAN_TO_SIP_TOKEN }}
-        run: packaging/fetch-apk.sh azan_sip/static/AzanTV.apk || true
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: packaging/apk.sh azan_sip/static/AzanTV.apk
 
       - name: Build the image
         run: docker build -t azan-sip-box:test .
@@ -86,13 +92,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       # The Android TV app, as in the release image, so screens on a network without internet can download it from AthanBox.
-      # Without it, /apk sends them to the app's latest release on GitHub.
+      # Without it, /apk sends them to the latest release on GitHub.
       - name: Add the Android app (AzanTV.apk)
         env:
           GH_TOKEN: ${{ github.token }}
-          APP_TOKEN: ${{ secrets.ATHAN_TO_SIP_TOKEN }}
-        run: packaging/fetch-apk.sh azan_sip/static/AzanTV.apk || true
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: packaging/apk.sh azan_sip/static/AzanTV.apk
 
       - name: Image name
         id: name

@@ -12,7 +12,8 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
   - **Update the app** in its menu (press **Back**) installs the newest version from AthanBox or GitHub. Android asks before it installs it.
   - **Makkah live** now plays with Android's own video player, which fixes the black picture some TV boxes showed. The menu can switch back to the old player, and it has Makkah live's sound too.
 - **Install the app again once:** the app is now signed with its permanent key, which updates need. On each Android screen, remove **Azan SIP TV** and install it again from `http://<AthanBox's address>:8765/apk`. After that, updates come from its menu.
-- **Getting the app works again:** AthanBox 0.7.5 and 0.7.6 were published without the Android app, because the desktop app's repository is private now. Releases and the Docker image carry it again, and `/apk` falls back to AthanBox's own releases on GitHub.
+- **The Android app lives in AthanBox now:** its code moved here from the desktop app's repository (`android/`), so each AthanBox release builds it and attaches it, and the Docker image carries it. AthanBox 0.7.5 and 0.7.6 were published without the app, and `/apk` couldn't find it; that works again.
+- **No more Windows:** AthanBox is built for Debian and Docker only. The Windows launchers (`Azan SIP.pyw`, `run-azan.bat`), the AzanSIP.exe updater and the **Start with Windows** switch are removed.
 - **Debian and Docker:** nothing to run, update as usual. The Docker image carries the app, so `/apk` works without internet. An AthanBox on Debian sends screens to GitHub for it, so they need internet access to download it.
 
 ## 0.7.6 - The project is now called AthanBox
