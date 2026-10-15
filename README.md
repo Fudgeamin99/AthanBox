@@ -4,7 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.7.6, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.5.0](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.5.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.7.7, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.5.0](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.5.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
