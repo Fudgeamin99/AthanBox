@@ -34,6 +34,11 @@ runuser -u azan-client -- env HOME=/var/lib/azan-sip-client XDG_RUNTIME_DIR=/tmp
     WLR_HEADLESS_OUTPUTS=2 WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman \
     cage -- /usr/lib/azan-sip-client/kiosk > "$out/cage.log" 2>&1 &
 
+# cage's log, without wlroots' headless "Basic output test failed" lines
+quiet_log() {
+    echo "cage.log, leaving out $(grep -c 'Basic output test failed' "$out/cage.log") \"Basic output test failed\" lines:"
+    grep -v 'Basic output test failed' "$out/cage.log" | tail -n 120
+}
 wl() { runuser -u azan-client -- env XDG_RUNTIME_DIR=/tmp/xdg WAYLAND_DISPLAY=wayland-0 "$@"; }
 ok=
 for i in $(seq 1 90); do
@@ -42,7 +47,7 @@ for i in $(seq 1 90); do
 done
 wl wayland-info > "$out/wayland-info.txt" 2>&1 || true
 cp /var/lib/azan-sip-client/screens.json "$out/" 2>/dev/null || true
-[ -n "$ok" ] || { echo "FAIL: the client didn't find two screens"; cat "$out/cage.log" "$out/client.log"; exit 1; }
+[ -n "$ok" ] || { echo "FAIL: the client didn't find two screens"; quiet_log; cat "$out/client.log"; exit 1; }
 echo "ok: the client found two screens"
 cat "$out/screens.json"
 
@@ -72,7 +77,15 @@ for name, x0, x1 in (("left", 0, w // 2), ("right", w // 2, w)):
 print("ok: both screens show the prayer times")
 PY
 shot() { wl grim -t ppm - > "$out/$1.ppm"; wl grim - > "$out/$1.png" || true; python3 "$out/check.py" "$out/$1.ppm"; }
-chromium_pids() { grep -lx chromium /proc/[0-9]*/comm 2>/dev/null | cut -d/ -f3 | sort; }
+# The browser's processes. Zombies don't count: in a container nothing reaps the processes the old
+# browser leaves behind (on a computer, systemd does).
+chromium_pids() {
+    for f in /proc/[0-9]*/comm; do
+        [ "$(cat "$f" 2>/dev/null)" = chromium ] || continue
+        state=$(sed -n 's/^State:[[:space:]]*\(.\).*/\1/p' "${f%/comm}/status" 2>/dev/null)
+        [ -n "$state" ] && [ "$state" != Z ] && echo "${f#/proc/}" | cut -d/ -f1
+    done | sort
+}
 
 # Let the prayer times load on both, then take a picture of the two screens
 sleep 25
@@ -89,7 +102,7 @@ for i in $(seq 1 60); do
     # shellcheck disable=SC2086
     if [ -n "$now" ] && [ -z "$(printf '%s\n' $before $now | sort | uniq -d)" ]; then ok=1; break; fi
 done
-[ -n "$ok" ] || { echo "FAIL: the browser didn't start again"; cat "$out/cage.log"; exit 1; }
+[ -n "$ok" ] || { echo "FAIL: the browser didn't start again (before: $(echo $before); now: $(echo $now))"; quiet_log; exit 1; }
 echo "ok: the browser started again"
 sleep 25
 shot screens-after-restart
