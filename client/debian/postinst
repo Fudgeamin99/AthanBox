@@ -21,6 +21,9 @@ if [ "$1" = configure ]; then
         systemctl start seatd >/dev/null 2>&1 || true
         systemctl enable azan-sip-client >/dev/null
         systemctl restart azan-sip-client
+        # Update now in Screen settings
+        systemctl enable azan-sip-client-update.path >/dev/null
+        systemctl restart azan-sip-client-update.path
         if systemctl is-enabled azan-sip-screen >/dev/null 2>&1; then
             systemctl disable azan-sip-client-screen >/dev/null 2>&1 || true
             echo "The Azan SIP Box's own screen is on here, so the client's screen isn't started."
@@ -36,6 +39,7 @@ if [ "$1" = configure ]; then
     echo "Azan SIP Client is installed. Choose the box on the screen, or run:"
     echo "    azan-sip-client search             find Azan SIP Boxes on the network"
     echo "    azan-sip-client connect <address>  show that box's prayer times here"
+    echo "    azan-sip-client update             install a newer version (as root)"
     echo "On the box, switch on \"Let TV screens connect\" on the TV app page."
 fi
 exit 0

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azan SIP Client</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#0d4a3f}
+iframe{position:absolute;border:0;display:block}
+</style>
+</head>
+<body>
+<script>
+// More than one screen is plugged in (two TVs, or a laptop and a TV): cage spreads this page over
+// all of them, so it puts one copy of the box's TV app where each screen is (a closed laptop's own
+// screen gets none). The first copy plays the azan; the others are silent copies (mirror=1), so the
+// azan isn't heard twice.
+const frames = [];
+let ST = null;
+function layout(){
+  if (!ST.box) return location.replace("/client/");
+  const sc = ST.screens || [], all = ST.outputs || [];
+  if (all.length < 2 || !sc.length) return location.replace("/");   // one screen again: the prayer times on it alone
+  const x0 = Math.min(...all.map(s => s.x)), y0 = Math.min(...all.map(s => s.y));
+  const W = Math.max(...all.map(s => s.x + s.w)) - x0, H = Math.max(...all.map(s => s.y + s.h)) - y0;
+  const kx = innerWidth / W, ky = innerHeight / H;   // in case the browser's pixels aren't the screens'
+  sc.forEach((s, i) => {
+    let f = frames[i];
+    if (!f){
+      f = document.createElement("iframe");
+      f.allow = "autoplay; screen-wake-lock";
+      f.src = "/tv?" + new URLSearchParams(i ? {name: ST.name, mirror: "1"} : {name: ST.name});
+      if (!i) f.addEventListener("load", () => { try{ f.contentWindow.focus(); }catch(e){} });   // for the keys
+      document.body.appendChild(f);
+      frames.push(f);
+    }
+    const left = Math.round((s.x - x0) * kx), top = Math.round((s.y - y0) * ky);
+    Object.assign(f.style, {left: left + "px", top: top + "px",
+      width: Math.round((s.x - x0 + s.w) * kx) - left + "px", height: Math.round((s.y - y0 + s.h) * ky) - top + "px"});
+  });
+  while (frames.length > sc.length) frames.pop().remove();   // a screen unplugged
+}
+async function poll(){
+  try{ ST = await (await fetch("/client/api/status", {cache: "no-store"})).json(); layout(); }catch(e){}
+  setTimeout(poll, 3000);
+}
+addEventListener("resize", () => { if (ST) layout(); });
+poll();
+</script>
+</body>
+</html>

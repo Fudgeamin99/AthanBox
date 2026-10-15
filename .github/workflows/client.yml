@@ -1,7 +1,9 @@
 # The Azan SIP Client (client/), the TV screen for a Dell Wyse: on each pull request that changes it,
 # runs its tests, builds the Debian package and installs it on Debian 12 and 13 (64-bit) and on
 # 32-bit Debian 12 (an old 32-bit laptop), so a missing dependency or a broken install script is
-# caught before a Box release attaches it.
+# caught before a Box release attaches it. Each one then runs the screen itself with two screens
+# (client/test-two-screens.sh): cage, Chromium and a real Box, checking both show the prayer times,
+# and updates itself to a newer version the way Update now does (client/test-update.sh).
 name: Wyse client
 
 on:
@@ -32,7 +34,9 @@ jobs:
     strategy:
       matrix:
         debian: [bookworm, trixie]
-    container: debian:${{ matrix.debian }}
+    container:
+      image: debian:${{ matrix.debian }}
+      options: --shm-size=1g
     steps:
       - uses: actions/checkout@v4
       - name: Install it as a Wyse would
@@ -45,7 +49,17 @@ jobs:
           id azan-client
           test -x /usr/lib/azan-sip-client/kiosk
           test -f /lib/systemd/system/azan-sip-client-screen.service
+          test -f /lib/systemd/system/azan-sip-client-update.path
           python3 -m unittest discover -s client -v
+      - name: Two screens show the prayer times
+        run: sh client/test-two-screens.sh
+      - name: Update now installs a newer client
+        run: sh client/test-update.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: two-screens-${{ matrix.debian }}
+          path: /tmp/two-screens/
 
   # 32-bit PCs and laptops: Debian 12 is the last version with a 32-bit installer. JavaScript
   # actions can't run in a 32-bit container, so this one runs it by hand.
@@ -65,3 +79,13 @@ jobs:
             dpkg-query -W -f "\${Package} \${Version} \${Architecture}\n" chromium cage seatd python3
             id azan-client
             python3 -m unittest discover -s client -v'
+      - name: Two screens and Update now, on 32-bit Debian 12
+        run: |
+          mkdir -p two-screens
+          docker run --rm --platform linux/386 --shm-size=1g -v "$PWD:/src" -v "$PWD/two-screens:/tmp/two-screens" \
+            -w /src debian:bookworm sh -euc 'apt-get update && sh client/test-two-screens.sh && sh client/test-update.sh'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: two-screens-32bit
+          path: two-screens/

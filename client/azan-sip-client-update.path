@@ -1,0 +1,10 @@
+[Unit]
+Description=Azan SIP Client - install the newest client when Screen settings asks for it
+
+[Path]
+# The client (an unprivileged user) writes this file when Update now is pressed
+PathModified=/var/lib/azan-sip-client/update-now
+Unit=azan-sip-client-update.service
+
+[Install]
+WantedBy=multi-user.target

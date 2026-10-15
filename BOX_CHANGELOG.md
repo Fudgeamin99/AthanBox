@@ -6,6 +6,15 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.2 - The Wyse client: volume buttons, Update button and two screens
+
+- **Volume buttons on the Wyse's screen:** move the mouse over the prayer times and the volume buttons appear at the top, next to Screen settings. A keyboard's **+** and **−** (and its volume keys) work too. Each press plays a short note at the new volume.
+- **Update button:** Screen settings on the Wyse now says when a new Azan SIP Client is out, and **Update now** downloads it from GitHub and installs it by itself. The screen restarts with the new version. Over SSH, `azan-sip-client update` as root does the same.
+- **Two screens or more:** with two TVs or monitors plugged into the Wyse (or a laptop and a TV), every screen shows the prayer times, each laid out for its own size, and the azan plays once. Plug a screen in or out at any time: the screen restarts its browser by itself, so the prayer times fill the screens that are left (before, unplugging the TV from a laptop left the laptop showing only part of the page), and the azan moves to the TV's speakers or back to the laptop's own.
+- To get this on a Wyse or laptop with an older client, download `azan-sip-client.deb` again and run `sudo apt install ./azan-sip-client.deb` (or `su -` first, then the same without `sudo`, where Debian has no sudo). Later versions install from the Update button.
+- **Debian:** only the client package changes (Azan SIP Client 0.3.0). The Box's own Debian install is unchanged.
+- **Docker:** nothing changes. The image is rebuilt with the new version number only, and the compose file stays the same.
+
 ## 0.7.1 - The Wyse client on laptops and 32-bit PCs
 
 - **Laptops as TV screens:** the Azan SIP Client now works on an old laptop as well as a Wyse. With no TV plugged in, it shows the prayer times on the laptop's own screen and plays the azan through its built-in speakers, switching them on where a laptop starts with them off. With a TV on HDMI, the prayer times fill the TV instead of being stretched across both screens, and the azan plays through the TV. The laptop keeps going with its lid closed.

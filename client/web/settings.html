@@ -27,9 +27,11 @@ button:disabled{opacity:.5;cursor:default}
 #found button{display:block;width:100%;text-align:left;margin-top:8px}
 #vol{font-variant-numeric:tabular-nums;font-weight:700}
 footer{color:var(--muted);font-size:15px;margin-top:22px}
+#area.wall{position:absolute;overflow:auto}
 </style>
 </head>
 <body>
+<div id="area">
 <main>
   <h1>Screen settings</h1>
   <p class="sub">This screen shows the prayer times from your Azan SIP Box and plays the azan through the TV.</p>
@@ -51,9 +53,19 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 
   <section>
     <h2>Azan volume on this screen: <span id="vol"></span></h2>
-    <p>Only this screen. The phones, the box's own screen and other TV screens keep theirs.</p>
+    <p>Only this screen. The phones, the box's own screen and other TV screens keep theirs. On the prayer times, move the mouse for the volume buttons, or press <b>+</b> and <b>−</b> on a keyboard.</p>
     <input type="range" id="volume" min="0" max="100" step="5">
     <div class="row"><button id="test">Play a test chime here</button></div>
+  </section>
+
+  <section>
+    <h2>Updates</h2>
+    <p id="upd">Checking for updates…</p>
+    <div class="row">
+      <button class="main" id="update" hidden>Update now</button>
+      <button id="recheck">Check again</button>
+    </div>
+    <div class="msg" id="umsg"></div>
   </section>
 
   <div class="row">
@@ -61,6 +73,7 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
   </div>
   <footer id="foot"></footer>
 </main>
+</div>
 <script>
 const $ = s => document.querySelector(s);
 const STATE = {ok:["Connected","ok"], not_allowed:["TV screens not allowed yet","bad"], unreachable:["Not answering","bad"],
@@ -83,6 +96,17 @@ function show(st, fill){
   $("#vol").textContent = $("#volume").value + "%";
   $("#back").disabled = !st.box;
   $("#foot").textContent = `Azan SIP Client ${st.version}`;
+  place(st.screens || [], st.outputs || []);
+}
+// With several screens plugged in, this page is spread over all of them: keep it on the first one
+function place(sc, all){
+  const a = $("#area"), wall = all.length > 1 && sc.length > 0;
+  a.classList.toggle("wall", wall);
+  document.documentElement.style.overflow = wall ? "hidden" : "";
+  if (!wall) return a.removeAttribute("style");
+  const x0 = Math.min(...all.map(s => s.x)), y0 = Math.min(...all.map(s => s.y));
+  const kx = innerWidth / (Math.max(...all.map(s => s.x + s.w)) - x0), ky = innerHeight / (Math.max(...all.map(s => s.y + s.h)) - y0);
+  Object.assign(a.style, {left: (sc[0].x - x0) * kx + "px", top: (sc[0].y - y0) * ky + "px", width: sc[0].w * kx + "px", height: sc[0].h * ky + "px"});
 }
 async function connect(address){
   msg("Connecting…"); $("#connect").disabled = true;
@@ -129,13 +153,50 @@ $("#test").onclick = () => {   // the box's chime, at this screen's volume
   });
 };
 $("#back").onclick = () => location.assign("/");
+// Updates: Update now asks the computer to install the newest client from GitHub. It restarts the
+// screen when it's done, which brings back the prayer times with the new version.
+let asked = 0;
+const STEP = {checking: "Getting the update…", downloading: "Downloading version VER…",
+              installing: "Installing version VER. The screen goes dark for a moment and comes back by itself."};
+function umsg(text, kind){ const m = $("#umsg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+async function updates(force){
+  let u;
+  try{ u = await api("/client/api/update" + (force ? "?check=1" : "")); }catch(e){
+    if (asked) umsg("Installing. The screen comes back by itself in a moment.");   // the client restarts while it installs
+    return asked && setTimeout(updates, 2000);
+  }
+  const s = u.update || {};
+  $("#update").hidden = !u.available || !!asked;
+  $("#upd").textContent = u.error ? u.error
+    : u.available ? `Version ${u.latest} is available. This screen has ${u.current}.`
+    : `This screen is up to date (version ${u.current}).`;
+  if (u.error) $("#upd").className = "msg bad"; else $("#upd").className = "";
+  if (!asked) return;
+  if ((s.started || 0) >= asked - 5){
+    if (s.step === "failed"){ asked = 0; $("#update").hidden = !u.available; return umsg(s.error, "bad"); }
+    if (s.step === "done"){ asked = 0; return umsg(s.message || "Updated.", "ok"); }
+    umsg((STEP[s.step] || "Updating…").replace("VER", s.version || u.latest || ""));
+  } else if (Date.now() / 1000 - asked > 40){
+    asked = 0; $("#update").hidden = !u.available;
+    return umsg("The update didn't start. Restart this computer and try again, or run azan-sip-client update as root over SSH.", "bad");
+  }
+  setTimeout(updates, 2000);
+}
+$("#update").onclick = async () => {
+  $("#update").hidden = true; umsg("Starting the update…");
+  try{ asked = (await api("/client/api/update", {})).asked; }catch(e){ return umsg("This screen's own program isn't answering. Restart the computer.", "bad"); }
+  updates();
+};
+$("#recheck").onclick = () => { umsg(""); $("#upd").textContent = "Checking for updates…"; updates(true); };
+updates();
 // Left open on the TV: go back to the prayer times after a few minutes without a touch
 let idle;
-const still = () => { clearTimeout(idle); idle = setTimeout(() => { if (ST.box && ST.state === "ok") location.assign("/"); }, 180000); };
+const still = () => { clearTimeout(idle); idle = setTimeout(() => { if (ST.box && ST.state === "ok" && !asked) location.assign("/"); else still(); }, 180000); };
 for (const ev of ["mousemove", "keydown", "touchstart", "input"]) addEventListener(ev, still, true);
 still();
 api("/client/api/status").then(st => show(st, true));
 setInterval(() => api("/client/api/status").then(st => show(st, false)).catch(() => {}), 4000);
+addEventListener("resize", () => place(ST.screens || [], ST.outputs || []));
 </script>
 </body>
 </html>

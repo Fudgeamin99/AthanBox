@@ -4,7 +4,7 @@ if [ "$1" = remove ] || [ "$1" = purge ]; then
     rm -f /etc/systemd/logind.conf.d/azan-sip-client.conf   # a laptop sleeps with its lid closed again
 fi
 if [ "$1" = purge ]; then
-    rm -rf /var/lib/azan-sip-client
+    rm -rf /var/lib/azan-sip-client /var/lib/azan-sip-client-update /var/cache/azan-sip-client-update
     userdel azan-client >/dev/null 2>&1 || true
 fi
 if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
