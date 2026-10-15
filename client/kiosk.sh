@@ -7,7 +7,7 @@
 [ -f /etc/default/azan-sip-client ] && . /etc/default/azan-sip-client
 
 # The azan plays through the TV: the HDMI/DisplayPort sound output with a TV plugged in, otherwise
-# the computer's own sound output. Picked at every start, so it follows the TV.
+# the computer's own sound output. Picked at every start of the browser, so it follows the TV.
 # AZAN_SCREEN_SOUND=card,device in /etc/default/azan-sip-client picks one by hand (see aplay -l).
 pick_sound() {
     for cd in $(LC_ALL=C aplay -l 2>/dev/null | grep -i 'hdmi\|displayport' \
@@ -20,39 +20,43 @@ pick_sound() {
         fi
     done
 }
-sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
-if [ -n "$sound" ]; then
-    card=${sound%,*} dev=${sound#*,}
-    cat > "$HOME/.asoundrc" <<ASOUND
+# Before each start of the browser (at boot, and when a screen is plugged in or out): the sound
+# output, and the sound card itself at full volume (the volume is set on the screen, in Screen settings).
+set_sound() {
+    sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
+    if [ -n "$sound" ]; then
+        card=${sound%,*} dev=${sound#*,}
+        cat > "$HOME/.asoundrc" <<ASOUND
 # Written by the Azan SIP Client at each start: the sound goes to the TV (card $card, device $dev).
 pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
 ctl.!default { type hw; card $card }
 ASOUND
-    echo "Sound: the TV on card $card, device $dev"
-else
-    # No TV: the computer's own speakers or sound output (a laptop's speakers, a Wyse's line out).
-    # The first output that isn't HDMI, since on some laptops the HDMI card comes first.
-    own=$(LC_ALL=C aplay -l 2>/dev/null | grep -vi 'hdmi\|displayport' \
-          | sed -n 's/^card [0-9]*: \([^ ]*\) .*, device \([0-9]*\):.*/\1,\2/p' | head -n 1)
-    if [ -n "$own" ]; then
-        card=${own%,*} dev=${own#*,}
-        cat > "$HOME/.asoundrc" <<ASOUND
+        echo "Sound: the TV on card $card, device $dev"
+    else
+        # No TV: the computer's own speakers or sound output (a laptop's speakers, a Wyse's line out).
+        # The first output that isn't HDMI, since on some laptops the HDMI card comes first.
+        own=$(LC_ALL=C aplay -l 2>/dev/null | grep -vi 'hdmi\|displayport' \
+              | sed -n 's/^card [0-9]*: \([^ ]*\) .*, device \([0-9]*\):.*/\1,\2/p' | head -n 1)
+        if [ -n "$own" ]; then
+            card=${own%,*} dev=${own#*,}
+            cat > "$HOME/.asoundrc" <<ASOUND
 # Written by the Azan SIP Client at each start: no TV, so the computer's own sound (card $card, device $dev).
 pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
 ctl.!default { type hw; card $card }
 ASOUND
-        # Some laptops' sound chips start with the built-in speaker off: their ALSA profile switches it on
-        alsaucm -c "hw:$card" set _verb HiFi set _enadev Speaker >/dev/null 2>&1 || true
-        echo "Sound: no TV found on HDMI or DisplayPort, so the computer's own speakers play the azan (card $card, device $dev)"
-    else
-        rm -f "$HOME/.asoundrc"
-        echo "Sound: no sound output found"
+            # Some laptops' sound chips start with the built-in speaker off: their ALSA profile switches it on
+            alsaucm -c "hw:$card" set _verb HiFi set _enadev Speaker >/dev/null 2>&1 || true
+            echo "Sound: no TV found on HDMI or DisplayPort, so the computer's own speakers play the azan (card $card, device $dev)"
+        else
+            rm -f "$HOME/.asoundrc"
+            echo "Sound: no sound output found"
+        fi
     fi
-fi
-# The volume is set on the screen (Screen settings): the sound card itself stays at full volume.
-for card in $(LC_ALL=C aplay -l 2>/dev/null | sed -n 's/^card \([0-9]*\): .*/\1/p' | sort -u); do
-    for ctl in Master PCM Speaker Headphone; do amixer -c "$card" -q sset "$ctl" 100% unmute >/dev/null 2>&1 || true; done
-done
+    # The volume is set on the screen (Screen settings): the sound card itself stays at full volume.
+    for card in $(LC_ALL=C aplay -l 2>/dev/null | sed -n 's/^card \([0-9]*\): .*/\1/p' | sort -u); do
+        for ctl in Master PCM Speaker Headphone; do amixer -c "$card" -q sset "$ctl" 100% unmute >/dev/null 2>&1 || true; done
+    done
+}
 
 # Wait for the client (up to 30 s) so the screen doesn't open on an error page.
 i=0
@@ -67,14 +71,20 @@ done
 rm -f "$HOME/screens.json"
 azan-sip-client watch-screens &
 
-# After a power cut Chromium offers to "restore pages": tell it the last exit was a normal one.
-prefs="$HOME/chromium/Default/Preferences"
-[ -f "$prefs" ] && sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]*"/"exit_type":"Normal"/' "$prefs"
-
-# no-user-gesture-required: the azan plays without anyone tapping the screen first.
-# AZAN_CHROMIUM_FLAGS in /etc/default/azan-sip-client adds flags of your own.
-# shellcheck disable=SC2086
-exec chromium --kiosk --ozone-platform=wayland --user-data-dir="$HOME/chromium" \
-    --autoplay-policy=no-user-gesture-required --no-first-run --no-default-browser-check \
-    --noerrdialogs --hide-crash-restore-bubble --disable-features=Translate --disable-pinch \
-    --overscroll-history-navigation=0 --password-store=basic $AZAN_CHROMIUM_FLAGS "http://127.0.0.1:8771/"
+# The browser, started again whenever it stops: watch-screens stops it when a screen is plugged in
+# or out, so the sound output is picked again (the azan follows the TV) and the new window fills
+# the screens there are now.
+while :; do
+    set_sound
+    # After a power cut Chromium offers to "restore pages": tell it the last exit was a normal one.
+    prefs="$HOME/chromium/Default/Preferences"
+    [ -f "$prefs" ] && sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]*"/"exit_type":"Normal"/' "$prefs"
+    # no-user-gesture-required: the azan plays without anyone tapping the screen first.
+    # AZAN_CHROMIUM_FLAGS in /etc/default/azan-sip-client adds flags of your own.
+    # shellcheck disable=SC2086
+    chromium --kiosk --ozone-platform=wayland --user-data-dir="$HOME/chromium" \
+        --autoplay-policy=no-user-gesture-required --no-first-run --no-default-browser-check \
+        --noerrdialogs --hide-crash-restore-bubble --disable-features=Translate --disable-pinch \
+        --overscroll-history-navigation=0 --password-store=basic $AZAN_CHROMIUM_FLAGS "http://127.0.0.1:8771/"
+    sleep 1
+done

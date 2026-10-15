@@ -32,6 +32,7 @@ import ipaddress
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -314,22 +315,49 @@ def wall_needed() -> bool:
     return len(outputs) > 1 and bool(shown)
 
 
-def watch_screens(every: float = 3):
-    """Run by the kiosk inside cage: keeps screens.json up to date as screens are plugged in and out
-    (and a laptop's lid is opened and closed)."""
-    last = None
-    while True:
+def restart_browser():
+    """Stops the screen's browser; the kiosk starts it again straight away (kiosk.sh)."""
+    me = os.getuid()
+    for d in Path("/proc").iterdir():
         try:
-            text = subprocess.run(["wayland-info"], capture_output=True, text=True, timeout=10).stdout
-            outputs = parse_wayland_info(text)
+            if d.name.isdigit() and d.stat().st_uid == me and (d / "comm").read_text().strip() == "chromium":
+                os.kill(int(d.name), signal.SIGTERM)
+        except (OSError, ValueError):
+            pass
+
+
+def wayland_info() -> str:
+    return subprocess.run(["wayland-info"], capture_output=True, text=True, timeout=10).stdout
+
+
+def watch_screens(every: float = 2, read=wayland_info, restart=restart_browser, rounds: int | None = None):
+    """Run by the kiosk inside cage: keeps screens.json up to date as screens are plugged in and out
+    (and a laptop's lid is opened and closed).
+
+    When a screen is plugged in or unplugged, the browser is restarted: the kiosk then picks the
+    sound output again, so the azan follows the TV, and the new window fills the screens there are
+    now (cage before 0.2, in Debian 12, leaves the window the old size when a screen is unplugged:
+    the prayer times would be cut off)."""
+    last, names = None, None
+    while rounds is None or rounds > 0:
+        try:
+            outputs = parse_wayland_info(read())
         except (OSError, subprocess.SubprocessError):
             outputs = []
         now = {"screens": shown_screens(outputs, lid_closed()), "outputs": outputs}
-        if now != last:
+        if now != last and (outputs or last is None):   # a failed reading keeps what was known
             write_json(screens_file(), now)
             log("Screens: " + (", ".join(f"{s['name'] or '?'} {s['w']}x{s['h']} at {s['x']},{s['y']}"
                                          + ("" if s in now["screens"] else " (lid closed)") for s in outputs) or "not known"))
             last = now
+        if outputs:   # (nothing read: wayland-info failed, so nothing is known to have changed)
+            seen = sorted(o["name"] for o in outputs)
+            if names is not None and seen != names:
+                log("A screen was plugged in or out: restarting the browser, so it fits the screens and the sound follows the TV")
+                restart()
+            names = seen
+        if rounds is not None:
+            rounds -= 1
         time.sleep(every)
 
 

@@ -294,6 +294,22 @@ class ClientTest(unittest.TestCase):
         self.assertEqual([s["name"] for s in ac.shown_screens(both, closed=True)], ["HDMI-A-1"])   # lid closed
         self.assertEqual(ac.shown_screens(both[1:], closed=True), both[1:])   # the laptop's screen is all there is
 
+    def test_browser_restarts_when_a_screen_is_plugged_in_or_out(self):
+        tv_and_laptop = WAYLAND_INFO
+        laptop = "interface: 'zxdg_output_manager_v1', version: 3, name: 7\n\txdg_output_v1\n\t\toutput: 13\n" \
+                 "\t\tname: 'eDP-1'\n\t\tlogical_x: 0, logical_y: 0\n\t\tlogical_width: 1280, logical_height: 800\n"
+        readings = iter([tv_and_laptop, tv_and_laptop, "", laptop, laptop, tv_and_laptop, ""])
+        restarts, shown = [], []
+        ac.time.sleep, sleep = (lambda t: shown.append(len(ac.read_screens()[1]))), ac.time.sleep
+        try:
+            ac.watch_screens(every=0, read=lambda: next(readings), restart=lambda: restarts.append(len(shown)), rounds=7)
+        finally:
+            ac.time.sleep = sleep
+        # Unplugged (round 4) and plugged back in (round 6): the browser restarts each time.
+        # A failed reading (rounds 3 and 7) changes nothing.
+        self.assertEqual(restarts, [3, 5])
+        self.assertEqual(shown, [2, 2, 2, 1, 1, 2, 2])
+
     def test_two_screens_show_the_prayer_times_on_each(self):
         two = [{"name": "HDMI-A-1", "x": 0, "y": 0, "w": 1920, "h": 1080}, {"name": "HDMI-A-2", "x": 1920, "y": 0, "w": 1280, "h": 720}]
         ac.write_json(ac.screens_file(), {"screens": two, "outputs": two})

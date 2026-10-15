@@ -46,11 +46,8 @@ cp /var/lib/azan-sip-client/screens.json "$out/" 2>/dev/null || true
 echo "ok: the client found two screens"
 cat "$out/screens.json"
 
-# Let the prayer times load on both, then take a picture of the two screens
-sleep 25
-wl grim -t ppm - > "$out/screens.ppm"
-wl grim - > "$out/screens.png" || true
-python3 - "$out/screens.ppm" <<'PY'
+# Checks a picture of the two screens: each half must show the prayer times
+cat > "$out/check.py" <<'PY'
 import re, sys
 data = open(sys.argv[1], "rb").read()
 # A binary PPM: "P6\n<width> <height>\n255\n" then RGB bytes
@@ -74,4 +71,26 @@ for name, x0, x1 in (("left", 0, w // 2), ("right", w // 2, w)):
     assert t > 0.005 and c > 0.005, f"the {name} screen doesn't show the prayer times"
 print("ok: both screens show the prayer times")
 PY
+shot() { wl grim -t ppm - > "$out/$1.ppm"; wl grim - > "$out/$1.png" || true; python3 "$out/check.py" "$out/$1.ppm"; }
+chromium_pids() { grep -lx chromium /proc/[0-9]*/comm 2>/dev/null | cut -d/ -f3 | sort; }
+
+# Let the prayer times load on both, then take a picture of the two screens
+sleep 25
+shot screens
+
+# A screen plugged in or out: the client stops the browser (so the new window fits the screens
+# there are now) and the kiosk starts it again straight away
+before=$(chromium_pids)
+runuser -u azan-client -- python3 -I -c 'import sys; sys.path.insert(0, "/usr/lib/azan-sip-client"); import azan_client; azan_client.restart_browser()'
+ok=
+for i in $(seq 1 60); do
+    sleep 1
+    now=$(chromium_pids)
+    # shellcheck disable=SC2086
+    if [ -n "$now" ] && [ -z "$(printf '%s\n' $before $now | sort | uniq -d)" ]; then ok=1; break; fi
+done
+[ -n "$ok" ] || { echo "FAIL: the browser didn't start again"; cat "$out/cage.log"; exit 1; }
+echo "ok: the browser started again"
+sleep 25
+shot screens-after-restart
 grep -i 'screens:' "$out/cage.log" || true

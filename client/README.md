@@ -21,7 +21,10 @@ TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on
   own screen (`packaging/box/screen.sh`). It picks the TV's sound output at every start, or the
   computer's own speakers when no TV is plugged in (switching a laptop's built-in speaker on).
   It runs `azan-sip-client watch-screens` alongside the browser, which keeps the list of screens
-  cage shows (from `wayland-info`) in `/var/lib/azan-sip-client/screens.json`.
+  cage shows (from `wayland-info`) in `/var/lib/azan-sip-client/screens.json`. When a screen is
+  plugged in or out it stops the browser, and `kiosk.sh` picks the sound output again and starts
+  a new one, which cage sizes to the screens there are now (cage before 0.2, in Debian 12, leaves
+  the old window the size of both screens when one is unplugged).
 - **Two screens or more** (two TVs, or a laptop and a TV): cage spreads the browser over all of
   them, and the client opens `/client/wall`, which puts a copy of the prayer times where each screen
   is. The first copy plays the azan; the others get `mirror=1` and the client answers their
