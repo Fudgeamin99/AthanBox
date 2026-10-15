@@ -108,7 +108,9 @@ jobs:
 
       - name: Image name
         id: name
-        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"   # must be lower case
+        # Always azan-sip-box, the name in every compose.yaml (the Update button pulls that name), even
+        # though the repository is now called AthanBox. Lower case, as the registry needs.
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/azan-sip-box" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
