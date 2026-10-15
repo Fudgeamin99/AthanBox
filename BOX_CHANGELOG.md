@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.3 - Desk phones sign in to the Box, and a shorter banned list
+
+- **Desk phones sign in to Azan SIP:** a new, sixth way to reach the phones. Each desk phone adds the Box as a line, with its own extension and password on the Box (101, 102 and so on). For the azan, the Box rings every signed-in phone with an auto-answer request, so they pick up by themselves and play it on the speaker. No phone system is needed, and it can be a second line next to the phone system's. Setup steps for Yealink, Grandstream, Fanvil, Snom and Poly are in the guide on the Phones page.
+- **Register to Azan SIP (SIP trunk)** is now only for phone systems. Desk phones already set up there keep working.
+- **Security, Banned right now:** the list is shorter. It shows how many are banned and why, the first five in tighter rows, and **Show all** for the rest. **Always block** is now **Block**.
+- **Debian and Docker:** nothing to run. Update as usual.
+
 ## 0.7.2 - The Wyse client: volume buttons, Update button and two screens
 
 - **Volume buttons on the Wyse's screen:** move the mouse over the prayer times and the volume buttons appear at the top, next to Screen settings. A keyboard's **+** and **−** (and its volume keys) work too. Each press plays a short note at the new volume.

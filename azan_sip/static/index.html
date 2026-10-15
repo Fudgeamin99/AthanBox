@@ -55,6 +55,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0
 .btn.primary:hover{background:var(--brand-2)}
 .btn.danger{color:var(--bad)}
 .btn.small{padding:6px 11px;font-size:13.5px}
+.btn.tiny{padding:3px 9px;font-size:12.5px;border-radius:8px}
 .btn:disabled{opacity:.5;cursor:default}
 .btn svg{width:16px;height:16px}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:600;background:var(--panel-2);color:var(--muted)}
@@ -106,6 +107,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600}
+table.tight td{padding:4px 10px;font-size:13.5px}
 tr:last-child td{border-bottom:0}
 .log{font-family:Consolas,ui-monospace,monospace;font-size:12.5px;background:var(--panel-2);border-radius:10px;padding:10px 12px;max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .log .WARNING{color:var(--warn)}.log .ERROR{color:var(--bad)}
@@ -269,6 +271,7 @@ const ICON = {
   phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
   broadcast:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>',
   server:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
+  deskphone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h3v16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M9 6h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9"/><path d="M12 9h5v3h-5zM12 15h.01M15 15h.01M18 15h.01"/></svg>',
   speaker:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
   file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
   screen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
@@ -725,15 +728,18 @@ const KINDS = {
   pbx:{t:"Phone system page group", d:"Grandstream UCM, FreePBX, 3CX and others. Azan SIP signs in as an extension and calls your paging group.", i:ICON.server},
   direct:{t:"Call each phone directly", d:"For Poly/Polycom or when multicast isn't possible. Phones must allow direct IP calls and auto-answer.", i:ICON.phone},
   rtp:{t:"IP speaker (RTP)", d:"Paging speakers that listen for audio on a fixed IP address and port.", i:ICON.speaker},
-  server:{t:"Register to Azan SIP (SIP trunk)", d:"Your phone system adds Azan SIP as a SIP trunk (a desk phone can sign in the same way). Azan SIP calls it for the azan, for example on the paging group. No extension needed on the phone system.", i:ICON.signin},
+  server:{t:"Register to Azan SIP (SIP trunk)", d:"Your phone system adds Azan SIP as a SIP trunk. Azan SIP calls it for the azan, for example on the paging group. No extension needed on the phone system.", i:ICON.signin},
+  phones:{t:"Desk phones sign in to Azan SIP", d:"Each desk phone adds the box as a line, with its own extension on the box. Azan SIP rings them for the azan and they answer by themselves. No phone system needed.", i:ICON.deskphone},
 };
-function kindOf(t){ if(t.type==="server") return "server"; if(t.type==="multicast") return "multicast"; if(t.type==="unicast_rtp") return "rtp"; if(t.mode) return t.mode; return (t.username || /sip:[^@]+@/.test(t.uri||"")) && !t.uris ? "pbx" : "direct"; }
+const SIPKIND = {server:"trunk", phones:"phone"};   // the two methods that share Azan SIP's own SIP server
+function kindOf(t){ if(t.type==="server") return "server"; if(t.type==="phones") return "phones"; if(t.type==="multicast") return "multicast"; if(t.type==="unicast_rtp") return "rtp"; if(t.mode) return t.mode; return (t.username || /sip:[^@]+@/.test(t.uri||"")) && !t.uris ? "pbx" : "direct"; }
 function summary(t){
   const k=kindOf(t);
   if(k==="multicast") return `Multicast ${t.address||""} · ${t.codec||"PCMU"}`;
   if(k==="rtp") return (t.addresses||[t.address]).filter(Boolean).join(", ");
   if(k==="pbx") return `${t.uri||""}${t.username?" as extension "+t.username:""}`;
   if(k==="server"){ const a=t.accounts||[]; return `Port ${t.port||5060} · ${a.length} SIP trunk account${a.length===1?"":"s"}${a.length?": "+a.map(x=>x.name||x.username).join(", "):""}`; }
+  if(k==="phones"){ const a=t.accounts||[]; return `Port ${t.port||5060} · ${a.length} desk phone${a.length===1?"":"s"}${a.length?": "+a.map(x=>x.name?`${x.name} (${x.username})`:x.username).join(", "):""}`; }
   return `${(t.uris||[t.uri]).filter(Boolean).length} phone(s): ${(t.uris||[t.uri]).filter(Boolean).map(u=>u.replace(/^sip:/,"")).join(", ")}`;
 }
 function toEdit(t){
@@ -743,7 +749,8 @@ function toEdit(t){
   e.username=t.username||""; e.password=t.password||""; e.auth_username=t.auth_username||""; e.register=t.register!==false;
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
-  e.port=String(t.port||5060); e.accounts=JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)}));
+  e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)})):[];
+  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||""})):[];
   return e;
 }
 function fromEdit(e){
@@ -762,12 +769,35 @@ function fromEdit(e){
       if(!/^[A-Za-z0-9*#+_.-]{0,40}$/.test(a.dial)) throw new Error(`The number to call for ${a.username} can use digits, letters and * # + _ . -`);
       if(!(a.max_signins>=1&&a.max_signins<=50)) throw new Error(`Sign-ins allowed for ${a.username} must be between 1 and 50`);
     }
-    if(CFG.targets.some((t,i)=>t.type==="server"&&i!==e.index)) throw new Error("Azan SIP is already set up for phones to register to. Edit that entry and add accounts to it.");
+    if(CFG.targets.some((t,i)=>t.type==="server"&&i!==e.index)) throw new Error("Azan SIP is already set up for phone systems to register to. Edit that entry and add accounts to it.");
+    sipOthers(e, accts, port);
     return {...base, type:"server", port, accounts:accts};
+  }
+  if(e.kind==="phones"){
+    const port=parseInt(e.port,10); if(!(port>=1&&port<=65535)) throw new Error("The SIP port must be a number, usually 5060");
+    const accts=(e.desk||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:1}));
+    if(!accts.length) throw new Error("Add at least one desk phone");
+    const seen=new Set();
+    for(const a of accts){
+      if(!/^[A-Za-z0-9_.+-]{1,40}$/.test(a.username)) throw new Error("Extensions can use numbers, letters and . _ - + (no spaces)");
+      if(seen.has(a.username.toLowerCase())) throw new Error(`The extension ${a.username} is used twice`); seen.add(a.username.toLowerCase());
+      if(a.password.length<8) throw new Error(`Use a password of at least 8 characters for ${a.username}`);
+    }
+    if(CFG.targets.some((t,i)=>t.type==="phones"&&i!==e.index)) throw new Error("Desk phones are already set up. Edit that entry and add phones to it.");
+    sipOthers(e, accts, port);
+    return {...base, type:"phones", port, accounts:accts};
   }
   if(e.kind==="rtp"){ const a=lines(e.rtp); if(!a.length) throw new Error("Enter at least one speaker as IP:port"); return {...base,type:"unicast_rtp",addresses:a}; }
   if(e.kind==="pbx"){ if(!e.pbx_host||!e.pbx_ext) throw new Error("Enter the phone system address and the paging group number"); const t={...base,type:"sip",mode:"pbx",uri:`sip:${e.pbx_ext.trim()}@${e.pbx_host.trim()}`,username:e.username.trim(),password:e.password,auto_answer:false,register:e.register!==false}; if(e.auth_username.trim()) t.auth_username=e.auth_username.trim(); return t; }
   const p=lines(e.phones); if(!p.length) throw new Error("Enter at least one phone IP address"); return {...base,type:"sip",mode:"direct",uris:p.map(x=>x.startsWith("sip:")?x:"sip:"+x),auto_answer:true};
+}
+// Desk phones and SIP trunks sign in to the same server: one port, and each username used once
+function sipPort(){ const t=CFG.targets.find(t=>SIPKIND[t.type]); return t&&t.port||5060; }
+function sipOthers(e, accts, port){
+  const others=CFG.targets.filter((t,i)=>SIPKIND[t.type]&&i!==e.index&&t.type!==(e.kind==="phones"?"phones":"server"));
+  for(const t of others) for(const a of (t.accounts||[]))
+    if(accts.some(x=>x.username.toLowerCase()===String(a.username).toLowerCase())) throw new Error(`The username ${a.username} is already used by ${t.type==="phones"?"a desk phone":"a SIP trunk"}; give each its own`);
+  for(const t of others) t.port=port;   // keep both on the same port
 }
 function pagePhones(){
   const ts=CFG.targets;
@@ -797,9 +827,10 @@ function refreshRegPills(){
   });
 }
 function regPill(t){
-  if(kindOf(t)==="server"){
-    const info=S&&S.sipserver; if(!info||t.enabled===false) return "";
+  if(SIPKIND[kindOf(t)]){
+    let info=S&&S.sipserver; if(!info||t.enabled===false) return "";
     if(info.status==="failed") return `<span class="pill warn" title="${esc(info.detail)}"><span class="dot"></span>Not running</span><div class="detail" style="color:var(--warn);white-space:normal">${esc(info.detail)}</div>`;
+    info={...info, accounts:info.accounts.filter(a=>(a.kind||"trunk")===SIPKIND[kindOf(t)])};
     const n=info.accounts.reduce((c,a)=>c+(a.signins||[]).length,0), all=info.accounts.reduce((c,a)=>c+(a.max||1),0);
     return `<span class="pill ${n?"ok":""}" title="${esc(info.accounts.map(a=>`${a.name||a.username}: ${(a.signins||[]).length?(a.signins||[]).map(x=>x.from).join(", "):"not signed in"}`).join("\n"))}"><span class="dot"></span>${n} of ${all} signed in</span>`;
   }
@@ -808,7 +839,7 @@ function regPill(t){
   if(r.status==="failed") return `<span class="pill warn" title="${esc(r.detail)}"><span class="dot"></span>Not registered</span><div class="detail" style="color:var(--warn);white-space:normal">${esc(r.detail)}</div>`;
   return `<span class="pill"><span class="dot"></span>Registering…</span>`;
 }
-function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", register:true, phones:"", rtp:"", port:"5060", accounts:[]} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
+function editTarget(i){ editing = i<0 ? {index:-1, kind:"multicast", name:"", enabled:true, codec:"PCMU", mc_ip:"224.5.6.20", mc_port:"10008", pbx_ext:"", pbx_host:"", username:"", password:"", auth_username:"", register:true, phones:"", rtp:"", port:String(sipPort()), accounts:[], desk:[]} : {index:i, ...toEdit(CFG.targets[i])}; render(); window.scrollTo(0,0); }
 function editorHTML(){
   const e=editing, k=e.kind;
   const codec = `<div class="field"><label>Audio codec</label><select data-path="edit.codec">${opt("PCMU","G.711 µ-law (PCMU) - North America / most phones",e.codec)}${opt("PCMA","G.711 A-law (PCMA) - Europe / UK systems",e.codec)}</select><div class="hint">If the phones play silence or noise, try the other one.</div></div>`;
@@ -832,18 +863,38 @@ function editorHTML(){
       const si=a.signins||[]; if(!si.length) return `<span class="pill"><span class="dot"></span>Not signed in yet</span>`;
       return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>${si.length} of ${a.max} signed in: ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
     fields = `<div class="server-box"><span>Server / registrar: <b>${esc(ip)}</b></span><span>Port: <b>${esc(e.port)}</b></span><span>Transport: <b>UDP</b></span>
-        <span class="muted" style="flex-basis:100%;font-size:13px">Enter these on the phone system as a register SIP trunk (or on a desk phone as an extra line), with a username and password below.</span></div>
+        <span class="muted" style="flex-basis:100%;font-size:13px">Enter these on the phone system as a register SIP trunk, with a username and password below.</span></div>
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
-      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on the box.</div></div>${codec}</div>
+      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on the box. Desk phones signing in to Azan SIP use the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">SIP trunk accounts</div>
       ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid5"><div class="field"><label for="ac${i}n">Name</label><input type="text" id="ac${i}n" data-path="edit.accounts.${i}.name" placeholder="Office UCM" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="ac${i}u">Username</label><input type="text" id="ac${i}u" data-path="edit.accounts.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="ac${i}p">Password</label><input type="text" id="ac${i}p" data-path="edit.accounts.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
-          <div class="field"><label for="ac${i}d">Number to call</label><input type="text" id="ac${i}d" data-path="edit.accounts.${i}.dial" placeholder="e.g. 7000" value="${esc(a.dial||"")}"><div class="hint">The paging group on the phone system. Leave it empty for a desk phone.</div></div>
-          <div class="field"><label for="ac${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="ac${i}m" data-path="edit.accounts.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phone systems or devices can sign in with it at once.</div></div></div></div>`).join("")}
+          <div class="field"><label for="ac${i}d">Number to call</label><input type="text" id="ac${i}d" data-path="edit.accounts.${i}.dial" placeholder="e.g. 7000" value="${esc(a.dial||"")}"><div class="hint">The paging group on the phone system.</div></div>
+          <div class="field"><label for="ac${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="ac${i}m" data-path="edit.accounts.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phone systems can sign in with it at once.</div></div></div></div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.accounts.push(newAccount());render()">+ Add a SIP trunk</button></div>
       <div class="hint">Calls into Azan SIP are always refused, and repeated wrong passwords are blocked, so it can't be used to make calls. Setup steps for phones and phone systems are in the guide below the list.</div>`;
+  }
+  if(k==="phones"){
+    if(!e.desk) e.desk=[];
+    if(!e.port) e.port=String(sipPort());
+    if(!e.desk.length) e.desk.push(newDeskPhone());
+    const ip=SESSION.ip||(META.ips||[])[0]||"the box's IP address", info=(S&&S.sipserver)||null;
+    const st=u=>{ const a=info&&info.accounts.find(x=>x.username.toLowerCase()===String(u).toLowerCase()); if(!info||info.status!=="running"||!a) return "";
+      const si=a.signins||[]; if(!si.length) return `<span class="pill"><span class="dot"></span>Not signed in yet</span>`;
+      return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>Signed in from ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
+    fields = `<div class="server-box"><span>Server / registrar: <b>${esc(ip)}</b></span><span>Port: <b>${esc(e.port)}</b></span><span>Transport: <b>UDP</b></span>
+        <span class="muted" style="flex-basis:100%;font-size:13px">On each desk phone, add a line (account) with these, and the phone's extension and password below. Then turn on auto-answer for that line, as the guide below the list shows.</span></div>
+      ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
+      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. A SIP trunk to Azan SIP uses the same port.</div></div>${codec}</div>
+      <div class="lbl" style="margin:6px 0 8px">Desk phones</div>
+      ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
+        <div class="grid3"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
+          <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
+          <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div></div></div>`).join("")}
+      <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
+      <div class="hint">For the azan, Azan SIP rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into Azan SIP are always refused, and repeated wrong passwords are blocked.</div>`;
   }
   if(k==="rtp") fields = `<div class="field"><label>Speakers as IP:port (one per line)</label><textarea data-path="edit.rtp" placeholder="192.168.1.80:50000">${evl("rtp")}</textarea></div>${codec}`;
   return `<div class="card"><h2>${e.index<0?"Add phones":"Edit "+esc(e.name)}</h2>
@@ -861,6 +912,13 @@ function newAccount(){
   let n=1; while(used.has("trunk"+n)) n++;
   const chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", buf=new Uint32Array(14); crypto.getRandomValues(buf);
   return {name:"", username:"trunk"+n, password:[...buf].map(x=>chars[x%chars.length]).join(""), kind:"trunk", dial:"", max_signins:"1"};
+}
+function newDeskPhone(){
+  const used=new Set([...(editing&&editing.desk||[]).map(a=>String(a.username).toLowerCase()),
+    ...CFG.targets.filter(t=>SIPKIND[t.type]).flatMap(t=>(t.accounts||[]).map(a=>String(a.username).toLowerCase()))]);
+  let n=101; while(used.has(String(n))) n++;
+  const chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", buf=new Uint32Array(14); crypto.getRandomValues(buf);
+  return {name:"", username:String(n), password:[...buf].map(x=>chars[x%chars.length]).join("")};
 }
 function finishEdit(){ try{ const t=fromEdit(editing); if(editing.index<0) CFG.targets.push(t); else CFG.targets[editing.index]=t; editing=null; dirty(); render(); toast("Press Save changes to start using it."); }catch(e){ toast(e.message,"bad"); } }
 function removeTarget(){ if(!confirm("Remove these phones?")) return; CFG.targets.splice(editing.index,1); editing=null; dirty(); render(); }
@@ -881,11 +939,12 @@ function guideHTML(){
     <span class="muted">If it shows "Not registered": check the password, that UDP 5060 is enabled (PBX Settings → SIP Settings), and that the extension's <i>Permitted IP</i> list (if set) includes this PC. Several wrong passwords can make the UCM's Fail2ban block this PC for a while.</span></p></details>
   <details><summary>FreePBX / Asterisk</summary><p>Applications → Extensions: add a PJSIP extension for Azan SIP (e.g. 7099). Applications → <b>Paging and Intercom</b>: create a group (e.g. 7000) with the phones as members, Duplex off. Then add <b>Phone system page group</b> here with those numbers.</p></details>
   <details><summary>3CX</summary><p>Users: add an extension for Azan SIP. Groups → <b>Paging</b>: create a paging group with the phones. Use the extension's <b>Authentication ID</b> and <b>password</b> here.</p></details>
-  <details><summary>Desk phone with Azan SIP as a line (Register to Azan SIP)</summary><p>Add a SIP trunk account here and leave <b>Number to call</b> empty (raise <b>Sign-ins allowed</b> to let several phones share it). On the phone's web page, add a second account (line) with: <b>Server / Registrar</b> = the box's IP address, <b>Port</b> = the SIP port (5060), <b>Username</b>, <b>Authentication name</b> and <b>Password</b> = the account's details, <b>Transport</b> = UDP.<br>
-    <b>Yealink:</b> Account → Register → Account 2, then Account → Advanced → turn on <b>Auto Answer</b> for that account (or keep Features → Intercom → <b>Allow Intercom</b> on).<br>
-    <b>Grandstream:</b> Account 2 → General Settings, then Account 2 → Call Settings → <b>Allow Auto Answer by Call-Info/Alert-Info</b> = Yes.<br>
-    <b>Fanvil / Snom:</b> add the line, and turn on auto-answer (intercom) for it.<br>
-    <span class="muted">The phone shows the account as registered, and the account shows "Signed in" here.</span></p></details>
+  <details><summary>Desk phones signing in to Azan SIP (auto-answer)</summary><p>Add the phone under <b>Desk phones sign in to Azan SIP</b>. On the phone's web page, add a line (account) with: <b>Server / Registrar</b> = the box's IP address, <b>Port</b> = the SIP port (5060), <b>Username</b>, <b>Authentication name</b> and <b>Register name</b> = the extension, <b>Password</b> = its password, <b>Transport</b> = UDP. It can be a second line next to the phone system's.<br>
+    <b>Yealink:</b> Account → Register → Account 2. Then Features → Intercom → <b>Intercom Allow</b> = On and <b>Intercom Mute</b> = Off (or Account → Advanced → <b>Auto Answer</b> = On for that account).<br>
+    <b>Grandstream:</b> Account 2 → General Settings. Then Account 2 → Call Settings → <b>Allow Auto Answer by Call-Info/Alert-Info</b> = Yes.<br>
+    <b>Fanvil / Snom:</b> add the line, and turn on auto-answer (intercom) for it, with the microphone muted.<br>
+    <b>Poly / Polycom:</b> add the line, then set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>.<br>
+    <span class="muted">The phone shows the line as registered, and the phone shows "Signed in" here. Press <b>Test</b> next to the entry: the phones should pick up by themselves and play the chime.</span></p></details>
   <details><summary>Grandstream UCM as a SIP trunk to Azan SIP</summary><p>1. <b>Extension/Trunk → VoIP Trunks → Add SIP Trunk</b>: Type <b>Register SIP Trunk</b>, Provider name "Azan SIP", Host name = the box's IP address and port (e.g. <span class="kbd">192.168.1.20:5060</span>), Username and Password = the SIP trunk account here.<br>
     2. <b>Extension/Trunk → Inbound Routes</b>: add a route for that trunk with the pattern = the account's <b>Number to call</b> (e.g. <span class="kbd">7000</span>), destination = your Paging/Intercom group.<br>
     3. The trunk shows as registered on the UCM and "Signed in" here. No extension is needed for Azan SIP.</p></details>
@@ -969,10 +1028,11 @@ function pageTV(){
 
 // ---- Security (Azan SIP Box): fail2ban, whitelist and blacklist. Changes apply straight away, without
 // the Save bar: the box's root helper picks them up within a second or two.
-let SEC = null, secTick = 0;
+let SEC = null, secTick = 0, secAllBans = false;
+const SEC_BANS_SHOWN = 5;   // more than this: the rest behind "Show all"
 const SEC_JAILS = [["sshd","SSH sign-ins","Someone signing in to the box itself over SSH, with the wrong password."],
   ["panel","Control panel","Wrong passwords on this page (http://azan.local)."],
-  ["sip","SIP sign-ins","Phones or phone systems signing in to Azan SIP (Register to Azan SIP) with the wrong password."]];
+  ["sip","SIP sign-ins","Desk phones or phone systems signing in to Azan SIP with the wrong password."]];
 function secSpan(s){
   s = +s; if(s < 0) return "Until it's unbanned";
   if(s === 7*86400) return "1 week";
@@ -1029,9 +1089,14 @@ function secLive(){
       <label class="switch"><input type="checkbox" ${f.jails[k]!==false?"checked":""} ${on?"":"disabled"} onchange="secF2b({jails:{${k}:this.checked}})" aria-label="${esc(t)}"><span></span></label></div>`; }).join("");
   const bans = [];
   for(const [k,t] of SEC_JAILS) for(const x of ((jails[k]||{}).banned||[])) bans.push({...x, jail:t});
-  $("#sec-bans").innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Banned right now</h2>${st&&st.updated?`<span class="muted" style="font-size:13px">Checked ${esc(st.updated.slice(11,16))}</span>`:""}</div>
-    ${bans.length ? `<table style="margin-top:10px"><tr><th>Address</th><th>Why</th><th>Until</th><th></th></tr>${bans.map(x=>`<tr><td class="mono">${esc(x.ip)}</td><td>${esc(x.jail)}</td><td class="muted">${esc(!x.until ? "" : x.until.startsWith("9999") ? "Until it's unbanned" : x.until.slice(0,16))}</td>
-      <td style="text-align:right;white-space:nowrap"><button class="btn small" onclick="secUnban('${esc(x.ip)}')">Unban</button> <button class="btn small danger" onclick="secBlockBanned('${esc(x.ip)}')">Always block</button></td></tr>`).join("")}</table>`
+  const byWhy = {}; for(const x of bans) byWhy[x.jail] = (byWhy[x.jail]||0) + 1;
+  const shown = secAllBans ? bans : bans.slice(0, SEC_BANS_SHOWN);
+  const until = u => !u ? "" : u.startsWith("9999") ? "until unbanned" : "until " + u.slice(0,16).replace("T"," ");
+  $("#sec-bans").innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Banned right now${bans.length?` <span class="pill warn">${bans.length}</span>`:""}</h2>${st&&st.updated?`<span class="muted" style="font-size:13px">Checked ${esc(st.updated.slice(11,16))}</span>`:""}</div>
+    ${bans.length ? `<p class="muted" style="margin:4px 0 0;font-size:13px">${Object.entries(byWhy).map(([k,n])=>`${n} from ${esc(k)}`).join(" · ")}</p>
+      <table class="tight" style="margin-top:6px">${shown.map(x=>`<tr><td class="mono">${esc(x.ip)}</td><td class="muted">${esc(x.jail)}${x.until?" · "+esc(until(x.until)):""}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn tiny" onclick="secUnban('${esc(x.ip)}')">Unban</button> <button class="btn tiny danger" title="Always block" onclick="secBlockBanned('${esc(x.ip)}')">Block</button></td></tr>`).join("")}</table>
+      ${bans.length > SEC_BANS_SHOWN ? `<button class="btn tiny" style="margin-top:8px" onclick="secAllBans=!secAllBans;secLive()">${secAllBans ? "Show fewer" : `Show all ${bans.length}`}</button>` : ""}`
       : `<p class="muted" style="margin:8px 0 0">${!on ? "Fail2ban is off." : fb && fb.running ? "Nobody is banned." : "Nothing to show until fail2ban is running."}</p>`}`;
 }
 function secRows(which){

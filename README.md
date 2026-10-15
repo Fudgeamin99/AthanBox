@@ -143,7 +143,8 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 | Phone system page group | Grandstream UCM, FreePBX, Asterisk, 3CX and others. The Box stays registered as its own extension (shows as Idle) and calls your paging group. |
 | Call each phone directly | Poly/Polycom, or when multicast isn't possible. Needs direct IP calls and auto-answer on the phones. |
 | IP speaker (RTP) | Paging speakers that listen on a fixed IP address and port. |
-| Register to Azan SIP (SIP trunk) | A phone system that adds the Box as a register SIP trunk (no extension needed), or desk phones that add it as an extra line. The Box listens on UDP port 5060. |
+| Register to Azan SIP (SIP trunk) | A phone system that adds the Box as a register SIP trunk (no extension needed). The Box listens on UDP port 5060. |
+| Desk phones sign in to Azan SIP | Desk phones with no phone system, or as a second line next to it. Each phone gets its own extension on the Box, and the Box rings them with auto-answer so they pick up by themselves. Same UDP port 5060. |
 
 ## Password
 
@@ -155,7 +156,7 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 Open **Security** in the menu.
 
-- **Fail2ban** bans an address for a while after too many wrong passwords: SSH sign-ins to the box, the control panel's password, and SIP sign-ins (Register to Azan SIP). A banned address can't reach the box on any port. Choose how many wrong tries are allowed, over how long, and how long the ban lasts. **Banned right now** lists who is banned, with **Unban** and **Always block**.
+- **Fail2ban** bans an address for a while after too many wrong passwords: SSH sign-ins to the box, the control panel's password, and SIP sign-ins (desk phones and SIP trunks). A banned address can't reach the box on any port. Choose how many wrong tries are allowed, over how long, and how long the ban lasts. **Banned right now** lists who is banned, with **Unban** and **Block**.
 - **Whitelist:** addresses and ranges that are never banned or blocked. The box's own network is on it from the start, so you can't lock yourself out from inside the masjid. Add your phone system or your home's address too.
 - **Blacklist:** addresses and ranges that are always blocked, with a note. The Box won't let you block the address you're using, or its own.
 

@@ -352,11 +352,7 @@ class Service:
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
         look.check(cfg)
         ramadan.check(cfg.get("ramadan"))
-        servers = [t for t in cfg.get("targets", []) if t.get("type") == "server"]
-        if len(servers) > 1:
-            raise ValueError("Only one 'Register to Azan SIP' entry is possible; add more accounts to it instead")
-        for t in servers:
-            sipserver.check_accounts(t.get("accounts", []), t.get("port", 5060))
+        sipserver.check_targets(cfg.get("targets", []))
         with self.lock:
             app = AzanApp(self.config_path, cfg, require_targets=False, shared=self.shared)  # raises if invalid
             if save:
@@ -1096,7 +1092,8 @@ class Handler(BaseHTTPRequestHandler):
                     srv = st.get("sipserver")
                     st.update(log=[], history=[], screens={"on": st["screens"]["on"], "list": []},
                               sipserver=srv and {"status": srv["status"], "detail": srv["detail"],
-                                                 "accounts": [{"registered": a["registered"]} for a in srv["accounts"]]})
+                                                 "accounts": [{"registered": a["registered"], "kind": a["kind"]}
+                                                              for a in srv["accounts"]]})
                 return self._json(st)
             if p in ("/live/stream.m3u8", "/live/x") and svc.relay_off:
                 return self._json({"ok": False, "error": "Makkah live through the box is turned off on the Display page"}, 403)
