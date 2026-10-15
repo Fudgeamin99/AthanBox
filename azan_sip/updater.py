@@ -18,7 +18,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -26,7 +25,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
-from .env import EXE_NAME, FROZEN
 
 log = logging.getLogger("azan-sip")
 
@@ -170,26 +168,23 @@ def _installed(base: Path) -> dict:
 
 
 def _is_git(base: Path) -> bool:
-    return not FROZEN and (base / ".git").is_dir() and shutil.which("git") is not None
+    return (base / ".git").is_dir() and shutil.which("git") is not None
 
 
 def mode(base: Path) -> str:
     if DOCKER:
         return "docker"
-    return "exe" if FROZEN else ("git" if _is_git(base) else "download")
+    return "git" if _is_git(base) else "download"
 
 
 def _git(base: Path, *args, timeout=120) -> str:
-    r = subprocess.run(["git", "-C", str(base), *args], capture_output=True, text=True, timeout=timeout,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    r = subprocess.run(["git", "-C", str(base), *args], capture_output=True, text=True, timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip() or f"git {args[0]} failed")
     return r.stdout.strip()
 
 
 def backups(base: Path) -> list[dict]:
-    if FROZEN:
-        return _exe_backups(Path(base))
     d = base / "backups"
     out = []
     if d.is_dir():
@@ -216,8 +211,6 @@ def check(base: Path) -> dict:
         r = _helper(base, "POST", "/check", timeout=1800)
         return dict(info, helper=True, available=bool(r.get("available")), current_version=r.get("current") or __version__,
                     latest_version=r.get("latest"), latest_date=r.get("latest_date", ""), image=r.get("image"))
-    if FROZEN:
-        return _exe_check(info)
     if info["mode"] == "git":
         try:
             _git(base, "fetch", "--quiet", "origin", BRANCH)
@@ -277,13 +270,9 @@ def _verify(root: Path):
             raise RuntimeError(f"The download looks incomplete ({need} missing) - update cancelled")
     if not (root / "azan_sip/auth.py").is_file():  # Box mode lives there; without it AthanBox can't start
         raise RuntimeError("That version doesn't include AthanBox support - update cancelled")
-    exe = sys.executable
-    if exe.lower().endswith("pythonw.exe") and Path(exe[:-5] + ".exe").exists():
-        exe = exe[:-5] + ".exe"  # pythonw has no output to read
-    r = subprocess.run([exe, "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); "
+    r = subprocess.run([sys.executable, "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); "
                         "import azan_sip.web, azan_sip.praytimes, azan_sip.sip, azan_sip.auth; print(azan_sip.__version__)", str(root)],
-                       capture_output=True, text=True, timeout=60, cwd=str(root),
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                       capture_output=True, text=True, timeout=60, cwd=str(root))
     if r.returncode != 0:
         raise RuntimeError("The new version failed its start-up check, so nothing was changed:\n"
                            + (r.stderr.strip().splitlines() or ["unknown error"])[-1])
@@ -311,14 +300,7 @@ def _install_tree(src: Path, base: Path):
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_name(target.name + ".new")
         shutil.copy2(src / rel, tmp)
-        for attempt in range(5):  # Windows: retry if antivirus briefly locks a file
-            try:
-                os.replace(tmp, target)
-                break
-            except PermissionError:
-                if attempt == 4:
-                    raise
-                time.sleep(0.5)
+        os.replace(tmp, target)
     # remove stale modules from the package (never user files)
     pkg = base / "azan_sip"
     for p in list(pkg.rglob("*")):
@@ -338,8 +320,6 @@ def apply(base: Path) -> dict:
             raise RuntimeError(f"Already on the newest image ({r.get('version')})")
         log.info("Updating the container to %s - it restarts in a moment", r.get("version"))
         return {"ok": True, "version": r.get("version"), "docker": True}
-    if FROZEN:
-        return _exe_apply(base)
     if _is_git(base):
         before = _git(base, "rev-parse", "HEAD")
         _backup(base, box_version() or __version__)
@@ -387,8 +367,6 @@ def rollback(base: Path, name: str | None = None) -> dict:
     base = Path(base)
     if DOCKER:
         raise RuntimeError(DOCKER_NOTE)
-    if FROZEN:
-        return _exe_rollback(base, name)
     bk = backups(base)
     if not bk:
         raise RuntimeError("There is no previous version to go back to")
@@ -402,161 +380,19 @@ def rollback(base: Path, name: str | None = None) -> dict:
 
 
 # ------------------------------------------------------------------- restart
-def restart_command(base: Path) -> tuple[list[str], int] | None:
-    """Command (and Windows creation flags) to start a fresh copy of the app, or None under systemd."""
+def restart_command(base: Path) -> list[str] | None:
+    """Command to start a fresh copy of the app, or None under systemd."""
     if os.environ.get("INVOCATION_ID"):  # systemd: just exit, Restart=always brings us back
         return None
     exe = Path(sys.executable)
-    if FROZEN:
-        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        return [str(exe), "--background"], flags
-    launcher = base / "Azan SIP.pyw"
-    argv0 = Path(sys.argv[0]).name if sys.argv else ""
-    flags = 0
-    if os.name == "nt":
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP | (
-            subprocess.DETACHED_PROCESS if exe.name.lower() == "pythonw.exe" else subprocess.CREATE_NEW_CONSOLE)
-    if argv0.lower().endswith(".pyw") and launcher.exists():
-        return [str(exe), str(launcher), "--background"], flags
     orig = getattr(sys, "orig_argv", None) or [str(exe), *sys.argv]
-    return [str(exe), *orig[1:]], flags
+    return [str(exe), *orig[1:]]
 
 
 def spawn_replacement(base: Path) -> bool:
-    cmd = restart_command(base)
-    if cmd is None:
+    args = restart_command(base)
+    if args is None:
         return False
-    args, flags = cmd
-    env = child_env(AZAN_WAIT_FOR_PORT="1", AZAN_NO_BROWSER="1")
-    kw = {"cwd": str(base), "env": env, "close_fds": True, "stdin": subprocess.DEVNULL}
-    if os.name == "nt":
-        kw["creationflags"] = flags
-    else:
-        kw["start_new_session"] = True
-    subprocess.Popen(args, **kw)
+    env = dict(os.environ, AZAN_WAIT_FOR_PORT="1", AZAN_NO_BROWSER="1")
+    subprocess.Popen(args, cwd=str(base), env=env, close_fds=True, stdin=subprocess.DEVNULL, start_new_session=True)
     return True
-
-
-# ------------------------------------------------------------ packaged .exe
-# The .exe updates itself from the latest GitHub *release* (each release has AzanSIP.exe attached).
-# Windows lets a running .exe be renamed but not overwritten, so: download as .new.exe, test it,
-# keep a copy of the current one in backups/, rename current -> .old.exe, new -> current, restart.
-
-def child_env(**extra) -> dict:
-    env = {k: v for k, v in os.environ.items() if not (k.startswith("_PYI_") or k == "_MEIPASS2")}
-    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
-    env.update(extra)
-    return env
-
-
-def _exe_paths() -> tuple[Path, Path, Path]:
-    exe = Path(sys.executable).resolve()
-    return exe, exe.with_name(exe.stem + ".new" + exe.suffix), exe.with_name(exe.stem + ".old" + exe.suffix)
-
-
-def _exe_check(info: dict) -> dict:
-    r = _get(f"{API}/releases/latest")
-    latest = r.get("tag_name", "").lstrip("v")
-    asset = next((a for a in r.get("assets", []) if a.get("name") == EXE_NAME), None)
-    newer = _vtuple(latest) > _vtuple(__version__)
-    info.update(latest_version=latest, latest_commit=r.get("tag_name"), latest_message=r.get("name") or "",
-                latest_date=r.get("published_at") or "", available=newer and asset is not None,
-                asset_url=asset.get("url") if asset else None, asset_size=asset.get("size") if asset else None)
-    if newer and asset is None:
-        info["note"] = "The new version is still being built on GitHub - check again in a few minutes."
-    return info
-
-
-def _verify_exe(path: Path):
-    try:
-        r = subprocess.run([str(path), "--self-test"], capture_output=True, timeout=180, env=child_env(),
-                           stdin=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        ok = r.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        ok = False
-    if not ok:
-        path.unlink(missing_ok=True)
-        raise RuntimeError("The new version failed its start-up check, so nothing was changed")
-
-
-def _swap_in(new: Path):
-    exe, _, old = _exe_paths()
-    try:
-        old.unlink(missing_ok=True)  # left over from the previous update
-    except OSError:
-        old = exe.with_name(f"{exe.stem}.old-{int(time.time())}{exe.suffix}")
-    os.replace(exe, old)             # allowed while running on Windows
-    try:
-        os.replace(new, exe)
-    except OSError:
-        os.replace(old, exe)         # put the working one back
-        raise
-
-
-def _backup_exe(base: Path, version: str):
-    exe = Path(sys.executable).resolve()
-    d = base / "backups"
-    d.mkdir(exist_ok=True)
-    shutil.copy2(exe, d / f"AzanSIP-v{version}.exe")
-    olds = sorted(d.glob("AzanSIP-v*.exe"), key=lambda p: p.stat().st_mtime)
-    for p in olds[:-KEEP_BACKUPS]:
-        p.unlink(missing_ok=True)
-
-
-def _exe_backups(base: Path) -> list[dict]:
-    d = base / "backups"
-    if not d.is_dir():
-        return []
-    out = []
-    for p in sorted(d.glob("AzanSIP-v*.exe"), key=lambda p: p.stat().st_mtime, reverse=True):
-        m = re.search(r"AzanSIP-v(.+)\.exe$", p.name)
-        if m and m.group(1) != __version__:
-            out.append({"name": p.name, "version": m.group(1)})
-    return out
-
-
-def _exe_apply(base: Path) -> dict:
-    info = _exe_check({})
-    if not info.get("available"):
-        raise RuntimeError(info.get("note") or f"You already have the latest version ({__version__})")
-    _, new, _ = _exe_paths()
-    log.info("Downloading %s %s", EXE_NAME, info["latest_version"])
-    data = _get(info["asset_url"], timeout=600, raw=True, accept="application/octet-stream")
-    if info.get("asset_size") and len(data) != info["asset_size"]:
-        raise RuntimeError("The download was incomplete - please try again")
-    new.write_bytes(data)
-    if os.name != "nt":
-        new.chmod(0o755)
-    _verify_exe(new)
-    _backup_exe(base, __version__)
-    _swap_in(new)
-    log.info("Updated %s to version %s", EXE_NAME, info["latest_version"])
-    return {"ok": True, "version": info["latest_version"]}
-
-
-def _exe_rollback(base: Path, name: str | None) -> dict:
-    bk = _exe_backups(base)
-    if not bk:
-        raise RuntimeError("There is no previous version to go back to")
-    pick = next((b for b in bk if b["name"] == name), bk[0]) if name else bk[0]
-    _, new, _ = _exe_paths()
-    shutil.copy2(base / "backups" / pick["name"], new)
-    _verify_exe(new)
-    _backup_exe(base, __version__)
-    _swap_in(new)
-    log.info("Restored %s version %s", EXE_NAME, pick["version"])
-    return {"ok": True, "version": pick["version"]}
-
-
-def cleanup_after_update():
-    """Remove the previous .exe left behind by an update (called when the new one starts)."""
-    if not FROZEN:
-        return
-    exe, new, _ = _exe_paths()
-    for p in [new, *exe.parent.glob(f"{exe.stem}.old*{exe.suffix}")]:
-        for _ in range(10):  # the old process may take a moment to exit
-            try:
-                p.unlink(missing_ok=True)
-                break
-            except OSError:
-                time.sleep(0.5)

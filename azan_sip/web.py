@@ -34,7 +34,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__, hostvol, live, look, ramadan, rtp, screens, security, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
-from .env import FROZEN, app_dir
+from .env import app_dir
 from .sipreg import Registration, RegistrationManager
 from .app import ADHAN_PRAYERS, AzanApp, Clip, Shared, build_targets, load_config
 from .praytimes import METHODS, PRAYERS, SHAFAQ, get_zone
@@ -66,10 +66,10 @@ TV_HEAD = b"""<meta name="viewport" content="width=device-width, initial-scale=1
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0e4a40">
 <link rel="apple-touch-icon" href="/icons/tv-180.png">"""
-# The Android app is the desktop app's (built in Fudgeamin99/ATHAN-TO-SIP). AthanBox's Docker image carries
-# a copy (static/AzanTV.apk, added when the image is built); otherwise it comes from the app's latest release.
+# The Android TV app (android/, built by each release). AthanBox's Docker image carries a copy
+# (static/AzanTV.apk); otherwise it comes from the copy attached to AthanBox's latest release.
 APK_FILE = STATIC / "AzanTV.apk"
-APK_URL = "https://github.com/Fudgeamin99/ATHAN-TO-SIP/releases/latest/download/AzanTV.apk"
+APK_URL = "https://github.com/Fudgeamin99/azan-sip-box/releases/latest/download/AzanTV.apk"
 TV_MANIFEST = {"name": "Azan SIP TV", "short_name": "Azan TV", "start_url": "/tv", "scope": "/tv",
                "display": "fullscreen", "orientation": "landscape", "background_color": "#0e4a40",
                "theme_color": "#0e4a40", "description": "Prayer times and the azan on a TV",
@@ -172,7 +172,7 @@ def setup_logging(base: Path, verbose: bool = False):
         root.addHandler(fh)
     except OSError:
         pass
-    if sys.stderr:  # not present under pythonw
+    if sys.stderr:
         sh = logging.StreamHandler()
         sh.setFormatter(fmt)
         root.addHandler(sh)
@@ -254,41 +254,7 @@ def clean_config(cfg: dict) -> dict:
     return out
 
 
-def windows_startup_path() -> Path | None:
-    if os.name != "nt" or not os.environ.get("APPDATA"):
-        return None
-    return Path(os.environ["APPDATA"]) / "Microsoft/Windows/Start Menu/Programs/Startup/Azan SIP.vbs"
-
-
-def set_windows_startup(enabled: bool, base: Path):
-    path = windows_startup_path()
-    if path is None:
-        raise RuntimeError("Start with Windows is only available on Windows")
-    if not enabled:
-        path.unlink(missing_ok=True)
-        return
-    q = lambda s: str(s).replace('"', '""')  # noqa: E731
-    if FROZEN:  # AzanSIP.exe
-        cmd = f'"""{q(Path(sys.executable).resolve())}"" --background"'
-    else:       # Python + "Azan SIP.pyw"
-        exe = Path(sys.executable)
-        pyw = exe.with_name("pythonw.exe")
-        exe = pyw if pyw.exists() else exe
-        cmd = f'"""{q(exe)}"" ""{q(base / "Azan SIP.pyw")}"" --background"'
-    path.write_text(
-        'Set sh = CreateObject("WScript.Shell")\r\n'
-        f'sh.CurrentDirectory = "{q(base)}"\r\n'
-        f'sh.Run {cmd}, 0, False\r\n', encoding="utf-8")
-
-
 def message_box(text: str, title: str = "AthanBox"):
-    if os.name == "nt":
-        try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(None, text, title, 0x40)
-            return
-        except Exception:
-            pass
     if sys.stderr:
         print(text, file=sys.stderr)
 
@@ -781,7 +747,6 @@ class Service:
             zones = []
         files = sorted(p.name for p in self.audio_dir.glob("*") if p.suffix.lower() in AUDIO_EXT) \
             if self.audio_dir.is_dir() else []
-        sp = windows_startup_path()
         def detail(v):
             if v.get("seasonal"):
                 return ("Fajr and Isha follow the committee's seasonal curve for your latitude (18° limit). "
@@ -793,7 +758,6 @@ class Service:
                             for k, v in METHODS.items()],
                 "shafaq": SHAFAQ,
                 "zones": zones, "audio_files": files, "ips": local_ips(),
-                "windows": os.name == "nt", "startup": bool(sp and sp.exists()),
                 "ffmpeg": bool(shutil.which("ffmpeg")), "config_path": str(self.config_path),
                 "live_default": live.DEFAULT_URL,
                 "folder": str(self.base)}
@@ -1334,10 +1298,6 @@ class Handler(BaseHTTPRequestHandler):
                 cfg.setdefault("general", {})["check_updates"] = bool(req.get("enabled"))
                 svc.apply(cfg, save=True)
                 return self._json({"ok": True})
-            if p == "/api/startup":
-                set_windows_startup(bool(req.get("enabled")), svc.base)
-                log.info("Start with Windows %s", "on" if req.get("enabled") else "off")
-                return self._json({"ok": True})
             if p == "/api/delete-audio":
                 f = svc.audio_dir / Path(req["name"]).name
                 in_use = [k for k, v in svc.cfg.get("audio", {}).items() if isinstance(v, str)
@@ -1366,12 +1326,7 @@ class Handler(BaseHTTPRequestHandler):
 
 class PanelServer(ThreadingHTTPServer):
     daemon_threads = True
-    allow_reuse_address = os.name != "nt"  # on Windows reuse would let two copies share the port
-
-    def server_bind(self):
-        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-        super().server_bind()
+    allow_reuse_address = True
 
 
 def _already_running(port: int) -> bool:
@@ -1433,12 +1388,6 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     threading.Thread(target=svc.auto_update_checker, name="update-check", daemon=True).start()
-    threading.Thread(target=updater.cleanup_after_update, name="cleanup", daemon=True).start()
-    try:  # if Start with Windows is on, keep it pointing at this copy (e.g. after switching to the .exe)
-        if windows_startup_path() and windows_startup_path().exists():
-            set_windows_startup(True, svc.base)
-    except Exception:
-        pass
     try:
         server.serve_forever(poll_interval=0.5)
     except KeyboardInterrupt:
@@ -1457,7 +1406,7 @@ def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(prog="AthanBox")
     ap.add_argument("-c", "--config", default=None)
-    ap.add_argument("--background", action="store_true", help="don't open the browser (used at Windows start-up)")
+    ap.add_argument("--background", action="store_true", help="don't open the browser")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args(argv)
     cfg = args.config or str(app_dir() / "config.toml")

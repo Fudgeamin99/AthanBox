@@ -2,11 +2,13 @@
 # - The version, title and notes come from the newest "## x.y.z - title" section of BOX_CHANGELOG.md,
 #   so adding a section there and merging it to main is all it takes. Releases are tagged box-vX.Y.Z.
 # - The desktop app's CHANGELOG.md and version (azan_sip/__init__.py) are ignored here, so merging
-#   app updates into this repository never publishes anything. The app's own release workflow
-#   (with the Windows AzanSIP.exe build) lives only in Fudgeamin99/ATHAN-TO-SIP.
+#   app updates into this repository never publishes anything. AthanBox is built for Debian and Docker
+#   only: there is no Windows program.
 # - Each new release also publishes the Docker image (see compose.yaml).
-# - The Android TV app (AzanTV.apk) is the desktop app's, built in Fudgeamin99/ATHAN-TO-SIP: each new
-#   release attaches a copy of its newest one, and the Docker image carries it.
+# - The Android TV app (AzanTV.apk) is built from android/ for each new release, before it's published,
+#   and attached to it; the Docker image carries the same file. It's signed with the ANDROID_KEYSTORE and
+#   ANDROID_KEYSTORE_PASSWORD secrets (packaging/apk.sh); without them the copy from the newest release
+#   that has one is used again.
 # - The Wyse client (client/, the TV screen for a Dell Wyse or a laptop) has its own releases, tagged
 #   client-vX.Y.Z (client-release.yml). AthanBox releases up to 0.7.2 carried it too.
 # - To release from a branch before it's merged, push it as a new branch named release/<anything>
@@ -34,10 +36,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Publish the newest AthanBox version
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -70,6 +79,8 @@ jobs:
             found && /^## / {exit}
             found {print}
           ' BOX_CHANGELOG.md > notes.md
+          # The Android app first: if it doesn't build, nothing is published.
+          packaging/apk.sh apk/AzanTV.apk
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             where=(--verify-tag)                  # the tag pushed by hand
           else
@@ -78,11 +89,9 @@ jobs:
           gh release create "$tag" -R "$REPO" "${where[@]}" --title "$title" \
             --notes-file notes.md --latest
           echo "Released $tag"
-          if gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D apk; then
+          if [ -f apk/AzanTV.apk ]; then
             gh release upload "$tag" apk/AzanTV.apk -R "$REPO"
             echo "Attached the Android app (AzanTV.apk)"
-          else
-            echo "::warning::Couldn't fetch AzanTV.apk from Fudgeamin99/ATHAN-TO-SIP"
           fi
           echo "created=true" >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
@@ -99,13 +108,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The Android TV app, so screens on a network without internet can download it from AthanBox.
-      # Without it, /apk sends them to the app's latest release on GitHub.
+      # The Android TV app attached to this release, so screens on a network without internet can
+      # download it from AthanBox. Without it, /apk sends them to the latest release on GitHub.
       - name: Add the Android app (AzanTV.apk)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
-             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
+        run: |
+          gh release download "box-v${{ needs.release.outputs.version }}" -R "$GITHUB_REPOSITORY" \
+             -p AzanTV.apk -D azan_sip/static || echo "::warning::This release has no AzanTV.apk"
 
       - name: Image name
         id: name

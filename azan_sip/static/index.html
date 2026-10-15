@@ -1032,7 +1032,7 @@ function pageTV(){
       <li><b>Connect.</b> Open <b>Azan SIP TV</b> and type AthanBox's address, <span class="kbd">${esc(n.address || "its IP address")}</span>, or press <b>Search the network</b>. Then press <b>Connect</b>.</li>
       <li><b>Connect it to the TV.</b> A TV box or Fire TV is already on the TV. A tablet or phone needs a USB-C to HDMI adapter (only some support it, such as many Samsung Galaxy models) or screen casting to a Chromecast or Smart TV.</li>
     </ol>
-    <p class="muted" style="margin:10px 0 0;font-size:13px">In the app, press <b>Back</b> (on a remote too) for Makkah live, the azan sound on that screen, Reload and Change server.${n.apk_here === false ? " The app comes from GitHub, so the device needs internet access to download it." : ""}</p></div>
+    <p class="muted" style="margin:10px 0 0;font-size:13px">In the app, press <b>Back</b> (on a remote too) for Makkah live and its sound, the azan sound on that screen, <b>Update the app</b>, Reload and Change server. If Makkah live's picture stays black, choose the other player there.${n.apk_here === false ? " The app comes from GitHub, so the device needs internet access to download it." : ""}</p></div>
   <div class="card"><h2>Set up the iPad</h2>
     <ol class="steps">
       <li><b>Update the iPad.</b> Settings → General → Software Update. An iPad 5th generation goes up to iPadOS 16, a 6th generation to iPadOS 17. Either is fine.</li>
@@ -1269,8 +1269,6 @@ function pageSettings(){
   <div class="card">
     <div class="toggle-row"><div><div class="t">Automatic azan</div><div class="d">Play the azan at prayer times. Switch off to pause without closing the app.</div></div>
       <label class="switch"><input type="checkbox" ${g.scheduler_enabled!==false?"checked":""} onchange="setScheduler(this.checked)"><span></span></label></div>
-    ${META.windows?`<div class="toggle-row"><div><div class="t">Start with Windows</div><div class="d">Runs silently in the background when this PC starts, so the azan keeps playing after a restart.</div></div>
-      <label class="switch"><input type="checkbox" ${META.startup?"checked":""} onchange="setStartup(this.checked)"><span></span></label></div>`:""}
     <div class="toggle-row"><div><div class="t">Days with no azan</div><div class="d">For example weekends, if the office is closed.</div></div>
       <div class="row">${days.map(([v,l])=>`<label class="pill" style="cursor:pointer"><input type="checkbox" data-path="prayers.skip_days" data-kind="member" value="${v}" ${(CFG.prayers.skip_days||[]).includes(v)?"checked":""}> ${l}</label>`).join("")}</div></div>
   </div>
@@ -1413,7 +1411,7 @@ function renderUpdate(){
       <div class="d">${esc((UPD.latest_date||"").slice(0,10))}${dk?(UPD.image?` · <span class="mono">${esc(UPD.image)}</span>`:""):` · ${esc(UPD.latest_message||"")}${rel?"":` · <span class="mono">${esc(short(UPD.latest_commit))}</span>`}`}${notes?` · <a href="${esc(notes)}" target="_blank" rel="noopener">What's new</a>`:""}</div></div></div>` : "";
   const bk = UPD.backups||[];
   el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Updates</h2><a href="${esc(UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box")}" target="_blank" rel="noopener">GitHub: ${esc((UPD.repo||"").split("/").pop()||"azan-sip-box")}</a></div>
-    <p class="muted" style="margin:8px 0 10px">Installed: ${esc(vname(UPD.current_version||S&&S.version||""))}${UPD.current_commit&&!rel?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":UPD.mode==="exe"?" · Windows program (AzanSIP.exe)":dk?" · Docker container":rel?" · updates to each new release":""}.
+    <p class="muted" style="margin:8px 0 10px">Installed: ${esc(vname(UPD.current_version||S&&S.version||""))}${UPD.current_commit&&!rel?` <span class="mono">(${esc(short(UPD.current_commit))})</span>`:""}${UPD.mode==="git"?" · updates with git pull":dk?" · Docker container":rel?" · updates to each new release":""}.
       Your settings, recordings and timetable are kept when updating.</p>
     ${UPD.error?`<div class="banner bad">${ICON.warn}<div>${esc(UPD.error)}</div></div>`:""}
     ${latest}
@@ -1452,10 +1450,9 @@ async function runInstall(path, body, title, text){
   }
   $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML = SESSION.docker ? "Refresh this page in a minute. If it still doesn't open, run <b>docker compose up -d</b> on the computer running AthanBox."
     : SESSION.box ? "Refresh this page in a minute. If it still doesn't open, switch AthanBox off and on again."
-    : "Double-click <b>Azan SIP</b> in the program folder to start it, then refresh this page.";
+    : "Start AthanBox again, then refresh this page.";
 }
 
-async function setStartup(on){ await act(async()=>{ await api("/api/startup",{enabled:on}); META.startup=on; }, on?"AthanBox will start with Windows":"Won't start with Windows"); }
 async function quitApp(){
   if(!confirm("Quit AthanBox? The azan will not play until you start it again.")) return;
   try{ await api("/api/quit",{}); }catch(e){}

@@ -4,9 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.7.6, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.5.0](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.5.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
-
-> Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [AthanBox](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which AthanBox is built from.
+**Latest release:** [box-v0.7.7, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.5.0](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.5.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
@@ -187,4 +185,6 @@ What's new in each version is under [Releases](https://github.com/Fudgeamin99/az
 
 ## About this repository
 
-`main` holds AthanBox's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. AthanBox started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand. 0.4.0 matches the desktop app's 1.11.2. The Android TV app is built there, and AthanBox uses its AzanTV.apk.
+`main` holds AthanBox's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. AthanBox started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand. 0.4.0 matches the desktop app's 1.11.2. AthanBox runs on Debian and in Docker only; there's no Windows program.
+
+The Android TV app (**Azan SIP TV**) is in [`android/`](android). Each release builds it (`packaging/apk.sh`), attaches `AzanTV.apk` and puts it in the Docker image. It's signed with the app's own key, which TVs need to install its updates, from two repository secrets: `ANDROID_KEYSTORE` (the keystore file, base64) and `ANDROID_KEYSTORE_PASSWORD`. Without them a release reuses the app from the newest release that has one. Its version is `android:versionCode` and `versionName` in [`android/AndroidManifest.xml`](android/AndroidManifest.xml): raise both for a new version of the app.

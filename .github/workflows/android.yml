@@ -1,0 +1,39 @@
+# Builds the Android TV app (AzanTV.apk, android/) for each pull request that changes it, so a change
+# that doesn't build is caught before it reaches a release. The APK is kept with the run (Artifacts,
+# "AzanTV-test") for trying it on a TV. It's signed with the app's key when the ANDROID_KEYSTORE
+# secrets are there (not for pull requests from forks), else with a throwaway key.
+name: Android app
+
+on:
+  pull_request:
+    paths: ["android/**", packaging/apk.sh, .github/workflows/android.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build AzanTV.apk
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: android/build.sh out/AzanTV.apk
+
+      - name: Check the page script
+        run: node --check android/assets/live.js
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AzanTV-test
+          path: out/AzanTV.apk
+          retention-days: 14
