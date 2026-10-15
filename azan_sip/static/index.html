@@ -130,6 +130,8 @@ tr:last-child td{border-bottom:0}
 .choice label:last-child:nth-child(odd){grid-column:1 / -1}
 .acct{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--panel)}
 .acct .grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.acct .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:900px){ .acct .grid4{grid-template-columns:1fr 1fr} }
 .acct .field{margin:0}
 .server-box{display:flex;flex-wrap:wrap;gap:8px 28px;padding:12px 16px;border-radius:12px;background:var(--accent-soft);margin-bottom:14px;font-size:14px}
 .server-box b{font-family:Consolas,ui-monospace,monospace;font-size:15px}
@@ -750,7 +752,7 @@ function toEdit(t){
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
   e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)})):[];
-  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||""})):[];
+  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1)})):[];
   return e;
 }
 function fromEdit(e){
@@ -775,13 +777,14 @@ function fromEdit(e){
   }
   if(e.kind==="phones"){
     const port=parseInt(e.port,10); if(!(port>=1&&port<=65535)) throw new Error("The SIP port must be a number, usually 5060");
-    const accts=(e.desk||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:1}));
+    const accts=(e.desk||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:parseInt(a.max_signins,10)||1}));
     if(!accts.length) throw new Error("Add at least one desk phone");
     const seen=new Set();
     for(const a of accts){
       if(!/^[A-Za-z0-9_.+-]{1,40}$/.test(a.username)) throw new Error("Extensions can use numbers, letters and . _ - + (no spaces)");
       if(seen.has(a.username.toLowerCase())) throw new Error(`The extension ${a.username} is used twice`); seen.add(a.username.toLowerCase());
       if(a.password.length<8) throw new Error(`Use a password of at least 8 characters for ${a.username}`);
+      if(!(a.max_signins>=1&&a.max_signins<=50)) throw new Error(`Sign-ins allowed for ${a.username} must be between 1 and 50`);
     }
     if(CFG.targets.some((t,i)=>t.type==="phones"&&i!==e.index)) throw new Error("Desk phones are already set up. Edit that entry and add phones to it.");
     sipOthers(e, accts, port);
@@ -883,16 +886,17 @@ function editorHTML(){
     const ip=SESSION.ip||(META.ips||[])[0]||"the box's IP address", info=(S&&S.sipserver)||null;
     const st=u=>{ const a=info&&info.accounts.find(x=>x.username.toLowerCase()===String(u).toLowerCase()); if(!info||info.status!=="running"||!a) return "";
       const si=a.signins||[]; if(!si.length) return `<span class="pill"><span class="dot"></span>Not signed in yet</span>`;
-      return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>Signed in from ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
+      return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>${si.length} of ${a.max} signed in: ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
     fields = `<div class="server-box"><span>Server / registrar: <b>${esc(ip)}</b></span><span>Port: <b>${esc(e.port)}</b></span><span>Transport: <b>UDP</b></span>
         <span class="muted" style="flex-basis:100%;font-size:13px">On each desk phone, add a line (account) with these, and the phone's extension and password below. Then turn on auto-answer for that line, as the guide below the list shows.</span></div>
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
       <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. A SIP trunk to Azan SIP uses the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">Desk phones</div>
       ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
-        <div class="grid3"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
+        <div class="grid4"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
-          <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div></div></div>`).join("")}
+          <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
+          <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div></div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
       <div class="hint">For the azan, Azan SIP rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into Azan SIP are always refused, and repeated wrong passwords are blocked.</div>`;
   }
@@ -918,7 +922,7 @@ function newDeskPhone(){
     ...CFG.targets.filter(t=>SIPKIND[t.type]).flatMap(t=>(t.accounts||[]).map(a=>String(a.username).toLowerCase()))]);
   let n=101; while(used.has(String(n))) n++;
   const chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", buf=new Uint32Array(14); crypto.getRandomValues(buf);
-  return {name:"", username:String(n), password:[...buf].map(x=>chars[x%chars.length]).join("")};
+  return {name:"", username:String(n), password:[...buf].map(x=>chars[x%chars.length]).join(""), max_signins:"1"};
 }
 function finishEdit(){ try{ const t=fromEdit(editing); if(editing.index<0) CFG.targets.push(t); else CFG.targets[editing.index]=t; editing=null; dirty(); render(); toast("Press Save changes to start using it."); }catch(e){ toast(e.message,"bad"); } }
 function removeTarget(){ if(!confirm("Remove these phones?")) return; CFG.targets.splice(editing.index,1); editing=null; dirty(); render(); }
