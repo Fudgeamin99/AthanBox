@@ -1,9 +1,10 @@
-"""Azan SIP's own small SIP server: desk phones (as an extra line) or a phone system (as a
-register SIP trunk) sign in to Azan SIP, and it calls them to play the azan.
+"""Azan SIP's own small SIP server: desk phones (each with its own extension on the box) or a phone
+system (as a register SIP trunk) sign in to Azan SIP, and it calls them to play the azan.
 
-- Accounts (SIP trunks) are set on the Phones page. A phone system signed in with one is called on
-  the number you choose, such as a paging group; with no number, the device itself is called (a desk
-  phone), always with auto-answer. Each account can allow several sign-ins at once.
+- Two methods on the Phones page share the server: "Desk phones sign in to Azan SIP" (accounts of kind
+  "phone", each called on the device itself, always with auto-answer) and "Register to Azan SIP"
+  (accounts of kind "trunk": a phone system called on the number you choose, such as a paging group;
+  with no number, the device itself, as before 0.6.2). Each account can allow several sign-ins at once.
 - Sign-ins use SIP digest authentication; repeated wrong passwords from an address are blocked
   for a while. Calls from outside are always refused: this server never connects calls anywhere.
 - Calls go out from the same port the phones signed in to, as phones expect from their server.
@@ -41,7 +42,7 @@ class Account:
     username: str
     password: str
     name: str = ""
-    kind: str = "trunk"          # trunk (1.9.0 also had "phone": the same as a trunk with no number)
+    kind: str = "trunk"          # trunk: a phone system (or older desk phone set-ups); phone: a desk phone
     dial: str = ""               # the number to call on the phone system (e.g. a paging group); empty: the device
     enabled: bool = True
     max_signins: int = 1         # how many devices / phone systems may be signed in with it at once
@@ -57,7 +58,7 @@ class Binding:
     since: float = field(default_factory=time.time)
 
 
-def check_accounts(accounts: list, port) -> None:
+def check_accounts(accounts: list, port, empty: str = "Add at least one account for a phone or phone system to sign in with") -> None:
     """Refuse settings that can't work, with a message for the person saving them."""
     try:
         p = int(port)
@@ -67,7 +68,7 @@ def check_accounts(accounts: list, port) -> None:
         raise ValueError("The SIP port must be between 1 and 65535")
     seen = set()
     if not accounts:
-        raise ValueError("Add at least one account for a phone or phone system to sign in with")
+        raise ValueError(empty)
     for a in accounts:
         u = str(a.get("username", "")).strip()
         if not _USER.match(u):
@@ -381,7 +382,7 @@ class SipServer(threading.Thread):
             self._reply(req, addr, "403 Forbidden", ["Warning: 399 azan-sip \"Too many sign-ins for this account\""])
             return
         if not old or old.addr != (addr[0], addr[1]):
-            log.info("SIP trunk %s signed in from %s:%s%s",
+            log.info("%s %s signed in from %s:%s%s", "Desk phone" if account.kind == "phone" else "SIP trunk",
                      account.name or account.username, addr[0], addr[1],
                      f" ({req.get('user-agent')})" if req.get("user-agent") else "")
             self._save()
@@ -447,20 +448,20 @@ class ServerManager:
     def sync(self, cfg: dict, base: Path | None = None):
         if base is not None:
             self.state_file = Path(base) / ".sip_bindings.json"
-        t = next((t for t in cfg.get("targets", []) if t.get("type") == "server" and t.get("enabled", True)), None)
+        ts = [t for t in cfg.get("targets", []) if t.get("type") in KINDS and t.get("enabled", True)]
         local_ip = cfg.get("network", {}).get("local_ip") or None
         with self.lock:
-            if t is None:
+            if not ts:
                 if self.server:
                     self.server.stop()
                     self.server = None
                     log.info("Azan SIP phone server stopped")
                 return
             accounts = [Account(str(a.get("username", "")).strip(), str(a.get("password", "")), a.get("name", ""),
-                                "trunk", str(a.get("dial", "")).strip(), a.get("enabled", True),
-                                max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))))
-                        for a in t.get("accounts", []) if isinstance(a, dict)]
-            port = int(t.get("port", 5060) or 5060)
+                                KINDS[t["type"]], str(a.get("dial", "")).strip() if t["type"] == "server" else "",
+                                a.get("enabled", True), max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))))
+                        for t in ts for a in t.get("accounts", []) if isinstance(a, dict)]
+            port = int(ts[0].get("port", 5060) or 5060)   # both methods use the same port (checked on saving)
             s = self.server
             if s and s.port == port and s.local_ip_cfg == local_ip and s.is_alive():
                 s.update_accounts(accounts)
@@ -485,15 +486,42 @@ class ServerManager:
 
 
 MANAGER = ServerManager()
+KINDS = {"server": "trunk", "phones": "phone"}   # target type -> the kind of account it holds
+
+
+def check_targets(targets: list) -> None:
+    """Both methods share one server: one entry of each, one port, and each username used once."""
+    names = {"server": "Register to Azan SIP", "phones": "Desk phones sign in to Azan SIP"}
+    users: set[str] = set()
+    ports = set()
+    for typ, label in names.items():
+        ts = [t for t in targets if t.get("type") == typ]
+        if len(ts) > 1:
+            raise ValueError(f"Only one '{label}' entry is possible; add more to it instead")
+        for t in ts:
+            check_accounts(t.get("accounts", []), t.get("port", 5060),
+                           "Add at least one desk phone" if typ == "phones" else
+                           "Add at least one account for a phone system to sign in with")
+            for a in t.get("accounts", []):
+                u = str(a.get("username", "")).strip().lower()
+                if u in users:
+                    raise ValueError(f"The username {u} is used by a desk phone and a SIP trunk; give each its own")
+                users.add(u)
+            if t.get("enabled", True):
+                ports.add(int(t.get("port", 5060) or 5060))
+    if len(ports) > 1:
+        raise ValueError("Desk phones and SIP trunks sign in to the same SIP server, so give both the same SIP port")
 
 
 @dataclass
 class ServerTarget:
-    """The "Register to Azan SIP" method: call every sign-in of every account."""
+    """The "Register to Azan SIP" (kind trunk) or "Desk phones sign in to Azan SIP" (kind phone) method:
+    call every sign-in of every account of that kind."""
     name: str
     codec: str = "PCMU"
     ring_timeout: float = 20.0
     local_ip: str | None = None
+    kind: str = "trunk"
 
     def play(self, clip, stop: threading.Event) -> bool:
         server = MANAGER.server
@@ -504,10 +532,11 @@ class ServerTarget:
         jobs = []
         for u, bs in server.active().items():
             acct = server.accounts.get(u)
-            if acct and acct.enabled:
+            if acct and acct.enabled and acct.kind == self.kind:
                 jobs += [(acct, b) for b in bs]   # every device / phone system signed in with the account
         if not jobs:
-            log.warning("[%s] no phone or phone system is signed in to Azan SIP", self.name)
+            log.warning("[%s] no %s is signed in to Azan SIP", self.name,
+                        "desk phone" if self.kind == "phone" else "phone system")
             return False
         from concurrent.futures import ThreadPoolExecutor
         codecs = [self.codec] + [c for c in ("PCMU", "PCMA") if c != self.codec]

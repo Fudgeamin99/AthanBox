@@ -133,11 +133,11 @@ def build_targets(cfg: dict, require: bool = True) -> list:
                               extra_headers=t.get("extra_headers", []))
                     for u in uris if u]
             out.append(SipCallTarget(name, sips))
-        elif kind == "server":  # phones and phone systems that sign in to Azan SIP's own SIP server
+        elif kind in sipserver.KINDS:  # desk phones (phones) and phone systems (server) that sign in to Azan SIP
             out.append(sipserver.ServerTarget(name, codec, float(t.get("ring_timeout") or net.get("ring_seconds") or 20),
-                                              local_ip))
+                                              local_ip, sipserver.KINDS[kind]))
         else:
-            raise ValueError(f"{name}: unknown target type {kind!r} (use multicast, sip, unicast_rtp or server)")
+            raise ValueError(f"{name}: unknown target type {kind!r} (use multicast, sip, unicast_rtp, phones or server)")
     if not out and require:
         raise ValueError("No enabled targets in config")
     return out
