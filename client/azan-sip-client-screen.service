@@ -1,10 +1,10 @@
 [Unit]
-Description=Azan SIP Client - full-screen prayer times on the TV plugged into this computer
+Description=AthanBox Client - full-screen prayer times on the TV plugged into this computer
 # A login session on the first console, so the kiosk may use the screen, keyboard and sound
 # (the package adds /etc/pam.d/azan-client).
 After=azan-sip-client.service seatd.service systemd-user-sessions.service dbus.socket systemd-logind.service getty@tty1.service
 Wants=azan-sip-client.service seatd.service dbus.socket systemd-logind.service
-# One screen on tty1: the Azan SIP Box's own screen (packaging/box/screen.sh) uses it too
+# One screen on tty1: AthanBox's own screen (packaging/box/screen.sh) uses it too
 Conflicts=getty@tty1.service azan-sip-screen.service
 ConditionPathExists=/dev/tty1
 

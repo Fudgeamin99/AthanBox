@@ -1,6 +1,6 @@
 #!/bin/sh
-# Starts Azan SIP in Box mode with everything it keeps in /data.
-# AZAN_PASSWORD (from compose.yaml) is the box's factory password: it works until the owner
+# Starts AthanBox in Box mode with everything it keeps in /data.
+# AZAN_PASSWORD (from compose.yaml) is AthanBox's factory password: it works until the owner
 # chooses their own under Settings > Password and reset, and a factory reset goes back to it.
 set -eu
 cfg=/data/config.toml
@@ -12,7 +12,7 @@ if [ "$(id -u)" = 0 ]; then
     exec setpriv --reuid=azan --regid=azan --init-groups "$0" "$@"
 fi
 if ! touch /data/.write-test 2>/dev/null; then
-    echo "The storage folder mounted at /data can't be written to by user 1000, which Azan SIP runs as." >&2
+    echo "The storage folder mounted at /data can't be written to by user 1000, which AthanBox runs as." >&2
     echo "Give it to that user, then start again:  sudo chown -R 1000:1000 <the folder>  &&  docker compose up -d" >&2
     exit 1
 fi

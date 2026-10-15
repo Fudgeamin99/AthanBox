@@ -1,10 +1,16 @@
-# Azan SIP Box changelog
+# AthanBox changelog
 
-Versions of the Azan SIP Box, the plug-and-play appliance. To publish a version, add a new
+Versions of AthanBox, the plug-and-play appliance. To publish a version, add a new
 `## x.y.z - title` section at the top and merge it to main: a release tagged `box-vx.y.z` is
 created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
+
+## 0.7.6 - The project is now called AthanBox
+
+- **New name:** Azan SIP Box is now **AthanBox**, across the control panel, the setup guide, the prayer-times screen, the TV screen client and the README.
+- Nothing changes for installed AthanBoxes: the address (http://azan.local), the Docker image, the folders and the services keep their names, so updates carry on as before.
+- **Shorter recordings list:** on the **Azan sound** page each recording is now one slim row, with a play button to listen here, **Test on phones** and **Remove**.
 
 ## 0.7.5 - Six azan recordings come with the Box
 

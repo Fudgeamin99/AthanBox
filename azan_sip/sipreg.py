@@ -1,4 +1,4 @@
-"""Keeps Azan SIP registered as an extension on the phone system (so it shows as Idle/online).
+"""Keeps AthanBox registered as an extension on the phone system (so it shows as Idle/online).
 
 Registers, refreshes before the registration expires, answers the PBX's keep-alive
 OPTIONS requests, declines incoming calls, and unregisters cleanly when stopped.
@@ -23,7 +23,7 @@ ALLOW = "INVITE, ACK, CANCEL, BYE, OPTIONS, NOTIFY, INFO, MESSAGE"
 class Registration(threading.Thread):
     def __init__(self, name: str, host: str, port: int, username: str, password: str,
                  auth_username: str = "", local_ip: str | None = None, expires: int = 300,
-                 display_name: str = "Azan SIP"):
+                 display_name: str = "AthanBox"):
         super().__init__(name=f"register-{username}@{host}", daemon=True)
         self.label = name
         self.host, self.port = host, int(port or 5060)
@@ -104,7 +104,7 @@ class Registration(threading.Thread):
             return
         if m == "OPTIONS":            # the PBX checking we are alive ("qualify" / keep-alive)
             self._reply(req, addr, "200 OK", ["Accept: application/sdp"])
-        elif m == "INVITE":           # someone dialled the Azan SIP extension
+        elif m == "INVITE":           # someone dialled AthanBox extension
             self._reply(req, addr, "486 Busy Here")
         elif m in ("NOTIFY", "MESSAGE", "INFO"):
             self._reply(req, addr, "200 OK")
@@ -270,7 +270,7 @@ class RegistrationManager:
                 continue
             r = Registration(t.get("name") or "Phone system", host, port, t["username"], t.get("password", ""),
                              t.get("auth_username", ""), net.get("local_ip") or None,
-                             int(t.get("register_expires", 300) or 300), t.get("display_name", "Azan SIP"))
+                             int(t.get("register_expires", 300) or 300), t.get("display_name", "AthanBox"))
             want.setdefault(r.key(), r)
         with self.lock:
             for k, r in list(self.regs.items()):

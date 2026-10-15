@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""Azan SIP Box: sets up the system parts of each new Box version by itself, as root.
+"""AthanBox: sets up the system parts of each new AthanBox version by itself, as root.
 
 Settings > Updates replaces the program in /opt/azan-sip, but the control panel runs as the
 unprivileged user "azan", so it can't install packages or change system services (fail2ban, the
@@ -9,7 +9,7 @@ a sudo command over SSH.
 systemd starts this script (azan-sip-system.service) when /opt/azan-sip/BOX_CHANGELOG.md changes,
 which happens on every update and rollback, at start-up, and once an hour. It:
 
-1. reads which Box version is installed (the newest "## x.y.z" heading of that changelog);
+1. reads which AthanBox version is installed (the newest "## x.y.z" heading of that changelog);
 2. if this version's system parts haven't been set up yet, downloads release box-vx.y.z from
    github.com/Fudgeamin99/azan-sip-box itself, as root, into a folder only root can write to;
 3. runs that release's packaging/box/system-setup.sh, and records the result in

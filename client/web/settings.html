@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Azan SIP Client · Screen settings</title>
+<title>AthanBox Client · Screen settings</title>
 <style>
 :root{--bg:#0d4a3f;--card:rgba(255,255,255,.07);--line:rgba(255,255,255,.18);--muted:#cfe3dc;--accent:#f3e2b4;--bad:#ffb4a8;--warn:#f3e2b4}
 html,body{margin:0;min-height:100%;background:var(--bg);color:#fff;font:400 18px/1.45 system-ui,"DejaVu Sans",sans-serif}
@@ -44,15 +44,15 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 <div id="area">
 <main>
   <h1>Screen settings</h1>
-  <p class="sub tv-only">This screen shows the prayer times from your Azan SIP Box and plays the azan through the TV.</p>
+  <p class="sub tv-only">This screen shows the prayer times from your AthanBox and plays the azan through the TV.</p>
   <p class="sub remote-only" id="rsub">You're changing a TV screen's settings from this phone or computer.</p>
 
   <section>
-    <h2>Azan SIP Box <span id="state" class="state"></span></h2>
-    <p>Type the box's address, such as <b>192.168.1.20</b> or <b>azan.local</b>, or search the network for it. On the box, <i>Let TV screens connect</i> on the TV app page must be on.</p>
-    <label for="addr">The box's address</label>
+    <h2>AthanBox <span id="state" class="state"></span></h2>
+    <p>Type AthanBox's address, such as <b>192.168.1.20</b> or <b>azan.local</b>, or search the network for it. On AthanBox, <i>Let TV screens connect</i> on the TV app page must be on.</p>
+    <label for="addr">AthanBox's address</label>
     <input type="text" id="addr" autocomplete="off" spellcheck="false" placeholder="192.168.1.20">
-    <label for="name">This screen's name <small style="font-weight:400;color:var(--muted)">(shown on the box's TV app page)</small></label>
+    <label for="name">This screen's name <small style="font-weight:400;color:var(--muted)">(shown on AthanBox's TV app page)</small></label>
     <input type="text" id="name" maxlength="40" autocomplete="off">
     <div class="row">
       <button class="main" id="connect">Connect</button>
@@ -64,7 +64,7 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 
   <section>
     <h2>Azan volume on this screen: <span id="vol"></span></h2>
-    <p>Only this screen, for the azan and Makkah live. The phones, the box's own screen and other TV screens keep theirs.<span class="tv-only"> On the prayer times, move the mouse for the volume buttons, or press <b>+</b> and <b>−</b> on a keyboard.</span></p>
+    <p>Only this screen, for the azan and Makkah live. The phones, AthanBox's own screen and other TV screens keep theirs.<span class="tv-only"> On the prayer times, move the mouse for the volume buttons, or press <b>+</b> and <b>−</b> on a keyboard.</span></p>
     <input type="range" id="volume" min="0" max="100" step="5">
     <div class="row"><button id="test">Play a test chime here</button></div>
     <div class="msg" id="tmsg"></div>
@@ -102,7 +102,7 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 <script>
 const $ = s => document.querySelector(s);
 const STATE = {ok:["Connected","ok"], not_allowed:["TV screens not allowed yet","bad"], unreachable:["Not answering","bad"],
-               not_azan:["Not an Azan SIP Box","bad"], none:["Not chosen yet",""]};
+               not_azan:["Not an AthanBox","bad"], none:["Not chosen yet",""]};
 let ST = {};
 async function api(path, body){
   const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {cache:"no-store"});
@@ -140,7 +140,7 @@ function show(st, fill){
   if (Date.now() - liveT > 3000) $("#live").checked = !!st.live_sound;
   $("#vol").textContent = $("#volume").value + "%";
   $("#back").disabled = !st.box;
-  $("#foot").textContent = `Azan SIP Client ${st.version}`;
+  $("#foot").textContent = `AthanBox Client ${st.version}`;
   place(st.screens || [], st.outputs || []);
 }
 // With several screens plugged in, this page is spread over all of them: keep it on the first one
@@ -162,7 +162,7 @@ async function connect(address){
     if (!r.ok) return msg(r.error, "bad");
     show(r, true);
     if (r.warning) return msg(r.warning, "warn");
-    if (ST.remote) return msg("Connected. The TV shows this box's prayer times now.", "ok");
+    if (ST.remote) return msg("Connected. The TV shows this AthanBox's prayer times now.", "ok");
     msg("Connected. Showing the prayer times…", "ok");
     setTimeout(() => location.assign("/"), 1200);
   }catch(e){ msg("This screen's own program isn't answering. Restart the computer.", "bad"); }
@@ -174,11 +174,11 @@ $("#search").onclick = async () => {
   $("#search").disabled = true; $("#found").innerHTML = ""; msg("Searching the network…");
   try{
     const r = await api("/client/api/search");
-    msg(r.boxes.length ? "Found. Press the box to connect to it." : "No box found. Check it's switched on and on the same network, or type its address.", r.boxes.length ? "" : "bad");
+    msg(r.boxes.length ? "Found. Press AthanBox to connect to it." : "No AthanBox found. Check it's switched on and on the same network, or type its address.", r.boxes.length ? "" : "bad");
     for (const b of r.boxes){
       const btn = document.createElement("button");
       const where = b.host + (b.port !== 80 ? ":" + b.port : "");
-      btn.textContent = `${where}  \u00b7  Azan SIP ${b.version || ""}` + (b.state === "not_allowed" ? "  (TV screens not allowed yet)" : "");
+      btn.textContent = `${where}  \u00b7  AthanBox ${b.version || ""}` + (b.state === "not_allowed" ? "  (TV screens not allowed yet)" : "");
       btn.onclick = () => { $("#addr").value = where; connect(where); };
       $("#found").appendChild(btn);
     }
@@ -204,7 +204,7 @@ $("#live").onchange = async () => {
   }catch(e){ toast("That wasn't saved. Try again.", "bad"); }
 };
 $("#name").onchange = () => { if (ST.box) api("/client/api/settings", {name: $("#name").value}); };
-$("#test").onclick = async () => {   // the box's chime, at this screen's volume
+$("#test").onclick = async () => {   // AthanBox's chime, at this screen's volume
   const t = $("#tmsg");
   if (ST.remote){   // on the TV itself, through its own speakers
     try{

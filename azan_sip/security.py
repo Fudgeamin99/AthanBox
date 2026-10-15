@@ -1,10 +1,10 @@
-"""The Security page on the Azan SIP Box: fail2ban, the whitelist and the blacklist.
+"""The Security page on AthanBox: fail2ban, the whitelist and the blacklist.
 
 The owner's choices are kept in security/settings.json next to config.toml:
 
 - fail2ban: which jails are on (SSH, the control panel, SIP sign-ins), how many wrong tries are
   allowed and for how long an address is banned.
-- whitelist: addresses and ranges that are never banned or blocked. The box's own network and
+- whitelist: addresses and ranges that are never banned or blocked. AthanBox's own network and
   localhost are on it from the start, so the owner can't lock themselves out.
 - blacklist: addresses and ranges that are always blocked.
 
@@ -38,7 +38,7 @@ STATUS_FILE = Path("/run/azan-sip-security/status.json")
 # writes its status next to the settings, every minute; an older status means it isn't running.
 DOCKER_STATUS_MAX_AGE = 180
 HELPER = Path("/usr/local/lib/azan-sip/security-helper.py")
-# Debian: the box sets up each version's system parts by itself after an update (azan-sip-system.service,
+# Debian: AthanBox sets up each version's system parts by itself after an update (azan-sip-system.service,
 # from packaging/box/system-setup.sh). A box installed before 0.5.1 needs that set up once by hand.
 SYSTEM_STATE = Path("/var/lib/azan-sip/system.json")
 SYSTEM_UPDATER = Path("/usr/local/lib/azan-sip/system-update.py")
@@ -89,7 +89,7 @@ def _clean_note(text) -> str:
 
 
 def local_networks() -> list[tuple[str, str]]:
-    """The private networks this box is on, as (range, interface), for the whitelist's first entries."""
+    """The private networks this AthanBox is on, as (range, interface), for the whitelist's first entries."""
     out = []
     try:
         r = subprocess.run(["ip", "-j", "-4", "addr", "show", "scope", "global"], capture_output=True,
@@ -161,7 +161,7 @@ class Security:
     # -- settings
     def _defaults(self) -> dict:
         when = time.strftime("%Y-%m-%d")
-        wl = [{"ip": net, "note": f"This box's network{f' ({name})' if name else ''}", "added": when}
+        wl = [{"ip": net, "note": f"This AthanBox's network{f' ({name})' if name else ''}", "added": when}
               for net, name in local_networks()]
         return {"rev": 1, "fail2ban": json.loads(json.dumps(DEFAULT_FAIL2BAN)), "whitelist": wl, "blacklist": []}
 
@@ -231,7 +231,7 @@ class Security:
 
     @staticmethod
     def system_status() -> dict | None:
-        """How the box is getting on with setting up the installed version's system parts."""
+        """How AthanBox is getting on with setting up the installed version's system parts."""
         if not SYSTEM_UPDATER.is_file():
             return None
         try:
@@ -308,11 +308,11 @@ class Security:
                 if you and you.version == net.version and you in net:
                     raise ValueError(f"You're connected from {you}, so blocking {fmt(net)} would lock you out of this page")
                 if any(n.version == net.version and n.overlaps(net) for n in LOOPBACK):
-                    raise ValueError("The box's own address (localhost) can't be blocked")
+                    raise ValueError("AthanBox's own address (localhost) can't be blocked")
                 for own in own_ips:
                     a = address(own)
                     if a and a.version == net.version and a in net:
-                        raise ValueError(f"{fmt(net)} includes the box's own address ({a}), so it can't be blocked")
+                        raise ValueError(f"{fmt(net)} includes AthanBox's own address ({a}), so it can't be blocked")
                 for e in self.settings["whitelist"]:
                     w = parse(e["ip"])
                     if w.version == net.version and net.subnet_of(w):

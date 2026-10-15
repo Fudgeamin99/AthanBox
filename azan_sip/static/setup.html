@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Azan SIP · First-time setup</title>
+<title>AthanBox · First-time setup</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/box.css">
 <style>
-/* Designed at 1280x720 (the box's screen); phones get one column with Back/Next at the bottom. */
+/* Designed at 1280x720 (AthanBox's screen); phones get one column with Back/Next at the bottom. */
 .top{height:72px;background:var(--head);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 42px;position:sticky;top:0;z-index:5}
 .top .right{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:15.5px;font-weight:500}
 .segs{display:flex;gap:5px}
@@ -221,7 +221,7 @@ const COUNTRY_METHOD = {GB:"MoonsightingCommittee", IE:"MoonsightingCommittee", 
 const HANAFI = ["PK", "IN", "BD", "AF"];
 
 // ------------------------------------------------------------------ state
-// W is shared through the box, so its screen and a phone show the same step; LOCAL stays on this device.
+// W is shared through AthanBox, so its screen and a phone show the same step; LOCAL stays on this device.
 const CLIENT = Math.random().toString(36).slice(2, 10);
 let W = null, REV = 0, SESSION = {}, CFG0 = null, META = {}, KIOSK = false, VIA_QR = false;
 const AGAIN = new URLSearchParams(location.search).has("again");  // run again from Settings, after first-time setup
@@ -299,7 +299,7 @@ async function handleLost(e){
   if(SESSION.configured && !AGAIN) return leave();
   showLogin();
 }
-// The box's screen, and anyone who was only following along, see the prayer times; whoever pressed
+// AthanBox's screen, and anyone who was only following along, see the prayer times; whoever pressed
 // Finish on a phone or PC goes on to the control panel.
 function leave(finisher){ location.replace(finisher && !KIOSK ? "/" : "/display"); }
 
@@ -393,7 +393,7 @@ function wantPreview(){
 
 // ------------------------------------------------------------------ chrome
 function header(){
-  $("#logo").innerHTML = LOGO + "<span>Azan SIP</span>";
+  $("#logo").innerHTML = LOGO + "<span>AthanBox</span>";
   const s = W ? W.step : 0;
   if(!W || s === 0){ $("#hdr").innerHTML = W ? `<span class="name">${AGAIN ? "Setup guide" : "First-time setup"}</span>` : ""; $("#mbar").hidden = true; return; }
   const segs = STEPS.map((_, i) => `<i class="${i < s ? "on" : ""}"></i>`).join("");
@@ -411,7 +411,7 @@ function footer(o){
   f.hidden = false;
 }
 function banner(){
-  return VIA_QR && !SESSION.docker && phoneW() ? `<div class="banner">${I.check}<span>Connected to your Azan SIP box. Its screen follows along as you go.</span></div>` : "";
+  return VIA_QR && !SESSION.docker && phoneW() ? `<div class="banner">${I.check}<span>Connected to your AthanBox. Its screen follows along as you go.</span></div>` : "";
 }
 
 function render(){
@@ -434,7 +434,7 @@ function stepWelcome(){
   const qr = SESSION.setup && !phoneW() ? `<div class="qrcard"><img class="qr" src="/api/setup-qr.svg" alt="QR code to set up from your phone">
       <h3>Or set up from your phone</h3>
       <p>Point your phone's camera at the code. ${KIOSK ? "This screen" : "This page"} follows along as you go.</p>
-      ${KIOSK ? `<hr><p>On a PC, open <b>http://azan.local</b><br>The password is on the sticker under the box.</p>` : ""}</div>` : "";
+      ${KIOSK ? `<hr><p>On a PC, open <b>http://azan.local</b><br>The password is on the sticker under AthanBox.</p>` : ""}</div>` : "";
   if(AGAIN) return `<div class="welcome" style="grid-template-columns:1fr;max-width:760px"><div>
       <span class="pill">${I.check} Connected to the network · ${esc(SESSION.ip || "")}</span>
       <h1>Let's go through the setup again.</h1>
@@ -450,7 +450,7 @@ function stepWelcome(){
       <p class="lead">Setup takes about five minutes. Have these ready:</p>
       <ul class="have">${have.map(([i, t]) => `<li><span class="icbox">${i}</span>${t}</li>`).join("")}</ul>
       <div class="start"><button class="btn primary" onclick="go(1)">${KIOSK ? "Start setup on this screen" : "Start setup"} ${I.arrow}</button>
-        ${KIOSK ? '<span class="muted" style="font-size:15px">With a mouse and keyboard plugged into the box</span>' : ""}
+        ${KIOSK ? '<span class="muted" style="font-size:15px">With a mouse and keyboard plugged into AthanBox</span>' : ""}
         <button class="link" onclick="setUpMyself()">I'll set it up myself</button></div>
     </div>${qr}</div>`;
 }
@@ -466,10 +466,10 @@ function stepPassword(){
   footer({action:"savePassword()", disabled: own && !isSet && !pwOk()});
   const keepT = AGAIN ? "Keep the current password" : SESSION.docker ? "Keep the password from compose.yaml" : "Keep the password on the sticker";
   const keepD = AGAIN ? (SESSION.custom_password ? "Your own password stays as it is." : SESSION.docker ? "The password from compose.yaml stays as it is." : "The password on the sticker stays as it is.")
-    : SESSION.docker ? "The AZAN_PASSWORD you set when you started the box." : "It's printed under the box, next to the serial number.";
+    : SESSION.docker ? "The AZAN_PASSWORD you set when you started AthanBox." : "It's printed under AthanBox, next to the serial number.";
   return `<div class="wrap" style="max-width:770px">${banner()}
     <h1>Protect the settings with a password</h1>
-    <p class="lead">Anyone on your network can open this box's settings, so a password is needed to change them. Viewing the prayer times never needs it.</p>
+    <p class="lead">Anyone on your network can open this AthanBox's settings, so a password is needed to change them. Viewing the prayer times never needs it.</p>
     <label class="opt ${own ? "" : "on"}"><input type="radio" name="pw" ${own ? "" : "checked"} onchange="set(w=>w.pw.mode='sticker')"><div class="body"><div class="t">${keepT}</div><div class="d">${keepD}</div></div></label>
     <label class="opt ${own ? "on" : ""}"><input type="radio" name="pw" ${own ? "checked" : ""} onchange="set(w=>w.pw.mode='own')"><div class="body"><div class="t">${AGAIN ? "Choose a new password" : "Choose my own"}</div>
       ${own ? (isSet ? `<div class="okline" style="margin-top:10px">${I.check} Your own password is set. <button class="link" onclick="event.preventDefault();LOCAL.pwEdit=true;render()">Change it</button></div>` : `
@@ -529,7 +529,7 @@ function stepLocation(){
 }
 function zoneOptions(cur){
   const zones = META.zones && META.zones.length ? META.zones : [cur || "Europe/London"];
-  return [`<option value="local" ${cur === "local" ? "selected" : ""}>This box's own time zone</option>`, ...zones.map(z => `<option ${z === cur ? "selected" : ""}>${esc(z)}</option>`)].join("");
+  return [`<option value="local" ${cur === "local" ? "selected" : ""}>This AthanBox's own time zone</option>`, ...zones.map(z => `<option ${z === cur ? "selected" : ""}>${esc(z)}</option>`)].join("");
 }
 function setCoord(k, v){
   const n = parseFloat(String(v).replace("−", "-").replace(",", "."));
@@ -552,7 +552,7 @@ async function findCity(now){
       latitude:c.latitude, longitude:c.longitude, timezone:c.timezone || "", elevation:c.elevation})); w.loc.sel = -1; });
   }catch(e){
     LOCAL.searching = false;
-    LOCAL.searchErr = "Searching needs the internet, which the box can't reach. Enter the coordinates instead.";
+    LOCAL.searchErr = "Searching needs the internet, which AthanBox can't reach. Enter the coordinates instead.";
     set(w => w.loc.manual = true);
   }
 }
@@ -622,7 +622,7 @@ function stepAudio(){
   const A = W.audio, tested = W.test && W.test.ok;
   footer({});
   const copied = W.usb && W.usb.copied && W.usb.copied.length;
-  const usb = copied ? `<div class="usbnote">${I.usb}<span>USB stick found with ${W.usb.copied.length} recording${W.usb.copied.length > 1 ? "s" : ""}. ${W.usb.copied.length > 1 ? "They've" : "It's"} been copied to the box, so you can unplug it.</span></div>` : "";
+  const usb = copied ? `<div class="usbnote">${I.usb}<span>USB stick found with ${W.usb.copied.length} recording${W.usb.copied.length > 1 ? "s" : ""}. ${W.usb.copied.length > 1 ? "They've" : "It's"} been copied to AthanBox, so you can unplug it.</span></div>` : "";
   const play = (key, src) => {
     const on = LOCAL.playing === key;
     return `<button class="btn" onclick="playSound('${key}','${esc(src)}')">${on ? I.stop + " Stop" : I.play + (tested ? " Play on phones" : " Listen")}</button>`;
@@ -685,7 +685,7 @@ async function checkUsb(manual){
       if(main && (w.audio.azan === "tone" || manual)) w.audio.azan = "audio/" + main;
       if(fajr && (!w.audio.fajr || manual)) w.audio.fajr = "audio/" + fajr;
     });
-    if(manual && !copied.length){ LOCAL.err = "No recordings found. Check the USB stick is plugged into the box and has an MP3 on it."; render(); }
+    if(manual && !copied.length){ LOCAL.err = "No recordings found. Check the USB stick is plugged into AthanBox and has an MP3 on it."; render(); }
   }catch(e){ if(manual){ LOCAL.err = e.message; render(); } }
 }
 let audioEl = null, toneCtx = null;
@@ -768,12 +768,12 @@ function phonePanel(){
     <div class="hint">${hints[P.kind] || hints.pbx}</div>${LOCAL.guide ? guide(which === "pbx" ? P.kind : which) : ""}`;
 }
 function guide(kind){
-  const P = W.phone, addr = `${P.mc_ip || "224.5.6.20"}:${parseInt(P.mc_port) || 10008}`, ip = esc(SESSION.ip || "this box");
+  const P = W.phone, addr = `${P.mc_ip || "224.5.6.20"}:${parseInt(P.mc_port) || 10008}`, ip = esc(SESSION.ip || "this AthanBox");
   const g = {
     ucm:`<ol><li><b>Extension/Trunk → Extensions</b>: add (or pick) an extension for the azan, for example <span class="kbd">1004</span>, named "Azan". Note its <b>SIP/IAX password</b>, not the user portal password.</li>
       <li><b>Call Features → Paging/Intercom</b>: add a <b>Paging</b> group, for example <span class="kbd">7000</span>, with the desk phones as members.</li>
       <li>Enter the UCM's IP address, the paging group, the extension and its SIP password above.</li></ol>
-      <span class="muted">If it won't connect: check UDP 5060 is on (PBX Settings → SIP Settings), and that the extension's Permitted IP list, if it has one, includes this box (${ip}). Several wrong passwords can make the UCM's Fail2ban block the box for a while.</span>`,
+      <span class="muted">If it won't connect: check UDP 5060 is on (PBX Settings → SIP Settings), and that the extension's Permitted IP list, if it has one, includes this AthanBox (${ip}). Several wrong passwords can make the UCM's Fail2ban block AthanBox for a while.</span>`,
     freepbx:`<ol><li><b>Applications → Extensions</b>: add a PJSIP extension for the azan, for example <span class="kbd">7099</span>, and copy its <b>Secret</b>.</li>
       <li><b>Applications → Paging and Intercom</b>: create a paging group, for example <span class="kbd">7000</span>, with the phones as members and Duplex off.</li>
       <li>Enter the FreePBX's address, the paging group, the extension and its secret above.</li></ol>`,
@@ -851,7 +851,7 @@ function trouble(t){
   const other = W.phone.codec === "PCMA" ? "µ-law (PCMU)" : "A-law (PCMA)";
   const tips = t && t.type === "multicast" ? [
       `Check each phone is set to listen on <b>${esc(t.address)}</b>. <button class="link" onclick="go(5);LOCAL.guide=true;render()">See where</button>`,
-      "The box and the phones must be on the same network (the same VLAN).",
+      "AthanBox and the phones must be on the same network (the same VLAN).",
       "Phones on a call or on Do Not Disturb may not play paging."]
     : t && t.mode === "pbx" ? [
       `Check the phones are members of paging group <b>${esc(W.phone.group)}</b> on the ${esc(PBX[W.phone.kind] && PBX[W.phone.kind].short || "phone system")}.`,
@@ -875,11 +875,11 @@ async function finish(){
 // ------------------------------------------------------------------ signing in
 function showLogin(){
   header(); footer(null);
-  $("#main").innerHTML = `<form class="login" id="loginform"><h1>${AGAIN ? "Sign in to change the settings" : "Sign in to set up this box"}</h1>
-    <p class="muted" style="margin-top:0">${AGAIN ? "Enter the password for this box's settings." : SESSION.docker ? "Enter the password you set as AZAN_PASSWORD in compose.yaml." : "Enter the password on the sticker under the box."}</p>
+  $("#main").innerHTML = `<form class="login" id="loginform"><h1>${AGAIN ? "Sign in to change the settings" : "Sign in to set up this AthanBox"}</h1>
+    <p class="muted" style="margin-top:0">${AGAIN ? "Enter the password for this AthanBox's settings." : SESSION.docker ? "Enter the password you set as AZAN_PASSWORD in compose.yaml." : "Enter the password on the sticker under AthanBox."}</p>
     <div class="field"><label for="lpw">Password</label><input type="password" id="lpw" autocomplete="current-password"></div>
     <p class="err" id="lerr"></p><button class="btn primary" style="width:100%">Sign in</button>
-    ${SESSION.docker || AGAIN ? "" : '<p class="hint" style="margin-bottom:0">Or scan the QR code on the box\'s screen with your phone.</p>'}</form>`;
+    ${SESSION.docker || AGAIN ? "" : '<p class="hint" style="margin-bottom:0">Or scan the QR code on AthanBox\'s screen with your phone.</p>'}</form>`;
   $("#loginform").addEventListener("submit", async e => {
     e.preventDefault();
     try{ await api("/api/login", {password:$("#lpw").value}); start(); }
@@ -897,7 +897,7 @@ async function start(){
   REV = s.rev; LOCAL.driver = s.driver;
   const st = s.state && !s.state.finished && !s.state.manual && !!s.state.again === AGAIN ? s.state : null;
   W = st || (AGAIN ? stateFromConfig(CFG0) : freshState());
-  if(!st && (AGAIN || (s.state && s.state.manual))) push(true);  // share it (and the box's screen follows the guide again)
+  if(!st && (AGAIN || (s.state && s.state.manual))) push(true);  // share it (and AthanBox's screen follows the guide again)
   if(VIA_QR && W.step === 0){ W.step = 1; push(true); }  // chose to set up on the phone
   render(); enter();
   setInterval(poll, 1000);
@@ -912,7 +912,7 @@ async function start(){
       VIA_QR = true;
       if(!SESSION.logged_in) try{ await api("/api/login", {setup_code:code}); }catch(e){}
     } else if(SESSION.local && SESSION.box){
-      KIOSK = true;  // the box's own screen signs itself in for setup
+      KIOSK = true;  // AthanBox's own screen signs itself in for setup
       if(!SESSION.logged_in && SESSION.setup) try{ const c = await api("/api/setup-code"); await api("/api/login", {setup_code:c.code}); }catch(e){}
     }
     await start();

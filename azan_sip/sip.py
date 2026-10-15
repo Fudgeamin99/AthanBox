@@ -140,7 +140,7 @@ class SipTarget:
 class SipCall:
     def __init__(self, target: SipTarget, get_audio: Callable[[str], bytes], stop: threading.Event | None = None,
                  transport=None):
-        """transport: send and receive through Azan SIP's own SIP server socket (phones that signed in to it)
+        """transport: send and receive through AthanBox's own SIP server socket (phones that signed in to it)
         instead of a socket of this call's own."""
         self.t = target
         self.get_audio = get_audio

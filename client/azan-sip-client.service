@@ -1,5 +1,5 @@
 [Unit]
-Description=Azan SIP Client - the Azan SIP Box's prayer times and azan on this computer's screen
+Description=AthanBox Client - AthanBox's prayer times and azan on this computer's screen
 After=network-online.target avahi-daemon.service
 Wants=network-online.target
 

@@ -1,9 +1,9 @@
 #!/bin/sh
-# The Azan SIP Client's screen: the box's prayer times full screen on the TV plugged into this
+# AthanBox Client's screen: AthanBox's prayer times full screen on the TV plugged into this
 # computer, with the azan through the TV's speakers. azan-sip-client-screen.service runs this inside
 # cage as the azan-client user (installed as /usr/lib/azan-sip-client/kiosk).
-# Everything goes through the client on 127.0.0.1:8771, which shows "Connecting to the Azan SIP Box"
-# when the box can't be reached and the settings page when no box is chosen yet.
+# Everything goes through the client on 127.0.0.1:8771, which shows "Connecting to AthanBox"
+# when AthanBox can't be reached and the settings page when no box is chosen yet.
 [ -f /etc/default/azan-sip-client ] && . /etc/default/azan-sip-client
 
 # The azan plays through the TV: the HDMI/DisplayPort sound output with a TV plugged in, otherwise
@@ -27,7 +27,7 @@ set_sound() {
     if [ -n "$sound" ]; then
         card=${sound%,*} dev=${sound#*,}
         cat > "$HOME/.asoundrc" <<ASOUND
-# Written by the Azan SIP Client at each start: the sound goes to the TV (card $card, device $dev).
+# Written by AthanBox Client at each start: the sound goes to the TV (card $card, device $dev).
 pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
 ctl.!default { type hw; card $card }
 ASOUND
@@ -40,7 +40,7 @@ ASOUND
         if [ -n "$own" ]; then
             card=${own%,*} dev=${own#*,}
             cat > "$HOME/.asoundrc" <<ASOUND
-# Written by the Azan SIP Client at each start: no TV, so the computer's own sound (card $card, device $dev).
+# Written by AthanBox Client at each start: no TV, so the computer's own sound (card $card, device $dev).
 pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
 ctl.!default { type hw; card $card }
 ASOUND

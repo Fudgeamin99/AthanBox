@@ -133,7 +133,7 @@ def build_targets(cfg: dict, require: bool = True) -> list:
                               extra_headers=t.get("extra_headers", []))
                     for u in uris if u]
             out.append(SipCallTarget(name, sips))
-        elif kind in sipserver.KINDS:  # desk phones (phones) and phone systems (server) that sign in to Azan SIP
+        elif kind in sipserver.KINDS:  # desk phones (phones) and phone systems (server) that sign in to AthanBox
             out.append(sipserver.ServerTarget(name, codec, float(t.get("ring_timeout") or net.get("ring_seconds") or 20),
                                               local_ip, sipserver.KINDS[kind]))
         else:

@@ -3,7 +3,7 @@
 Your settings (config.toml), recordings (audio/), timetable.csv and logs are never touched:
 only the program files are replaced. The previous version is kept in backups/ so it can be
 restored from the control panel. A box installed with packaging/box/install.sh updates to each new
-Box release (tagged box-vX.Y.Z, the same versions the Docker image gets). If the folder is a git
+AthanBox release (tagged box-vX.Y.Z, the same versions the Docker image gets). If the folder is a git
 clone and git is installed, a normal `git pull` of main is used instead.
 """
 from __future__ import annotations
@@ -30,8 +30,8 @@ from .env import EXE_NAME, FROZEN
 
 log = logging.getLogger("azan-sip")
 
-# The Azan SIP Box updates from its own repository, never from the desktop app's (ATHAN-TO-SIP),
-# so app releases and Box releases can't reach each other's users.
+# AthanBox updates from its own repository, never from the desktop app's (ATHAN-TO-SIP),
+# so app releases and AthanBox releases can't reach each other's users.
 REPO = "Fudgeamin99/azan-sip-box"
 BRANCH = "main"
 REPO_URL = f"https://github.com/{REPO}"
@@ -55,7 +55,7 @@ DOCKER_NOTE = ("Running in Docker: to update, pull the new image with 'docker co
 HELPER_URL = os.environ.get("AZAN_UPDATER_URL", "http://127.0.0.1:8770")
 _NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
-# Box releases are tagged box-vX.Y.Z. The Box's version is the newest "## x.y.z - title" heading of
+# AthanBox releases are tagged box-vX.Y.Z. AthanBox's version is the newest "## x.y.z - title" heading of
 # BOX_CHANGELOG.md, which ships next to the azan_sip folder; __version__ is the desktop app's.
 TAG_PREFIX = "box-v"
 PROGRAM_DIR = Path(__file__).resolve().parent.parent
@@ -68,7 +68,7 @@ def _changelog_version(text: str) -> str | None:
 
 
 def box_version(root: Path | None = None) -> str | None:
-    """The Box version of the program in root (default: the one running), or None if unknown."""
+    """AthanBox version of the program in root (default: the one running), or None if unknown."""
     try:
         return _changelog_version(Path(root or PROGRAM_DIR, "BOX_CHANGELOG.md").read_text(encoding="utf-8"))
     except OSError:
@@ -150,12 +150,12 @@ def _vtuple(v: str) -> tuple:
 
 
 def latest_release() -> dict:
-    """The newest published Box release: its version, tag, commit, title, date and page."""
+    """The newest published AthanBox release: its version, tag, commit, title, date and page."""
     r = _get(f"{API}/releases/latest",
-             not_found="No Azan SIP Box release has been published on GitHub yet, so there are no updates to install")
+             not_found="No AthanBox release has been published on GitHub yet, so there are no updates to install")
     tag = r.get("tag_name") or ""
     if not tag.startswith(TAG_PREFIX):
-        raise RuntimeError(f"The newest release on GitHub ({tag or 'untagged'}) isn't an Azan SIP Box release")
+        raise RuntimeError(f"The newest release on GitHub ({tag or 'untagged'}) isn't an AthanBox release")
     version = tag[len(TAG_PREFIX):]
     return {"tag": tag, "version": version, "commit": _get(f"{API}/commits/{tag}")["sha"],
             "title": (r.get("name") or "").removeprefix(f"{version} - ").strip(),
@@ -244,7 +244,7 @@ def check(base: Path) -> dict:
         return info
 
     rel = latest_release()
-    current = box_version()  # None: installed before the Box had its own version number
+    current = box_version()  # None: installed before AthanBox had its own version number
     info.update(current_version=current or "an earlier version", latest_version=rel["version"],
                 latest_message=rel["title"], latest_date=rel["date"], latest_commit=rel["commit"],
                 latest_url=rel["url"], available=not current or _vtuple(rel["version"]) > _vtuple(current))
@@ -275,8 +275,8 @@ def _verify(root: Path):
     for need in ("azan_sip/__init__.py", "azan_sip/web.py", "azan_sip/static/index.html"):
         if not (root / need).is_file():
             raise RuntimeError(f"The download looks incomplete ({need} missing) - update cancelled")
-    if not (root / "azan_sip/auth.py").is_file():  # Box mode lives there; without it the box can't start
-        raise RuntimeError("That version doesn't include Azan SIP Box support - update cancelled")
+    if not (root / "azan_sip/auth.py").is_file():  # Box mode lives there; without it AthanBox can't start
+        raise RuntimeError("That version doesn't include AthanBox support - update cancelled")
     exe = sys.executable
     if exe.lower().endswith("pythonw.exe") and Path(exe[:-5] + ".exe").exists():
         exe = exe[:-5] + ".exe"  # pythonw has no output to read

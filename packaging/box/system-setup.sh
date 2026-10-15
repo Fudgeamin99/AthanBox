@@ -1,12 +1,12 @@
 #!/bin/sh
-# Azan SIP Box: the parts of the Box that need root (system packages and services), for this version.
-# Run as root from the repository folder. install.sh runs it, and after that the box runs it by
+# AthanBox: the parts of AthanBox that need root (system packages and services), for this version.
+# Run as root from the repository folder. install.sh runs it, and after that AthanBox runs it by
 # itself after each update (azan-sip-system.service downloads the new release from GitHub and runs
 # its copy of this script). It must be safe to run again and again, without questions.
 set -eu
 cd "$(dirname "$0")/../.."
 [ "$(id -u)" = 0 ] || { echo "Please run as root (sudo)"; exit 1; }
-[ -d /opt/azan-sip ] || { echo "Install the Box first: sudo sh packaging/box/install.sh"; exit 1; }
+[ -d /opt/azan-sip ] || { echo "Install AthanBox first: sudo sh packaging/box/install.sh"; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
 
 # --- Security page (0.5.0): fail2ban, whitelist and blacklist
@@ -28,7 +28,7 @@ cp packaging/box/azan-sip-system.service packaging/box/azan-sip-system.path \
 # --- The volume slider on the TV app page sets the computer's own volume (0.6.1)
 if getent group audio >/dev/null && ! id -nG azan | tr ' ' '\n' | grep -qx audio; then
     usermod -a -G audio azan
-    # The Box picks up its new group when it restarts (--no-block, as below)
+    # AthanBox picks up its new group when it restarts (--no-block, as below)
     systemctl restart --no-block azan-sip-box
 fi
 

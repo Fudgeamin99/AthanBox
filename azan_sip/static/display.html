@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!--tv-->
-<title>Azan SIP · Prayer times</title>
+<title>AthanBox · Prayer times</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/box.css">
 <style>
@@ -196,7 +196,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
 @keyframes dots{0%,100%{opacity:.3}30%{opacity:1}}
 #splash .ver{position:absolute;bottom:4vh;font-size:2.2vh;color:var(--t-muted)}
-/* lock dialog: password field and lock icon as in the box's look */
+/* lock dialog: password field and lock icon as in AthanBox's look */
 .modal .lock-ic{width:52px;height:52px;border-radius:12px;background:var(--gold-soft);color:var(--gold-ink);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
 .modal .lock-ic svg{width:24px;height:24px}
 .modal input[type=password]{border:1.5px solid var(--brand)}
@@ -247,7 +247,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 <div id="splash">
   <svg class="pattern" viewBox="0 0 600 600" aria-hidden="true"><circle cx="300" cy="300" r="298"/><circle cx="300" cy="300" r="130"/><rect x="88" y="88" width="424" height="424"/><path d="M300 2L598 300 300 598 2 300z"/></svg>
   <span id="splashlogo"></span>
-  <h1>Azan SIP</h1>
+  <h1>AthanBox</h1>
   <p id="splashmsg">Starting up…</p>
   <div class="dots"><i></i><i></i><i></i></div>
   <div class="ver" id="splashver"></div>
@@ -287,7 +287,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
   </footer>
   <button class="tvtap" id="tvtap" type="button" hidden></button>
 </div>
-<div class="tvoff" id="tvoff" role="alert" hidden><div><h1>TV screens are switched off</h1><p>This screen was disconnected in the Azan SIP Box. To use it again, switch on “Let TV screens connect” on the TV app page of the control panel. It reconnects by itself.</p></div></div>
+<div class="tvoff" id="tvoff" role="alert" hidden><div><h1>TV screens are switched off</h1><p>This screen was disconnected in AthanBox. To use it again, switch on “Let TV screens connect” on the TV app page of the control panel. It reconnects by itself.</p></div></div>
 
 <div class="modal" id="lock" hidden>
   <form class="box" id="lockform" autocomplete="off">
@@ -297,7 +297,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
     <div class="field"><label for="lockpw">Password</label><input type="password" id="lockpw" autocomplete="current-password"></div>
     <div class="err" id="lockerr"></div>
     <div class="row"><button class="btn" type="button" onclick="closeLock()">Cancel</button><button class="btn primary" id="lockbtn">Unlock</button></div>
-    <div class="foot" id="lockfoot">Forgotten it? The original password is on the sticker under the box.</div>
+    <div class="foot" id="lockfoot">Forgotten it? The original password is on the sticker under AthanBox.</div>
   </form>
 </div>
 
@@ -371,7 +371,7 @@ function wake(){ document.body.classList.add("ui"); clearTimeout(uiTimer); uiTim
 for(const ev of ["mousemove", "pointerdown", "keydown", "touchstart"]) addEventListener(ev, wake, {passive: true});
 
 // ---------------------------------------------------------------- prayer times
-// The clock and countdown tick every second between updates from the box.
+// The clock and countdown tick every second between updates from AthanBox.
 let CD = null;   // seconds to whatever the big countdown is counting to
 function tick(){
   if(!S || !S.clock) return;
@@ -481,11 +481,11 @@ function phoneLine(st){
   if(st.configured === false) return `<span class="dot warn"></span> The azan won't play until setup is finished`;
   if(!st.running) return `<span class="dot warn"></span> Automatic azan is paused. Switch it on in Settings.`;
   if(!st.targets) return "";
-  if(srv && srv.status === "failed") return `<span class="dot bad"></span> Phones can't sign in to the box: ${esc(srv.detail || "check Settings")}`;
+  if(srv && srv.status === "failed") return `<span class="dot bad"></span> Phones can't sign in to AthanBox: ${esc(srv.detail || "check Settings")}`;
   if(failed.length) return `<span class="dot bad"></span> Not connected to the phone system: ${esc(failed[0].detail || "check Settings")}`;
   if(waiting.length) return `<span class="dot warn"></span> Connecting to the phone system…`;
   if(srv && st.targets === 1 && !regs.length && !(srv.accounts || []).some(a => a.registered))   // the only method, and nothing has signed in yet
-    return `<span class="dot warn"></span> Waiting for the phone system to sign in to the box…`;
+    return `<span class="dot warn"></span> Waiting for the phone system to sign in to AthanBox…`;
   if(st.skip_today) return `<span class="dot warn"></span> No azan today (switched off for ${esc((st.date || "").split(" ")[0])}s)`;
   return `<span class="dot"></span> ${regs.length ? "Phones connected" : "Phones ready"} · the azan will play on all phones`;
 }
@@ -533,7 +533,7 @@ async function load(){
   try{ st = await api("/api/state" + (DEMO ? "?ramadan=demo" : "")); failures = 0; }
   catch(e){
     failures++;
-    if(!S || failures > 2) showSplash(S ? "Reconnecting to the box…" : "Starting up…");
+    if(!S || failures > 2) showSplash(S ? "Reconnecting to AthanBox…" : "Starting up…");
     return;
   }
   if(!PREVIEW && !TV && st.configured === false && SESSION.box && !st.setup_manual){ location.replace("/setup"); return; }
@@ -551,9 +551,9 @@ async function load(){
 function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden = false; $("#screen").hidden = true; }
 
 // ---------------------------------------------------------------- Makkah live
-// The stream is relayed by the box (/live/stream.m3u8) and played with hls.js, loaded only when needed.
-// With "Screens fetch the stream themselves" on, the screen plays the stream's own link instead, so the box
-// uses no data for it; if the stream doesn't let web pages read it, the screen goes through the box after all,
+// The stream is relayed by AthanBox (/live/stream.m3u8) and played with hls.js, loaded only when needed.
+// With "Screens fetch the stream themselves" on, the screen plays the stream's own link instead, so AthanBox
+// uses no data for it; if the stream doesn't let web pages read it, the screen goes through AthanBox after all,
 // unless that is turned off too.
 const RELAY = "/live/stream.m3u8";
 const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0,
@@ -561,8 +561,8 @@ const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSou
 const liveKey = () => JSON.stringify((S && S.live) || {});
 function liveSrc(){ const l = S && S.live; return l && l.direct && l.url && !LV.directFailed ? l.url : RELAY; }
 function directFailed(){
-  if(S && S.live && S.live.fallback === false)  // going through the box is turned off: keep trying the stream itself
-    return retryLive("Makkah live isn't available on this screen", "It couldn't fetch the stream itself, and going through the box is turned off on the Display page.");
+  if(S && S.live && S.live.fallback === false)  // going through AthanBox is turned off: keep trying the stream itself
+    return retryLive("Makkah live isn't available on this screen", "It couldn't fetch the stream itself, and going through AthanBox is turned off on the Display page.");
   LV.directFailed = true; startLive();
 }
 const SPK = {off:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>',
@@ -642,7 +642,7 @@ async function startLive(){
     h.loadSource(src);
     h.attachMedia(v);
   } else if(v.canPlayType("application/vnd.apple.mpegurl")){
-    v.onerror = () => {   // the built-in player gave up: go through the box, or reconnect
+    v.onerror = () => {   // the built-in player gave up: go through AthanBox, or reconnect
       if(direct && !LV.played) directFailed();
       else if(LV.on && !PREVIEW) retryLive("Makkah live was interrupted", "The connection to the stream dropped.");
     };
@@ -698,7 +698,7 @@ async function openSettings(){
 }
 function closeLock(){ $("#lock").hidden = true; }
 
-// Full screen, for a TV or monitor plugged into a PC (the box's own screen is full screen already)
+// Full screen, for a TV or monitor plugged into a PC (AthanBox's own screen is full screen already)
 const rootEl = document.documentElement, goFull = rootEl.requestFullscreen || rootEl.webkitRequestFullscreen;
 const standalone = navigator.standalone || (window.matchMedia && matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches);
 const canFull = () => !PREVIEW && !!goFull && !document.fullscreenElement && !(SESSION.box && SESSION.local) && !standalone && !APP;
@@ -724,7 +724,7 @@ if(PREVIEW){
 }
 
 // ---------------------------------------------------------------- TV app: plays the azan out loud
-// The screen asks the box twice a second what is playing and when it started, and plays the
+// The screen asks AthanBox twice a second what is playing and when it started, and plays the
 // same recording from the same point, so it sounds together with the phones. Browsers only allow
 // sound after the screen has been tapped (or clicked) once, so until then it shows a reminder.
 const LOCAL_SCREEN = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
@@ -853,7 +853,7 @@ async function startSound(p){
   src.onended = () => { if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; } };
   cur.src = src; cur.gain = g;
 }
-function tvOff(off){   // switched off in Azan SIP: go quiet and dark until it's switched on again
+function tvOff(off){   // switched off in AthanBox: go quiet and dark until it's switched on again
   if (off && !TVA.off){
     TVA.off = true;
     stopSound(true);
@@ -867,10 +867,10 @@ function tvOff(off){   // switched off in Azan SIP: go quiet and dark until it's
 }
 function tvHandle(j){
   const p = j.playing;
-  // A new Box version: load the new page, so updates reach screens that stay open for months
+  // A new AthanBox version: load the new page, so updates reach screens that stay open for months
   if (j.version && TVA.ver && j.version !== TVA.ver) { location.reload(); return; }
   if (j.version) TVA.ver = j.version;
-  // The volume on the TV app page is for the box's own screen only (it opens the TV app on
+  // The volume on the TV app page is for AthanBox's own screen only (it opens the TV app on
   // 127.0.0.1); other screens keep their own volume
   const vol = LOCAL_SCREEN && typeof j.volume === "number" ? j.volume : 1;
   if (vol !== TVA.vol){
@@ -902,7 +902,7 @@ async function tvPoll(){
     if (!r.ok) throw new Error(r.status);
     if (TVA.off) tvOff(false);
     const j = await r.json(), t1 = Date.now(), rtt = t1 - t0;
-    // the box's clock as seen here, from the quickest recent answers
+    // AthanBox's clock as seen here, from the quickest recent answers
     if (TVA.offset === null || rtt <= TVA.rtt * 1.5 + 10 || t1 - TVA.offAt > 60000){ TVA.offset = j.now - (t0 + t1) / 2; TVA.rtt = rtt; TVA.offAt = t1; }
     tvHandle(j);
   }catch(e){}
@@ -947,8 +947,8 @@ if (TV) window.azanApp = {
   try{
     SESSION = await api("/api/session");
     $("#splashver").textContent = "Version " + SESSION.version;
-    if(SESSION.docker) $("#lockfoot").textContent = "Forgotten it? The original password is AZAN_PASSWORD in the box's compose.yaml.";
-    // Back on the box's own screen: lock the settings again (but not from the preview inside the settings).
+    if(SESSION.docker) $("#lockfoot").textContent = "Forgotten it? The original password is AZAN_PASSWORD in AthanBox's compose.yaml.";
+    // Back on AthanBox's own screen: lock the settings again (but not from the preview inside the settings).
     if(!PREVIEW && SESSION.box && SESSION.local && SESSION.logged_in && SESSION.configured){ await api("/api/logout", {}).catch(() => {}); SESSION.logged_in = false; }
   }catch(e){}
   $("#fs").hidden = !canFull();

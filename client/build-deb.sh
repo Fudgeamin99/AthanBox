@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds the Azan SIP Client's Debian package: client/dist/azan-sip-client_<version>_all.deb
-# (and a copy named azan-sip-client.deb, which each Box release carries). Needs dpkg-deb only:
+# Builds AthanBox Client's Debian package: client/dist/azan-sip-client_<version>_all.deb
+# (and a copy named azan-sip-client.deb, which each AthanBox release carries). Needs dpkg-deb only:
 #     sh client/build-deb.sh
 set -eu
 cd "$(dirname "$0")"
@@ -28,7 +28,7 @@ install -m 644 azan-sip-client.service azan-sip-client-screen.service azan-sip-c
 install -m 644 debian/azan-client.pam "$root/etc/pam.d/azan-client"
 install -m 644 debian/default "$root/etc/default/azan-sip-client"
 install -m 644 README.md "$root/usr/share/doc/azan-sip-client/"
-printf 'Azan SIP Client, part of the Azan SIP Box\nhttps://github.com/Fudgeamin99/azan-sip-box\n' \
+printf 'AthanBox Client, part of AthanBox\nhttps://github.com/Fudgeamin99/azan-sip-box\n' \
     > "$root/usr/share/doc/azan-sip-client/copyright"
 
 mkdir -p dist

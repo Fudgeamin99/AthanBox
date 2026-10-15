@@ -1,10 +1,10 @@
 #!/bin/sh
-# Show the prayer-times screen on a TV plugged into the box (HDMI or DisplayPort), full screen
+# Show the prayer-times screen on a TV plugged into AthanBox (HDMI or DisplayPort), full screen
 # from every boot, with the azan through the TV's speakers. Run as root from the repository
 # folder, after install.sh:
 #     sudo sh packaging/box/screen.sh        switch the screen on (installs a small kiosk browser)
 #     sudo sh packaging/box/screen.sh off    switch it off again
-# Run it again after moving the box to another TV, so the sound follows the TV.
+# Run it again after moving AthanBox to another TV, so the sound follows the TV.
 set -eu
 cd "$(dirname "$0")/../.."
 [ "$(id -u)" = 0 ] || { echo "Please run as root (sudo)"; exit 1; }
@@ -19,7 +19,7 @@ if [ "${1:-}" = off ]; then
 fi
 
 [ -f /etc/systemd/system/azan-sip-box.service ] \
-    || { echo "Install the box first: sudo sh packaging/box/install.sh"; exit 1; }
+    || { echo "Install AthanBox first: sudo sh packaging/box/install.sh"; exit 1; }
 ls /dev/dri/card* >/dev/null 2>&1 \
     || { echo "This computer has no screen output (no graphics found), so there is nothing to show the prayer times on."; exit 1; }
 
@@ -84,7 +84,7 @@ else
     echo "For a TV: plug it in, switch it on and run this again."
 fi
 chown -R azan-screen:azan-screen /var/lib/azan-screen
-# The volume slider on the TV app page sets the computer's volume: the Box needs the audio group
+# The volume slider on the TV app page sets the computer's volume: AthanBox needs the audio group
 if getent group audio >/dev/null && id azan >/dev/null 2>&1; then usermod -a -G audio azan; systemctl restart azan-sip-box; fi
 
 install -m 755 packaging/box/azan-sip-screen.sh /usr/local/bin/azan-sip-screen

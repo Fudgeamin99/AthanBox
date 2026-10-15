@@ -1,12 +1,12 @@
-"""The Update button for the Azan SIP Box in Docker.
+"""The Update button for AthanBox in Docker.
 
 A container can't replace itself, so this runs in a small container of its own (the "updater"
 service in compose.yaml), from the same image. It is the only part that can reach Docker, through
 /var/run/docker.sock. The control panel asks it over 127.0.0.1 only, with a secret token from
 /data/auth/updater-token, which the panel writes.
 
-- POST /check   pulls the newest image for the Box's container and says whether it's newer
-- POST /update  pulls it too if needed, then replaces the Box's container with one from that image:
+- POST /check   pulls the newest image for AthanBox's container and says whether it's newer
+- POST /update  pulls it too if needed, then replaces AthanBox's container with one from that image:
                 same settings, volumes and network. If the new one won't start, the old one is put back.
 
 Run it with:  python -m azan_sip.dockerupdate
@@ -28,8 +28,8 @@ from urllib.parse import quote
 log = logging.getLogger("azan-sip-updater")
 
 SOCK = os.environ.get("AZAN_DOCKER_SOCKET", "/var/run/docker.sock")
-TARGET = os.environ.get("AZAN_UPDATE_TARGET", "azan-sip")          # the Box's container_name
-# fail2ban and the firewall (the optional "security" service), updated with the Box when it exists
+TARGET = os.environ.get("AZAN_UPDATE_TARGET", "azan-sip")          # AthanBox's container_name
+# fail2ban and the firewall (the optional "security" service), updated with AthanBox when it exists
 SECURITY = os.environ.get("AZAN_UPDATE_SECURITY", "azan-sip-security")
 TOKEN_FILE = Path(os.environ.get("AZAN_UPDATER_TOKEN_FILE", "/data/auth/updater-token"))
 PORT = int(os.environ.get("AZAN_UPDATER_PORT", "8770"))
@@ -83,7 +83,7 @@ def container(name: str = TARGET) -> dict:
         return docker("GET", f"/containers/{quote(name)}/json")
     except DockerError as exc:
         raise DockerError(f"Can't find the container '{name}' ({exc}). Set AZAN_UPDATE_TARGET in compose.yaml "
-                          "to the Box's container_name.") from exc
+                          "to AthanBox's container_name.") from exc
 
 
 def image(ref: str) -> dict:
@@ -127,7 +127,7 @@ def pull(ref: str):
 
 
 def describe(image_id: str, cfg: dict | None) -> str:
-    """A short name for an image: its Box version, or the commit of a test build."""
+    """A short name for an image: its AthanBox version, or the commit of a test build."""
     labels = (cfg or {}).get("Labels") or {}
     if labels.get(LABEL_VERSION):
         return labels[LABEL_VERSION]
@@ -163,7 +163,7 @@ def _create_body(c: dict, ref: str) -> dict:
         for k in ("Entrypoint", "Cmd", "WorkingDir", "User", "ExposedPorts", "Volumes", "Healthcheck", "StopSignal"):
             if k in cfg and cfg[k] == old.get(k):
                 del cfg[k]
-    else:  # the old image is gone: the Box's container sets no command of its own, so use the new image's
+    else:  # the old image is gone: AthanBox's container sets no command of its own, so use the new image's
         cfg["Labels"] = {k: v for k, v in (cfg.get("Labels") or {}).items() if not k.startswith("org.opencontainers.")}
         for k in ("Entrypoint", "Cmd", "WorkingDir", "User", "ExposedPorts", "Volumes", "Healthcheck", "StopSignal"):
             cfg.pop(k, None)
@@ -187,7 +187,7 @@ def _create_body(c: dict, ref: str) -> dict:
 
 
 def recreate() -> dict:
-    """Replace the Box's container, and the security container if there is one, with ones from the
+    """Replace AthanBox's container, and the security container if there is one, with ones from the
     newest image already pulled."""
     result = _recreate(container())
     if SECURITY and result["updated"]:
@@ -198,7 +198,7 @@ def recreate() -> dict:
         if sec and sec["Config"]["Image"] == container()["Config"]["Image"]:
             try:
                 _recreate(sec)
-            except DockerError as exc:   # the Box itself is updated; the old security container is back
+            except DockerError as exc:   # AthanBox itself is updated; the old security container is back
                 log.error("Couldn't update %s: %s", SECURITY, exc)
     return result
 
@@ -326,7 +326,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     try:
-        log.info("Azan SIP updater for container '%s' (Docker %s), waiting on 127.0.0.1:%d",
+        log.info("AthanBox updater for container '%s' (Docker %s), waiting on 127.0.0.1:%d",
                  TARGET, docker("GET", "/version").get("Version"), PORT)
         image_config(container()["Image"])
     except DockerError as exc:

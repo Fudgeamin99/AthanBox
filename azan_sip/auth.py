@@ -1,14 +1,14 @@
-"""Password protection for the control panel when it runs on an Azan SIP Box (box mode).
+"""Password protection for the control panel when it runs on an AthanBox (box mode).
 
 Only used in box mode: the desktop app keeps its panel on 127.0.0.1 with no password.
 
 - Each box has a factory password (printed on the sticker). Its hash is in auth/factory.json,
-  written when the box is prepared; a factory reset goes back to it.
+  written when AthanBox is prepared; a factory reset goes back to it.
 - The owner can choose their own password; its hash is in auth/password.json.
 - Logging in gives a session cookie that lasts 30 days. Only a hash of each session is kept, in
-  auth/sessions.json, so phones stay signed in when the box restarts or updates.
+  auth/sessions.json, so phones stay signed in when AthanBox restarts or updates.
 - Until first-time setup is finished there is also a one-time setup code (shown as a QR code
-  on the box's screen) that signs a phone in without the sticker password.
+  on AthanBox's screen) that signs a phone in without the sticker password.
 """
 from __future__ import annotations
 

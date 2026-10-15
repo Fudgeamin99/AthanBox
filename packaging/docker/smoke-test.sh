@@ -1,5 +1,5 @@
 #!/bin/sh
-# Checks a running Azan SIP Box container: the panel answers, a new box opens first-time setup,
+# Checks a running AthanBox container: the panel answers, a new box opens first-time setup,
 # the prayer-times screen is there, settings need the password, the password works,
 # Settings > Updates knows it is running in Docker, and TV screens connect only when allowed.
 #   sh packaging/docker/smoke-test.sh http://127.0.0.1:8765 <password>
@@ -16,12 +16,12 @@ for i in $(seq 1 30); do
 done
 echo "ok: panel answers - $(curl -fsS "$url/api/ping")"
 
-# Run from the repository folder (as in CI), the box should say it is the newest BOX_CHANGELOG.md version
+# Run from the repository folder (as in CI), AthanBox should say it is the newest BOX_CHANGELOG.md version
 want=$(sed -n 's/^## \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' BOX_CHANGELOG.md 2>/dev/null | head -n 1)
 if [ -n "$want" ]; then
     got=$(curl -fsS "$url/api/session" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("version"))')
-    [ "$got" = "$want" ] || { echo "FAIL: the box says it is version '$got' (expected $want)"; exit 1; }
-    echo "ok: the box says it is version $got"
+    [ "$got" = "$want" ] || { echo "FAIL: AthanBox says it is version '$got' (expected $want)"; exit 1; }
+    echo "ok: AthanBox says it is version $got"
 fi
 
 if curl -fsS "$url/api/session" | grep -q '"configured": false'; then

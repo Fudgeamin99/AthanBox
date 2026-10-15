@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Azan SIP</title>
+<title>AthanBox</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -114,6 +114,15 @@ tr:last-child td{border-bottom:0}
 .log .ts{color:var(--muted)}
 .list-item{display:flex;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
 .list-item:last-child{border-bottom:0}
+.rec{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.rec:last-child{border-bottom:0}
+.rec .name{flex:1;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec .dur{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rec .btn svg{width:12px;height:12px}
+.recplay{all:unset;flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:var(--accent-soft);color:var(--accent)}
+.recplay svg{width:12px;height:12px}
+.recplay:focus-visible{outline:2px solid var(--brand)}
+@media (max-width:560px){.rec .long,.rec .dur{display:none}}
 .list-item .grow{flex:1;min-width:0}
 .list-item .title{font-weight:600}
 .list-item .detail{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -163,7 +172,7 @@ summary{cursor:pointer;font-weight:600;color:var(--brand);margin-bottom:10px}
 .stopped{max-width:520px;margin:15vh auto;text-align:center}
 .overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:50}
 .overlay .card{max-width:420px;text-align:center;padding:30px}
-/* Azan SIP Box: settings lock */
+/* AthanBox: settings lock */
 .lock{position:fixed;inset:0;background:color-mix(in srgb,#0e4a40 82%,transparent);backdrop-filter:blur(4px);display:grid;place-items:center;z-index:60;padding:16px}
 .lock form{background:var(--panel);border-radius:20px;padding:30px 32px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .lock .lockicon{width:52px;height:52px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:16px}
@@ -221,7 +230,7 @@ ol.steps .muted{font-size:13px}
   <nav>
     <div class="logo">
       <svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="var(--brand)"/><path d="M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z" fill="#f4e3b5"/></svg>
-      Azan SIP
+      AthanBox
     </div>
     <button data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Today</button>
     <button data-page="times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prayer times</button>
@@ -253,7 +262,7 @@ ol.steps .muted{font-size:13px}
   <div class="field"><label for="lockpw">Password</label><input type="password" id="lockpw" autocomplete="current-password"></div>
   <div class="err" id="lockerr"></div>
   <div class="actions"><button class="btn primary" id="lockbtn" type="submit">Unlock</button></div>
-  <p class="foot">Forgotten it? The original password is on the sticker under the box.</p>
+  <p class="foot">Forgotten it? The original password is on the sticker under AthanBox.</p>
 </form></div>
 <div id="overlay" class="overlay" hidden><div class="card"><div class="spinner"></div><h2 id="ov-title">Updating…</h2><p class="muted" id="ov-text">Please keep this page open.</p></div></div>
 
@@ -290,14 +299,14 @@ async function api(path, body, raw){
     else { opt.body = JSON.stringify(body); opt.headers["Content-Type"]="application/json"; }
   }
   let r;
-  try { r = await fetch(path, opt); } catch(e){ throw new Error(SESSION.box ? "Can't reach the Azan SIP Box. Check it's switched on and connected." : "Azan SIP isn't running. Double-click 'Azan SIP' to start it."); }
+  try { r = await fetch(path, opt); } catch(e){ throw new Error(SESSION.box ? "Can't reach AthanBox. Check it's switched on and connected." : "AthanBox isn't running. Double-click 'Azan SIP' to start it."); }
   const j = await r.json().catch(()=>({ok:false,error:"Unexpected reply"}));
   if(r.status===401 && j.login && !path.startsWith("/api/log")){ await unlock(); return api(path, body, raw); }  // session ended: ask again, then retry
   if(!r.ok || j.ok===false) throw new Error(j.error || ("Error "+r.status));
   return j;
 }
 
-// ---------------------------------------------------------------- Azan SIP Box: password lock
+// ---------------------------------------------------------------- AthanBox: password lock
 let SESSION = {box:false, logged_in:true}, lockWaiters = [];
 function unlock(){
   return new Promise(res=>{
@@ -320,7 +329,7 @@ async function loadSession(){
   try{ SESSION = await api("/api/session"); }catch(e){ return; }
   if(SESSION.panel) applyPanelLook(SESSION.panel);  // the panel's own colours, even behind the lock
   const code = new URLSearchParams(location.search).get("setup");
-  if(code){  // scanned the QR code on the box's screen during first-time setup
+  if(code){  // scanned the QR code on AthanBox's screen during first-time setup
     history.replaceState(null, "", location.pathname + location.hash);
     if(SESSION.box && !SESSION.logged_in){
       try{ await api("/api/login", {setup_code: code}); SESSION.logged_in=true; }catch(e){ toast(e.message, "bad"); }
@@ -330,9 +339,9 @@ async function loadSession(){
   if(SESSION.box){ $("#tvbtn").hidden = false; $("#secbtn").hidden = false; }
   if(SESSION.box && SESSION.local) kioskReturn();
 }
-// The prayer-times screen: in place on the box's own screen, in a new tab on a phone or PC
+// The prayer-times screen: in place on AthanBox's own screen, in a new tab on a phone or PC
 function openScreen(path){ if(SESSION.box && SESSION.local) location.assign(path); else window.open(path, "_blank"); }
-// On the box's own screen: a way back to the prayer times, and back there by itself after 5 idle
+// On AthanBox's own screen: a way back to the prayer times, and back there by itself after 5 idle
 // minutes with nothing unsaved (the prayer-times screen locks the settings again).
 function kioskReturn(){
   let last = Date.now();
@@ -352,7 +361,7 @@ async function openGuide(again){
 }
 async function signOut(){ try{ await api("/api/logout",{}); }catch(e){} location.reload(); }
 async function factoryReset(){
-  const t = prompt("This removes all settings, recordings and your own password. The box goes back to first-time setup and the password on the sticker works again.\n\nType RESET to confirm:");
+  const t = prompt("This removes all settings, recordings and your own password. AthanBox goes back to first-time setup and the password on the sticker works again.\n\nType RESET to confirm:");
   if(t===null) return;
   await act(async()=>{ await api("/api/factory-reset",{confirm:t.trim().toUpperCase()}); location.reload(); });
 }
@@ -498,7 +507,7 @@ function render(){
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
   ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, security:pageSecurity, settings:pageSettings}[page]||pageOverview)();
 }
-function stoppedHTML(){ return `<div class="stopped card"><h1>Azan SIP is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
+function stoppedHTML(){ return `<div class="stopped card"><h1>AthanBox is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
 
 // ---- Today
 function pageOverview(){
@@ -540,7 +549,7 @@ function renderOverviewLive(){
     const foot = p.azan ? `<span>${p.enabled?"Azan on":"Azan off"}</span><label class="switch" title="Play the azan for ${esc(name)}"><input type="checkbox" ${p.enabled?"checked":""} onchange="togglePrayer('${p.name}',this.checked)"><span></span></label>` : `<span>No azan</span>`;
     return `<div class="pcard ${p.name==="sunrise"?"sunrise":""} ${p.status}"><div class="name">${esc(name)} ${badge}</div><div class="time">${esc(p.time)}</div><div class="foot">${foot}</div></div>`;
   }).join("");
-  $("#history").innerHTML = (S.history||[]).length ? `<table>${S.history.slice(0,6).map(h=>`<tr><td>${esc(h.label)}</td><td class="muted">${esc(h.at.slice(11,16))} ${esc(h.at.slice(0,10))}</td><td>${h.ok?'<span class="pill ok">sent</span>':'<span class="pill warn">failed</span>'}</td></tr>`).join("")}</table>` : '<p class="muted">Nothing played yet since Azan SIP started.</p>';
+  $("#history").innerHTML = (S.history||[]).length ? `<table>${S.history.slice(0,6).map(h=>`<tr><td>${esc(h.label)}</td><td class="muted">${esc(h.at.slice(11,16))} ${esc(h.at.slice(0,10))}</td><td>${h.ok?'<span class="pill ok">sent</span>':'<span class="pill warn">failed</span>'}</td></tr>`).join("")}</table>` : '<p class="muted">Nothing played yet since AthanBox started.</p>';
   const ol=$("#ovlog"); ol.innerHTML = logHTML((S.log||[]).slice(-8)); ol.scrollTop=ol.scrollHeight;
 }
 function azanTestLabel(){ const n=+((CFG&&CFG.general&&CFG.general.test_azan_seconds)??20); return n>0 ? `${n} s of the azan` : "the whole azan"; }
@@ -661,8 +670,8 @@ function pageAudio(){
     <label class="btn primary">Add recording…<input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" multiple hidden onchange="uploadAudio(this.files)"></label></div>
     <p class="muted" style="margin:8px 0 4px">MP3, WAV, M4A and most other formats. They are converted to phone quality automatically.</p>
     <div id="upl"></div>
-    ${files.length?files.map(f=>`<div class="list-item"><div class="icon-box">${ICON.file}</div><div class="grow"><div class="title">${esc(f)}</div><audio controls preload="none" src="/audio/${encodeURIComponent(f)}" style="height:32px;margin-top:6px;max-width:100%"></audio></div>
-      <button class="btn small" onclick="test({source:'file:${esc(f)}',seconds:'default',label:'${esc(f)} test'})">${ICON.play} Test on phones</button><button class="btn small danger" onclick="delAudio('${esc(f)}')">Remove</button></div>`).join("")
+    ${files.length?files.map(f=>`<div class="rec"><button class="recplay" title="Listen here" onclick="previewAudio(this,'${esc(f)}')">${ICON.play}</button><div class="name" title="${esc(f)}">${esc(f)}</div><span class="dur"></span>
+      <button class="btn tiny" onclick="test({source:'file:${esc(f)}',seconds:'default',label:'${esc(f)} test'})">${ICON.play} Test<span class="long"> on phones</span></button><button class="btn tiny danger" onclick="delAudio('${esc(f)}')">Remove</button></div>`).join("")
     :'<div class="empty">No recordings yet. Until you add one, the built-in test chime plays at prayer times.</div>'}
   </div>
   <div class="card"><h2>What plays when</h2>
@@ -722,18 +731,32 @@ async function toPhoneWav(file){
   for(let i=0;i<out.length;i++){ const s=Math.max(-1,Math.min(1,out[i]*gain)); v.setInt16(44+i*2, s<0?s*32768:s*32767, true); }
   return buf;
 }
+// Listen to a recording here, one at a time, from the play button on its row
+let PREVIEW_AUDIO = null;
+function previewAudio(btn, f){
+  const a = PREVIEW_AUDIO, same = a && a.dataset.f === f;
+  if(a){ a.ontimeupdate = a.onended = a.onerror = null; a.pause(); a.btn.innerHTML = ICON.play; a.btn.title = "Listen here"; a.dur.textContent = ""; PREVIEW_AUDIO = null; }
+  if(same) return;
+  const n = new Audio("/audio/" + encodeURIComponent(f)), dur = btn.parentElement.querySelector(".dur");
+  const mmss = s => isFinite(s) ? `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}` : "-:--";
+  Object.assign(n, {btn, dur}); n.dataset.f = f; PREVIEW_AUDIO = n;
+  n.ontimeupdate = () => { if(dur.isConnected) dur.textContent = `${mmss(n.currentTime)} / ${mmss(n.duration)}`; else n.pause(); };
+  n.onended = n.onerror = () => { if(PREVIEW_AUDIO === n) previewAudio(btn, f); };
+  btn.innerHTML = ICON.stop; btn.title = "Stop"; dur.textContent = "…";
+  n.play().catch(() => {});
+}
 async function delAudio(f){ if(!confirm(`Remove ${f}?`)) return; await act(async()=>{ const r=await api("/api/delete-audio",{name:f}); META.audio_files=r.files; render(); }, "Removed"); }
 
 // ---- Phones
 const KINDS = {
   multicast:{t:"Multicast paging", d:"Recommended. Yealink, Grandstream, Fanvil, Snom, Cisco MPP. No phone system changes - each phone listens on one address.", i:ICON.broadcast},
-  pbx:{t:"Phone system page group", d:"Grandstream UCM, FreePBX, 3CX and others. Azan SIP signs in as an extension and calls your paging group.", i:ICON.server},
+  pbx:{t:"Phone system page group", d:"Grandstream UCM, FreePBX, 3CX and others. AthanBox signs in as an extension and calls your paging group.", i:ICON.server},
   direct:{t:"Call each phone directly", d:"For Poly/Polycom or when multicast isn't possible. Phones must allow direct IP calls and auto-answer.", i:ICON.phone},
   rtp:{t:"IP speaker (RTP)", d:"Paging speakers that listen for audio on a fixed IP address and port.", i:ICON.speaker},
-  server:{t:"Register to Azan SIP (SIP trunk)", d:"Your phone system adds Azan SIP as a SIP trunk. Azan SIP calls it for the azan, for example on the paging group. No extension needed on the phone system.", i:ICON.signin},
-  phones:{t:"Desk phones sign in to Azan SIP", d:"Each desk phone adds the box as a line, with its own extension on the box. Azan SIP rings them for the azan and they answer by themselves. No phone system needed.", i:ICON.deskphone},
+  server:{t:"Register to AthanBox (SIP trunk)", d:"Your phone system adds AthanBox as a SIP trunk. AthanBox calls it for the azan, for example on the paging group. No extension needed on the phone system.", i:ICON.signin},
+  phones:{t:"Desk phones sign in to AthanBox", d:"Each desk phone adds AthanBox as a line, with its own extension on AthanBox. AthanBox rings them for the azan and they answer by themselves. No phone system needed.", i:ICON.deskphone},
 };
-const SIPKIND = {server:"trunk", phones:"phone"};   // the two methods that share Azan SIP's own SIP server
+const SIPKIND = {server:"trunk", phones:"phone"};   // the two methods that share AthanBox's own SIP server
 function kindOf(t){ if(t.type==="server") return "server"; if(t.type==="phones") return "phones"; if(t.type==="multicast") return "multicast"; if(t.type==="unicast_rtp") return "rtp"; if(t.mode) return t.mode; return (t.username || /sip:[^@]+@/.test(t.uri||"")) && !t.uris ? "pbx" : "direct"; }
 function summary(t){
   const k=kindOf(t);
@@ -771,7 +794,7 @@ function fromEdit(e){
       if(!/^[A-Za-z0-9*#+_.-]{0,40}$/.test(a.dial)) throw new Error(`The number to call for ${a.username} can use digits, letters and * # + _ . -`);
       if(!(a.max_signins>=1&&a.max_signins<=50)) throw new Error(`Sign-ins allowed for ${a.username} must be between 1 and 50`);
     }
-    if(CFG.targets.some((t,i)=>t.type==="server"&&i!==e.index)) throw new Error("Azan SIP is already set up for phone systems to register to. Edit that entry and add accounts to it.");
+    if(CFG.targets.some((t,i)=>t.type==="server"&&i!==e.index)) throw new Error("AthanBox is already set up for phone systems to register to. Edit that entry and add accounts to it.");
     sipOthers(e, accts, port);
     return {...base, type:"server", port, accounts:accts};
   }
@@ -848,10 +871,10 @@ function editorHTML(){
   const codec = `<div class="field"><label>Audio codec</label><select data-path="edit.codec">${opt("PCMU","G.711 µ-law (PCMU) - North America / most phones",e.codec)}${opt("PCMA","G.711 A-law (PCMA) - Europe / UK systems",e.codec)}</select><div class="hint">If the phones play silence or noise, try the other one.</div></div>`;
   let fields="";
   if(k==="multicast") fields = `<div class="grid3"><div class="field"><label>Multicast address</label><input type="text" data-path="edit.mc_ip" value="${evl("mc_ip")}"></div><div class="field"><label>Port</label><input type="number" data-path="edit.mc_port" value="${evl("mc_port")}"></div>${codec}</div>
-      <div class="hint">Enter the same address and port on every phone (see the setup guide below the list). The PC running Azan SIP must be on the same network as the phones.</div>`;
+      <div class="hint">Enter the same address and port on every phone (see the setup guide below the list). The PC running AthanBox must be on the same network as the phones.</div>`;
   if(k==="pbx") fields = `<div class="grid2"><div class="field"><label>Phone system address</label><input type="text" placeholder="192.168.1.10" data-path="edit.pbx_host" value="${evl("pbx_host")}"></div>
       <div class="field"><label>Paging group number</label><input type="text" placeholder="7000" data-path="edit.pbx_ext" value="${evl("pbx_ext")}"></div>
-      <div class="field"><label>Extension number for Azan SIP</label><input type="text" placeholder="7099" data-path="edit.username" value="${evl("username")}"><div class="hint">Create an extension on the phone system for Azan SIP to use.</div></div>
+      <div class="field"><label>Extension number for AthanBox</label><input type="text" placeholder="7099" data-path="edit.username" value="${evl("username")}"><div class="hint">Create an extension on the phone system for AthanBox to use.</div></div>
       <div class="field"><label>Extension password (SIP secret)</label><input type="password" data-path="edit.password" value="${evl("password")}"></div></div>
       <div class="grid2"><div class="field"><label>Authentication ID (only if different)</label><input type="text" data-path="edit.auth_username" value="${evl("auth_username")}"><div class="hint">3CX shows this as "Authentication ID".</div></div>${codec}</div>
       <div class="toggle-row"><div><div class="t">Stay registered</div><div class="d">Keeps the extension signed in so the phone system shows it as Idle/online, like a desk phone.</div></div>${sw("edit.register", e.register!==false)}</div>`;
@@ -861,14 +884,14 @@ function editorHTML(){
     if(!e.accounts) e.accounts=[];
     if(!e.port) e.port="5060";
     if(!e.accounts.length) e.accounts.push(newAccount());
-    const ip=SESSION.ip||(META.ips||[])[0]||"the box's IP address", info=(S&&S.sipserver)||null;
+    const ip=SESSION.ip||(META.ips||[])[0]||"AthanBox's IP address", info=(S&&S.sipserver)||null;
     const st=u=>{ const a=info&&info.accounts.find(x=>x.username.toLowerCase()===String(u).toLowerCase()); if(!info||info.status!=="running"||!a) return "";
       const si=a.signins||[]; if(!si.length) return `<span class="pill"><span class="dot"></span>Not signed in yet</span>`;
       return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>${si.length} of ${a.max} signed in: ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
     fields = `<div class="server-box"><span>Server / registrar: <b>${esc(ip)}</b></span><span>Port: <b>${esc(e.port)}</b></span><span>Transport: <b>UDP</b></span>
         <span class="muted" style="flex-basis:100%;font-size:13px">Enter these on the phone system as a register SIP trunk, with a username and password below.</span></div>
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
-      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on the box. Desk phones signing in to Azan SIP use the same port.</div></div>${codec}</div>
+      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on AthanBox. Desk phones signing in to AthanBox use the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">SIP trunk accounts</div>
       ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid5"><div class="field"><label for="ac${i}n">Name</label><input type="text" id="ac${i}n" data-path="edit.accounts.${i}.name" placeholder="Office UCM" value="${esc(a.name||"")}"></div>
@@ -877,20 +900,20 @@ function editorHTML(){
           <div class="field"><label for="ac${i}d">Number to call</label><input type="text" id="ac${i}d" data-path="edit.accounts.${i}.dial" placeholder="e.g. 7000" value="${esc(a.dial||"")}"><div class="hint">The paging group on the phone system.</div></div>
           <div class="field"><label for="ac${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="ac${i}m" data-path="edit.accounts.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phone systems can sign in with it at once.</div></div></div></div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.accounts.push(newAccount());render()">+ Add a SIP trunk</button></div>
-      <div class="hint">Calls into Azan SIP are always refused, and repeated wrong passwords are blocked, so it can't be used to make calls. Setup steps for phones and phone systems are in the guide below the list.</div>`;
+      <div class="hint">Calls into AthanBox are always refused, and repeated wrong passwords are blocked, so it can't be used to make calls. Setup steps for phones and phone systems are in the guide below the list.</div>`;
   }
   if(k==="phones"){
     if(!e.desk) e.desk=[];
     if(!e.port) e.port=String(sipPort());
     if(!e.desk.length) e.desk.push(newDeskPhone());
-    const ip=SESSION.ip||(META.ips||[])[0]||"the box's IP address", info=(S&&S.sipserver)||null;
+    const ip=SESSION.ip||(META.ips||[])[0]||"AthanBox's IP address", info=(S&&S.sipserver)||null;
     const st=u=>{ const a=info&&info.accounts.find(x=>x.username.toLowerCase()===String(u).toLowerCase()); if(!info||info.status!=="running"||!a) return "";
       const si=a.signins||[]; if(!si.length) return `<span class="pill"><span class="dot"></span>Not signed in yet</span>`;
       return `<span class="pill ok" title="${esc(si.map(x=>x.from+(x.device?" ("+x.device+")":"")).join("\n"))}"><span class="dot"></span>${si.length} of ${a.max} signed in: ${esc(si.map(x=>x.from.split(":")[0]).join(", "))}</span>`; };
     fields = `<div class="server-box"><span>Server / registrar: <b>${esc(ip)}</b></span><span>Port: <b>${esc(e.port)}</b></span><span>Transport: <b>UDP</b></span>
         <span class="muted" style="flex-basis:100%;font-size:13px">On each desk phone, add a line (account) with these, and the phone's extension and password below. Then turn on auto-answer for that line, as the guide below the list shows.</span></div>
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
-      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. A SIP trunk to Azan SIP uses the same port.</div></div>${codec}</div>
+      <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. A SIP trunk to AthanBox uses the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">Desk phones</div>
       ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid4"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
@@ -898,7 +921,7 @@ function editorHTML(){
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
           <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div></div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
-      <div class="hint">For the azan, Azan SIP rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into Azan SIP are always refused, and repeated wrong passwords are blocked.</div>`;
+      <div class="hint">For the azan, AthanBox rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into AthanBox are always refused, and repeated wrong passwords are blocked.</div>`;
   }
   if(k==="rtp") fields = `<div class="field"><label>Speakers as IP:port (one per line)</label><textarea data-path="edit.rtp" placeholder="192.168.1.80:50000">${evl("rtp")}</textarea></div>${codec}`;
   return `<div class="card"><h2>${e.index<0?"Add phones":"Edit "+esc(e.name)}</h2>
@@ -937,23 +960,23 @@ function guideHTML(){
   <details><summary>Snom (multicast)</summary><p>Advanced → Audio → <b>Multicast Addresses</b>: <span class="kbd">${esc(addr)}</span>.</p></details>
   <details><summary>Cisco MPP / SPA (multicast)</summary><p>Voice → Phone → <b>Multiple Paging Group Parameters</b> → Group 1 Paging Script: <span class="kbd">pggrp=${esc(addr)};name=Azan;num=800;listen=yes;</span></p></details>
   <details><summary>Poly / Polycom (direct calls)</summary><p>Poly's group paging isn't standard RTP multicast, so use <b>Call each phone directly</b>. On the phones set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>, and allow calls to the IP address.</p></details>
-  <details><summary>Grandstream UCM</summary><p>1. <b>Extension/Trunk → Extensions</b>: add (or pick) an extension for Azan SIP, e.g. <span class="kbd">1004</span>, name it "Azan". Note its <b>SIP/IAX password</b> (not the user portal password).<br>
+  <details><summary>Grandstream UCM</summary><p>1. <b>Extension/Trunk → Extensions</b>: add (or pick) an extension for AthanBox, e.g. <span class="kbd">1004</span>, name it "Azan". Note its <b>SIP/IAX password</b> (not the user portal password).<br>
     2. <b>Call Features → Paging/Intercom</b>: add a <b>Paging</b> group, e.g. number <span class="kbd">6300</span>, and add the desk phones as members.<br>
     3. Here: add <b>Phone system page group</b> with the UCM's IP address, paging group <span class="kbd">6300</span>, extension <span class="kbd">1004</span> and its SIP password, with <b>Stay registered</b> on. The extension then shows as <b>Idle</b> on the UCM.<br>
     <span class="muted">If it shows "Not registered": check the password, that UDP 5060 is enabled (PBX Settings → SIP Settings), and that the extension's <i>Permitted IP</i> list (if set) includes this PC. Several wrong passwords can make the UCM's Fail2ban block this PC for a while.</span></p></details>
-  <details><summary>FreePBX / Asterisk</summary><p>Applications → Extensions: add a PJSIP extension for Azan SIP (e.g. 7099). Applications → <b>Paging and Intercom</b>: create a group (e.g. 7000) with the phones as members, Duplex off. Then add <b>Phone system page group</b> here with those numbers.</p></details>
-  <details><summary>3CX</summary><p>Users: add an extension for Azan SIP. Groups → <b>Paging</b>: create a paging group with the phones. Use the extension's <b>Authentication ID</b> and <b>password</b> here.</p></details>
-  <details><summary>Desk phones signing in to Azan SIP (auto-answer)</summary><p>Add the phone under <b>Desk phones sign in to Azan SIP</b>. On the phone's web page, add a line (account) with: <b>Server / Registrar</b> = the box's IP address, <b>Port</b> = the SIP port (5060), <b>Username</b>, <b>Authentication name</b> and <b>Register name</b> = the extension, <b>Password</b> = its password, <b>Transport</b> = UDP. It can be a second line next to the phone system's.<br>
+  <details><summary>FreePBX / Asterisk</summary><p>Applications → Extensions: add a PJSIP extension for AthanBox (e.g. 7099). Applications → <b>Paging and Intercom</b>: create a group (e.g. 7000) with the phones as members, Duplex off. Then add <b>Phone system page group</b> here with those numbers.</p></details>
+  <details><summary>3CX</summary><p>Users: add an extension for AthanBox. Groups → <b>Paging</b>: create a paging group with the phones. Use the extension's <b>Authentication ID</b> and <b>password</b> here.</p></details>
+  <details><summary>Desk phones signing in to AthanBox (auto-answer)</summary><p>Add the phone under <b>Desk phones sign in to AthanBox</b>. On the phone's web page, add a line (account) with: <b>Server / Registrar</b> = AthanBox's IP address, <b>Port</b> = the SIP port (5060), <b>Username</b>, <b>Authentication name</b> and <b>Register name</b> = the extension, <b>Password</b> = its password, <b>Transport</b> = UDP. It can be a second line next to the phone system's.<br>
     <b>Yealink:</b> Account → Register → Account 2. Then Features → Intercom → <b>Intercom Allow</b> = On and <b>Intercom Mute</b> = Off (or Account → Advanced → <b>Auto Answer</b> = On for that account).<br>
     <b>Grandstream:</b> Account 2 → General Settings. Then Account 2 → Call Settings → <b>Allow Auto Answer by Call-Info/Alert-Info</b> = Yes.<br>
     <b>Fanvil / Snom:</b> add the line, and turn on auto-answer (intercom) for it, with the microphone muted.<br>
     <b>Poly / Polycom:</b> add the line, then set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>.<br>
     <span class="muted">The phone shows the line as registered, and the phone shows "Signed in" here. Press <b>Test</b> next to the entry: the phones should pick up by themselves and play the chime.</span></p></details>
-  <details><summary>Grandstream UCM as a SIP trunk to Azan SIP</summary><p>1. <b>Extension/Trunk → VoIP Trunks → Add SIP Trunk</b>: Type <b>Register SIP Trunk</b>, Provider name "Azan SIP", Host name = the box's IP address and port (e.g. <span class="kbd">192.168.1.20:5060</span>), Username and Password = the SIP trunk account here.<br>
+  <details><summary>Grandstream UCM as a SIP trunk to AthanBox</summary><p>1. <b>Extension/Trunk → VoIP Trunks → Add SIP Trunk</b>: Type <b>Register SIP Trunk</b>, Provider name "AthanBox", Host name = AthanBox's IP address and port (e.g. <span class="kbd">192.168.1.20:5060</span>), Username and Password = the SIP trunk account here.<br>
     2. <b>Extension/Trunk → Inbound Routes</b>: add a route for that trunk with the pattern = the account's <b>Number to call</b> (e.g. <span class="kbd">7000</span>), destination = your Paging/Intercom group.<br>
-    3. The trunk shows as registered on the UCM and "Signed in" here. No extension is needed for Azan SIP.</p></details>
-  <details><summary>FreePBX / Asterisk as a SIP trunk to Azan SIP</summary><p>Connectivity → Trunks → <b>Add SIP (chan_pjsip) Trunk</b>: SIP Server = the box's IP address, port 5060, Username/Secret = the account here, Authentication <b>Outbound</b>, Registration <b>Send</b>. Then Connectivity → <b>Inbound Routes</b>: DID = the account's Number to call (e.g. 7000) → Paging and Intercom group.</p></details>
-  <details><summary>3CX as a SIP trunk to Azan SIP</summary><p>SIP Trunks → Add → <b>Generic SIP Trunk</b>, registrar = the box's IP address and port, authentication with the account's username and password. Add an inbound rule for the account's Number to call → the paging group.</p></details>
+    3. The trunk shows as registered on the UCM and "Signed in" here. No extension is needed for AthanBox.</p></details>
+  <details><summary>FreePBX / Asterisk as a SIP trunk to AthanBox</summary><p>Connectivity → Trunks → <b>Add SIP (chan_pjsip) Trunk</b>: SIP Server = AthanBox's IP address, port 5060, Username/Secret = the account here, Authentication <b>Outbound</b>, Registration <b>Send</b>. Then Connectivity → <b>Inbound Routes</b>: DID = the account's Number to call (e.g. 7000) → Paging and Intercom group.</p></details>
+  <details><summary>3CX as a SIP trunk to AthanBox</summary><p>SIP Trunks → Add → <b>Generic SIP Trunk</b>, registrar = AthanBox's IP address and port, authentication with the account's username and password. Add an inbound rule for the account's Number to call → the paging group.</p></details>
   </div>`;
 }
 
@@ -995,25 +1018,25 @@ function pageTV(){
       ${on && n.tv_qr ? `<div class="access-qr">${n.tv_qr}<div><b>Scan with the iPad's camera</b><br><span class="muted">or type ${urls.map(u=>`<span class="mono">${esc(u)}</span>`).join(" or ")} into Safari</span></div></div>` : ""}</div>
     <label class="switch"><input type="checkbox" ${on?"checked":""} onchange="setTV(this.checked)" aria-label="Let TV screens connect"><span></span></label></div></div>
   <div class="card" id="tvlist">${tvListHTML()}</div>
-  <div class="card"><h2>Volume on the box's own screen</h2>
-    <div class="field"><label>Azan volume on the laptop, or the TV plugged into the box: <span id="tvvol">${Math.round(+(CFG.general.tv_volume ?? 100))}%</span></label>
+  <div class="card"><h2>Volume on AthanBox's own screen</h2>
+    <div class="field"><label>Azan volume on the laptop, or the TV plugged into AthanBox: <span id="tvvol">${Math.round(+(CFG.general.tv_volume ?? 100))}%</span></label>
       <input type="range" min="0" max="100" step="5" data-path="general.tv_volume" data-kind="num" value="${Math.round(+(CFG.general.tv_volume ?? 100))}" oninput="$('#tvvol').textContent=this.value+'%'"></div>
-    <p class="muted" style="margin:6px 0 0;font-size:13px">Only changes the box's own screen, such as a laptop or a Wyse on a TV. iPads, Android TVs and other TV screens keep their own volume. Press Save changes, then Test chime above to hear it. At 100% the azan plays as loud as the computer's own volume.</p></div>
+    <p class="muted" style="margin:6px 0 0;font-size:13px">Only changes AthanBox's own screen, such as a laptop or a Wyse on a TV. iPads, Android TVs and other TV screens keep their own volume. Press Save changes, then Test chime above to hear it. At 100% the azan plays as loud as the computer's own volume.</p></div>
   <div class="card"><h2>Android app: phones, tablets, Android TV and Fire TV</h2>
     <p class="muted" style="margin-top:-4px">The <b>Azan SIP TV</b> app opens straight into the display, plays the azan without a tap and keeps the screen on by itself. Android 5.0 or newer.</p>
     ${on && n.apk_qr ? `<div class="access-qr" style="margin-bottom:14px">${n.apk_qr}<div><b>Scan with the Android device to download the app</b><br><span class="muted">or open ${(n.apk_urls||[]).slice(0,1).map(u=>`<span class="mono">${esc(u)}</span>`).join("")} in its browser</span></div></div>`
-      : `<p class="muted">Switch on “Let TV screens connect” above to download the app from the box.</p>`}
+      : `<p class="muted">Switch on “Let TV screens connect” above to download the app from AthanBox.</p>`}
     <ol class="steps">
       <li><b>Download AzanTV.apk.</b> Scan the QR code, or type <span class="kbd">${esc((n.apk_urls||[])[0] || url.replace(/tv$/, "apk"))}</span> into the device's browser. On Android TV or Fire TV, install the free <b>Downloader</b> app and type the address there.</li>
       <li><b>Install it.</b> Open the downloaded file and choose Install. If Android asks, allow installing apps from that browser (or Downloader). If Play Protect warns about an unknown app, choose <b>Install anyway</b>.</li>
-      <li><b>Connect.</b> Open <b>Azan SIP TV</b> and type the box's address, <span class="kbd">${esc(n.address || "its IP address")}</span>, or press <b>Search the network</b>. Then press <b>Connect</b>.</li>
+      <li><b>Connect.</b> Open <b>Azan SIP TV</b> and type AthanBox's address, <span class="kbd">${esc(n.address || "its IP address")}</span>, or press <b>Search the network</b>. Then press <b>Connect</b>.</li>
       <li><b>Connect it to the TV.</b> A TV box or Fire TV is already on the TV. A tablet or phone needs a USB-C to HDMI adapter (only some support it, such as many Samsung Galaxy models) or screen casting to a Chromecast or Smart TV.</li>
     </ol>
     <p class="muted" style="margin:10px 0 0;font-size:13px">In the app, press <b>Back</b> (on a remote too) for Makkah live, the azan sound on that screen, Reload and Change server.${n.apk_here === false ? " The app comes from GitHub, so the device needs internet access to download it." : ""}</p></div>
   <div class="card"><h2>Set up the iPad</h2>
     <ol class="steps">
       <li><b>Update the iPad.</b> Settings → General → Software Update. An iPad 5th generation goes up to iPadOS 16, a 6th generation to iPadOS 17. Either is fine.</li>
-      <li><b>Open the TV app in Safari.</b> Scan the QR code above with the Camera app, or type <span class="kbd">${esc(url)}</span> into Safari. The iPad must be on the same network as the box.</li>
+      <li><b>Open the TV app in Safari.</b> Scan the QR code above with the Camera app, or type <span class="kbd">${esc(url)}</span> into Safari. The iPad must be on the same network as AthanBox.</li>
       <li><b>Add it to the Home Screen.</b> Tap the Share button <span class="muted">(the square with an arrow)</span> → <b>Add to Home Screen</b> → <b>Add</b>. Then open <b>Azan TV</b> from the Home Screen: it runs full screen, like an app.</li>
       <li><b>Tap the screen once.</b> iPads only let a page make sound after a tap. It's needed again only if the app is closed or the iPad restarts. The screen shows a reminder until then.</li>
       <li><b>Keep it awake.</b> Settings → Display &amp; Brightness → <b>Auto-Lock → Never</b>, and keep the iPad on its charger.</li>
@@ -1025,18 +1048,18 @@ function pageTV(){
       <li>Theme, layout, masjid name, notice and Ramadan screens come from the <a href="#display" onclick="go('display');return false">Display</a> page, like every screen.</li>
       <li>Tap the TV app to show its buttons: <b>Makkah live</b>, and <b>Azan sound</b> to keep that screen quiet.</li>
       <li>An iPad's screen is 4:3, so a widescreen TV shows black bars at the sides.</li>
-      <li>Give the box a fixed address in your router (a DHCP reservation), so the screens always find it.</li>
-      <li>If the box is off or restarting, the TV shows that the azan isn't running and reconnects by itself.</li>
+      <li>Give AthanBox a fixed address in your router (a DHCP reservation), so the screens always find it.</li>
+      <li>If AthanBox is off or restarting, the TV shows that the azan isn't running and reconnects by itself.</li>
     </ul></div>`;
 }
 
-// ---- Security (Azan SIP Box): fail2ban, whitelist and blacklist. Changes apply straight away, without
-// the Save bar: the box's root helper picks them up within a second or two.
+// ---- Security (AthanBox): fail2ban, whitelist and blacklist. Changes apply straight away, without
+// the Save bar: AthanBox's root helper picks them up within a second or two.
 let SEC = null, secTick = 0, secAllBans = false;
 const SEC_BANS_SHOWN = 5;   // more than this: the rest behind "Show all"
-const SEC_JAILS = [["sshd","SSH sign-ins","Someone signing in to the box itself over SSH, with the wrong password."],
+const SEC_JAILS = [["sshd","SSH sign-ins","Someone signing in to AthanBox itself over SSH, with the wrong password."],
   ["panel","Control panel","Wrong passwords on this page (http://azan.local)."],
-  ["sip","SIP sign-ins","Desk phones or phone systems signing in to Azan SIP with the wrong password."]];
+  ["sip","SIP sign-ins","Desk phones or phone systems signing in to AthanBox with the wrong password."]];
 function secSpan(s){
   s = +s; if(s < 0) return "Until it's unbanned";
   if(s === 7*86400) return "1 week";
@@ -1055,7 +1078,7 @@ function pageSecurity(){
   $("#main").innerHTML = `<h1>Security</h1><p class="sub">Ban addresses that keep guessing passwords, and choose addresses that are always let in or always blocked. Changes apply straight away.</p>
   <div id="sec-status"></div>
   <div class="card"><div class="toggle-row" style="padding-top:0"><div><div class="t">Fail2ban <span id="sec-f2b-pill"></span></div>
-      <div class="d">Bans an address for a while after too many wrong passwords. A banned address can't reach the box at all.</div></div>
+      <div class="d">Bans an address for a while after too many wrong passwords. A banned address can't reach AthanBox at all.</div></div>
     <label class="switch"><input type="checkbox" ${f.enabled!==false?"checked":""} onchange="secF2b({enabled:this.checked})" aria-label="Fail2ban"><span></span></label></div>
     <div id="sec-jails"></div>
     <div class="grid3" style="margin-top:14px">
@@ -1076,11 +1099,11 @@ function secLive(){
   const st = SEC.status, f = SEC.settings.fail2ban, fb = st && st.fail2ban;
   const el = $("#sec-status"); if(!el) return;
   let b = "";
-  if(SEC.docker && !SEC.helper) b += `<div class="banner">${ICON.warn}<div>In Docker, fail2ban and the firewall run in a container of their own, which this computer doesn't have yet. Copy the <b>security</b> section from the <a href="https://github.com/Fudgeamin99/azan-sip-box/blob/main/compose.yaml" target="_blank" rel="noopener">latest compose.yaml</a> into yours, then run <span class="kbd">docker compose up -d</span>. Until then the blacklist works for the control panel and SIP only: the box refuses those addresses itself.</div></div>`;
-  else if(!SEC.helper && SEC.system && (SEC.system.running || SEC.system.ok)) b += `<div class="banner">${ICON.warn}<div>The box is setting up fail2ban and the firewall by itself. This takes a minute or two after an update.</div></div>`;
-  else if(!SEC.helper && SEC.system) b += `<div class="banner bad">${ICON.warn}<div>The box couldn't set up fail2ban and the firewall: ${esc(SEC.system.message)} It tries again every hour.</div></div>`;
-  else if(!SEC.helper) b += `<div class="banner">${ICON.warn}<div>Fail2ban and the firewall need a one-time setup on this box. On the box, in the azan-sip-box folder, run <span class="kbd">git pull</span> and then <span class="kbd">${esc(SEC.setup_command)}</span>. After that, updates set themselves up. Until then the blacklist works for the control panel and SIP only.</div></div>`;
-  else if(!st) b += `<div class="banner">${ICON.warn}<div>Waiting for the box to apply the settings…</div></div>`;
+  if(SEC.docker && !SEC.helper) b += `<div class="banner">${ICON.warn}<div>In Docker, fail2ban and the firewall run in a container of their own, which this computer doesn't have yet. Copy the <b>security</b> section from the <a href="https://github.com/Fudgeamin99/azan-sip-box/blob/main/compose.yaml" target="_blank" rel="noopener">latest compose.yaml</a> into yours, then run <span class="kbd">docker compose up -d</span>. Until then the blacklist works for the control panel and SIP only: AthanBox refuses those addresses itself.</div></div>`;
+  else if(!SEC.helper && SEC.system && (SEC.system.running || SEC.system.ok)) b += `<div class="banner">${ICON.warn}<div>AthanBox is setting up fail2ban and the firewall by itself. This takes a minute or two after an update.</div></div>`;
+  else if(!SEC.helper && SEC.system) b += `<div class="banner bad">${ICON.warn}<div>AthanBox couldn't set up fail2ban and the firewall: ${esc(SEC.system.message)} It tries again every hour.</div></div>`;
+  else if(!SEC.helper) b += `<div class="banner">${ICON.warn}<div>Fail2ban and the firewall need a one-time setup on this AthanBox. On AthanBox, in the azan-sip-box folder, run <span class="kbd">git pull</span> and then <span class="kbd">${esc(SEC.setup_command)}</span>. After that, updates set themselves up. Until then the blacklist works for the control panel and SIP only.</div></div>`;
+  else if(!st) b += `<div class="banner">${ICON.warn}<div>Waiting for AthanBox to apply the settings…</div></div>`;
   for(const e of (st && st.errors) || []) b += `<div class="banner bad">${ICON.warn}<div>${esc(e)}</div></div>`;
   el.innerHTML = b;
   const pill = $("#sec-f2b-pill");
@@ -1105,7 +1128,7 @@ function secLive(){
 }
 function secRows(which){
   const L = SEC.settings[which];
-  const fixed = which==="whitelist" ? `<div class="tvrow"><div style="flex:1;min-width:0"><div class="t mono">127.0.0.1 · ::1</div><div class="d">Localhost: the box itself. Always allowed.</div></div></div>` : "";
+  const fixed = which==="whitelist" ? `<div class="tvrow"><div style="flex:1;min-width:0"><div class="t mono">127.0.0.1 · ::1</div><div class="d">Localhost: AthanBox itself. Always allowed.</div></div></div>` : "";
   return fixed + (L.length || fixed ? L.map(e=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(e.ip)}</span>
       ${e.you?' <span class="pill ok">You\'re connected from here</span>':""}${e.allowed?' <span class="pill warn">On the whitelist, so not blocked</span>':""}</div>
       <div class="d">${esc(e.note||"")}${e.note&&e.added?" · ":""}${e.added?"Added "+esc(e.added):""}</div></div>
@@ -1114,9 +1137,9 @@ function secRows(which){
 }
 function secLists(){
   const you = SEC.client_ip, inWl = SEC.client_whitelisted;
-  $("#sec-wl").innerHTML = `<h2>Whitelist</h2><p class="muted" style="margin-top:-6px">Addresses that are never banned or blocked, such as this box's network and your phone system. ${inWl?`You're connected from <span class="mono">${esc(you)}</span>, which is on the whitelist.`:`You're connected from <span class="mono">${esc(you)}</span>, which isn't on the whitelist.`}</p>
+  $("#sec-wl").innerHTML = `<h2>Whitelist</h2><p class="muted" style="margin-top:-6px">Addresses that are never banned or blocked, such as this AthanBox's network and your phone system. ${inWl?`You're connected from <span class="mono">${esc(you)}</span>, which is on the whitelist.`:`You're connected from <span class="mono">${esc(you)}</span>, which isn't on the whitelist.`}</p>
     ${secRows("whitelist")}${secAddForm("wl", inWl ? "" : you)}`;
-  $("#sec-bl").innerHTML = `<h2>Blacklist</h2><p class="muted" style="margin-top:-6px">Addresses that are always blocked: they can't reach the box at all${SEC.helper?"":" (until fail2ban is set up: the control panel and SIP only)"}. The whitelist wins if an address is on both.</p>
+  $("#sec-bl").innerHTML = `<h2>Blacklist</h2><p class="muted" style="margin-top:-6px">Addresses that are always blocked: they can't reach AthanBox at all${SEC.helper?"":" (until fail2ban is set up: the control panel and SIP only)"}. The whitelist wins if an address is on both.</p>
     ${secRows("blacklist")}${secAddForm("bl")}`;
 }
 function secAddForm(k, mine){
@@ -1144,7 +1167,7 @@ async function secBlockBanned(ip){
   if(!confirm(`Block ${ip} for good? It goes on the blacklist and stays blocked after its ban runs out.`)) return;
   await secAdd("bl", ip, "Banned by fail2ban");
 }
-// refresh a few times while the box applies a change
+// refresh a few times while AthanBox applies a change
 function secSoon(){ [1200, 3000, 6000].forEach(ms=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, ms)); }
 
 // ---- Ramadan page: dates, extra sounds on the phones, Isha, the display and Eid
@@ -1257,7 +1280,7 @@ function pageSettings(){
       ${[10,20,30,45,60,90,120,180,0].map(n=>opt(n, n?`${n} seconds`:"Whole recording", CFG.general.test_azan_seconds??20)).join("")}</select>
       <div class="hint">How much of the azan the Test buttons play.</div></div>
     <div class="field"><label>Ring time (seconds)</label><input type="number" min="5" max="120" data-path="network.ring_seconds" data-kind="num" placeholder="20" value="${val("network.ring_seconds")}">
-      <div class="hint">How long a call rings before Azan SIP gives up. Raise it if the phones have to be answered or the phone system is slow to connect.</div></div>
+      <div class="hint">How long a call rings before AthanBox gives up. Raise it if the phones have to be answered or the phone system is slow to connect.</div></div>
     <div class="field"><label>Test chime length (seconds)</label><input type="number" min="2" max="120" data-path="general.test_chime_seconds" data-kind="num" placeholder="6" value="${val("general.test_chime_seconds")}"></div>
     <div class="field"><label>Test chime volume: <span id="chv">${(+CFG.general.test_chime_volume_db||0)>0?"+":""}${+CFG.general.test_chime_volume_db||0} dB</span></label>
       <input type="range" min="-12" max="12" step="1" data-path="general.test_chime_volume_db" data-kind="num" value="${+CFG.general.test_chime_volume_db||0}" oninput="$('#chv').textContent=(this.value>0?'+':'')+this.value+' dB'"></div>
@@ -1270,8 +1293,8 @@ function pageSettings(){
   ${boxCardHTML()}
   <div class="card" id="upd"><h2>Updates</h2><p class="muted">Loading…</p></div>
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Activity log</h2><span class="muted">Also saved to azan.log</span></div><div class="log" id="fulllog" style="margin-top:12px"></div></div>
-  <div class="card"><h2>About</h2><p class="muted">Azan SIP${SESSION.box?" Box":""} ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>${SESSION.box?"Control panel: open <b>http://azan.local</b> on any computer or phone on this network.</p></div>":`Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
-    <button class="btn danger" onclick="quitApp()">Quit Azan SIP</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`}`;
+  <div class="card"><h2>About</h2><p class="muted">AthanBox ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>${SESSION.box?"Control panel: open <b>http://azan.local</b> on any computer or phone on this network.</p></div>":`Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
+    <button class="btn danger" onclick="quitApp()">Quit AthanBox</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`}`;
   renderLog(true);
   loadUpdate();
 }
@@ -1319,7 +1342,7 @@ function pageDisplay(){
   const L = dlook();
   const r = (name, path, v, cur, label) => `<label><input type="radio" name="${name}" data-path="${path}" value="${v}" ${String(cur)===String(v)?"checked":""}>${label}</label>`;
   const icon = svg => svg.replace("<svg", '<svg style="width:16px;height:16px"');
-  $("#main").innerHTML = `<h1>Display</h1><p class="sub">How the prayer-times screen looks, on the box's own screen and on any TV or tablet that opens it. Changes show in the preview straight away. Press Save changes to update every screen.</p>
+  $("#main").innerHTML = `<h1>Display</h1><p class="sub">How the prayer-times screen looks, on AthanBox's own screen and on any TV or tablet that opens it. Changes show in the preview straight away. Press Save changes to update every screen.</p>
   <div class="row" style="margin-bottom:16px"><button class="btn primary" onclick="openScreen('/display')">${icon(ICON.screen)} Open the prayer-times screen</button>
     <button class="btn" onclick="openScreen('/display?live=1')">${icon(ICON.broadcast)} Open with Makkah live</button></div>
   <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Preview</h2>
@@ -1341,14 +1364,14 @@ function pageDisplay(){
     <div class="parts">${DPARTS.map(([id,name]) => `<div class="toggle-row"><div class="t">${name}</div><label class="switch"><input type="checkbox" data-path="display.hide" data-kind="hide" value="${id}" aria-label="Show ${name.toLowerCase()}" ${L.hide.includes(id)?"":"checked"}><span></span></label></div>`).join("")}</div>
     <div class="field" style="margin-top:14px"><label>Buttons (Makkah live, Full screen and Settings)</label><div class="seg">${r("dbtn","display.buttons","always",L.buttons,"Always")}${r("dbtn","display.buttons","auto",L.buttons,"When the mouse moves or the screen is tapped")}</div></div></div>
   <div class="card" id="livecard"><h2>Makkah live</h2>
-    <p class="muted" style="margin-top:0">Live from Masjid al-Haram on Saudi Quran TV, next to the prayer times. Press <b>Makkah live</b> on a screen to show it. The sound starts off, and goes quiet by itself while your azan is playing. Normally the box relays the stream, so screens watching at the same time share one download.</p>
+    <p class="muted" style="margin-top:0">Live from Masjid al-Haram on Saudi Quran TV, next to the prayer times. Press <b>Makkah live</b> on a screen to show it. The sound starts off, and goes quiet by itself while your azan is playing. Normally AthanBox relays the stream, so screens watching at the same time share one download.</p>
     <div class="field"><label>Prayer times with Makkah live</label><div class="seg">${r("dllayout","display.live_layout","list",L.live_layout,"List at the side (bigger picture)")}${r("dllayout","display.live_layout","cards",L.live_layout,"Cards along the bottom")}</div></div>
     <div class="grid2"><div class="field"><label>Picture on the</label><div class="seg">${r("dside","display.live_side","left",L.live_side,"Left")}${r("dside","display.live_side","right",L.live_side,"Right")}</div></div>
       <div class="field"><label for="d-lw">Picture size: up to <span id="lw-v">${L.live_width}%</span> of the width</label><input type="range" id="d-lw" min="50" max="85" step="1" data-path="display.live_width" data-kind="num" value="${L.live_width}"></div></div>
     <div class="toggle-row"><div><div class="t">Start new screens with Makkah live</div><div class="d">For screens that haven't been switched yet. Each screen remembers its own choice after that.</div></div>${sw("display.live_start", L.live_start)}</div>
-    <div class="toggle-row"><div><div class="t">Screens fetch the stream themselves</div><div class="d">Each screen downloads Makkah live over its own internet connection, so the box uses no data for it. Useful when the box runs on a cloud server.</div></div>${sw("live.direct", CFG.live.direct !== false, "data-rerender")}</div>
-    ${CFG.live.direct !== false ? `<div class="toggle-row"><div><div class="t">If a screen can't fetch it, go through the box</div><div class="d">Turn this off so the box never uses data for Makkah live. A screen that can't fetch the stream itself shows a message instead.</div></div>${sw("live.fallback", CFG.live.fallback !== false, "data-rerender")}</div>` : ""}
-    ${CFG.live.direct === false ? `<div class="banner bad" style="margin-top:10px">Makkah live goes through the box: about 1 GB of data an hour for each screen showing it. If the box runs on a hosted server (a cloud server such as Linode), this can add to your hosting charges. Switch on “Screens fetch the stream themselves” to avoid it.</div>` : CFG.live.fallback !== false ? `<div class="hint" style="margin-top:6px">A screen that can't fetch the stream itself goes through the box, which uses about 1 GB of data an hour for that screen. On a hosted server this can add to your hosting charges.</div>` : ""}
+    <div class="toggle-row"><div><div class="t">Screens fetch the stream themselves</div><div class="d">Each screen downloads Makkah live over its own internet connection, so AthanBox uses no data for it. Useful when AthanBox runs on a cloud server.</div></div>${sw("live.direct", CFG.live.direct !== false, "data-rerender")}</div>
+    ${CFG.live.direct !== false ? `<div class="toggle-row"><div><div class="t">If a screen can't fetch it, go through AthanBox</div><div class="d">Turn this off so AthanBox never uses data for Makkah live. A screen that can't fetch the stream itself shows a message instead.</div></div>${sw("live.fallback", CFG.live.fallback !== false, "data-rerender")}</div>` : ""}
+    ${CFG.live.direct === false ? `<div class="banner bad" style="margin-top:10px">Makkah live goes through AthanBox: about 1 GB of data an hour for each screen showing it. If AthanBox runs on a hosted server (a cloud server such as Linode), this can add to your hosting charges. Switch on “Screens fetch the stream themselves” to avoid it.</div>` : CFG.live.fallback !== false ? `<div class="hint" style="margin-top:6px">A screen that can't fetch the stream itself goes through AthanBox, which uses about 1 GB of data an hour for that screen. On a hosted server this can add to your hosting charges.</div>` : ""}
     <div class="field" style="margin-top:12px"><label for="live-url">IPTV stream link (.m3u8)</label><input type="text" id="live-url" data-path="live.url" spellcheck="false" placeholder="${esc(META.live_default||"")}" value="${val("live.url")}">
       <div class="hint">Leave it empty for Saudi Quran TV. If the channel moves, or to show another channel (Madinah, say), paste its .m3u8 link here and press Save changes.</div></div>
     <div class="row"><button class="btn" id="live-check" onclick="checkLive()">Check the stream</button><span id="live-result" class="muted"></span></div></div>`;
@@ -1363,8 +1386,8 @@ async function checkLive(){
     const r = await api("/api/live/test", {url});
     out.innerHTML = `<span class="pill ${r.working ? "ok" : "bad"}">${r.working ? "OK" : "Not working"}</span> ${esc(r.summary)}`
       + (r.working ? ` · ${r.direct ? "Screens can fetch it themselves" : CFG.live.direct !== false && CFG.live.fallback === false
-          ? "Screens can't fetch it themselves, and going through the box is off, so most screens won't show it"
-          : "Screens can't fetch it themselves, so they go through the box"}` : "");
+          ? "Screens can't fetch it themselves, and going through AthanBox is off, so most screens won't show it"
+          : "Screens can't fetch it themselves, so they go through AthanBox"}` : "");
   }catch(e){ out.innerHTML = `<span class="pill bad">Not working</span> ${esc(e.message)}`; }
   b.disabled = false;
 }
@@ -1384,7 +1407,7 @@ function renderUpdate(){
   const el=$("#upd"); if(!el||!UPD) return;
   const short = c => c ? String(c).slice(0,7) : "";
   const dk = UPD.mode==="docker", rel = UPD.mode==="download", canUpdate = !dk || UPD.helper;
-  // Docker images and installed boxes follow the Box releases, so link to the release notes
+  // Docker images and installed boxes follow AthanBox releases, so link to the release notes
   const notes = (dk||rel) && /^\d/.test(String(UPD.latest_version||"")) ? (UPD.latest_url || `${UPD.repo||"https://github.com/Fudgeamin99/azan-sip-box"}/releases/tag/box-v${UPD.latest_version}`) : "";
   const latest = UPD.latest_version ? `<div class="toggle-row" style="padding-top:4px"><div><div class="t">${dk?"Newest image":rel?"Newest release":"Latest on GitHub"}: ${esc(vname(UPD.latest_version))} ${UPD.available?'<span class="pill brand">Update available</span>':'<span class="pill ok">You are up to date</span>'}</div>
       <div class="d">${esc((UPD.latest_date||"").slice(0,10))}${dk?(UPD.image?` · <span class="mono">${esc(UPD.image)}</span>`:""):` · ${esc(UPD.latest_message||"")}${rel?"":` · <span class="mono">${esc(short(UPD.latest_commit))}</span>`}`}${notes?` · <a href="${esc(notes)}" target="_blank" rel="noopener">What's new</a>`:""}</div></div></div>` : "";
@@ -1409,17 +1432,17 @@ async function checkUpdate(){ updBusy=true; renderUpdate(); try{ UPD = await api
 async function setAutoUpdate(on){ await act(async()=>{ await api("/api/update/auto",{enabled:on}); applySaved("general.check_updates", on); UPD.auto=on; }, on?"Will check for updates daily":"Automatic update checks off"); }
 async function installUpdate(reinstall){
   if(isDirty() && !confirm("You have unsaved changes. They will be lost if you update now. Continue?")) return;
-  if(!confirm(reinstall?"Download and reinstall the latest version? Azan SIP will restart.":`Update to ${vname(UPD.latest_version)}? Azan SIP will restart, which takes a few seconds.`)) return;
-  await runInstall("/api/update/apply", {}, "Updating Azan SIP…", UPD.mode==="docker" ? "Restarting the container with the new version. Your settings are kept." : "Downloading and checking the new version. Your settings are kept.");
+  if(!confirm(reinstall?"Download and reinstall the latest version? AthanBox will restart.":`Update to ${vname(UPD.latest_version)}? AthanBox will restart, which takes a few seconds.`)) return;
+  await runInstall("/api/update/apply", {}, "Updating AthanBox…", UPD.mode==="docker" ? "Restarting the container with the new version. Your settings are kept." : "Downloading and checking the new version. Your settings are kept.");
 }
 async function rollbackUpdate(name, version){
-  if(!confirm(`Go back to version ${version}? Azan SIP will restart.`)) return;
-  await runInstall("/api/update/rollback", {name}, "Restoring the previous version…", "Azan SIP will restart in a moment.");
+  if(!confirm(`Go back to version ${version}? AthanBox will restart.`)) return;
+  await runInstall("/api/update/rollback", {name}, "Restoring the previous version…", "AthanBox will restart in a moment.");
 }
 async function runInstall(path, body, title, text){
   const ov=$("#overlay"); $("#ov-title").textContent=title; $("#ov-text").textContent=text; ov.hidden=false;
   restartingUI = true;
-  try{ const r = await api(path, body); $("#ov-title").textContent = `Installing ${vname(r.version)}`; $("#ov-text").textContent = "Restarting Azan SIP…"; }
+  try{ const r = await api(path, body); $("#ov-title").textContent = `Installing ${vname(r.version)}`; $("#ov-text").textContent = "Restarting AthanBox…"; }
   catch(e){ ov.hidden=true; restartingUI=false; toast(e.message,"bad"); return; }
   const t0 = Date.now(); let sawDown = false;
   while(Date.now()-t0 < 120000){
@@ -1427,14 +1450,14 @@ async function runInstall(path, body, title, text){
     try{ const p = await fetch("/api/ping",{cache:"no-store"}); if(p.ok && sawDown){ location.reload(); return; } if(!p.ok) sawDown=true; }
     catch(e){ sawDown = true; }
   }
-  $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML = SESSION.docker ? "Refresh this page in a minute. If it still doesn't open, run <b>docker compose up -d</b> on the computer running the Box."
-    : SESSION.box ? "Refresh this page in a minute. If it still doesn't open, switch the box off and on again."
+  $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML = SESSION.docker ? "Refresh this page in a minute. If it still doesn't open, run <b>docker compose up -d</b> on the computer running AthanBox."
+    : SESSION.box ? "Refresh this page in a minute. If it still doesn't open, switch AthanBox off and on again."
     : "Double-click <b>Azan SIP</b> in the program folder to start it, then refresh this page.";
 }
 
-async function setStartup(on){ await act(async()=>{ await api("/api/startup",{enabled:on}); META.startup=on; }, on?"Azan SIP will start with Windows":"Won't start with Windows"); }
+async function setStartup(on){ await act(async()=>{ await api("/api/startup",{enabled:on}); META.startup=on; }, on?"AthanBox will start with Windows":"Won't start with Windows"); }
 async function quitApp(){
-  if(!confirm("Quit Azan SIP? The azan will not play until you start it again.")) return;
+  if(!confirm("Quit AthanBox? The azan will not play until you start it again.")) return;
   try{ await api("/api/quit",{}); }catch(e){}
   offline=true; S=null; renderMini(); $("#main").innerHTML = stoppedHTML();
 }

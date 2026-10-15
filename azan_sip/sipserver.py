@@ -1,8 +1,8 @@
-"""Azan SIP's own small SIP server: desk phones (each with its own extension on the box) or a phone
-system (as a register SIP trunk) sign in to Azan SIP, and it calls them to play the azan.
+"""AthanBox's own small SIP server: desk phones (each with its own extension on AthanBox) or a phone
+system (as a register SIP trunk) sign in to AthanBox, and it calls them to play the azan.
 
-- Two methods on the Phones page share the server: "Desk phones sign in to Azan SIP" (accounts of kind
-  "phone", each called on the device itself, always with auto-answer) and "Register to Azan SIP"
+- Two methods on the Phones page share the server: "Desk phones sign in to AthanBox" (accounts of kind
+  "phone", each called on the device itself, always with auto-answer) and "Register to AthanBox"
   (accounts of kind "trunk": a phone system called on the number you choose, such as a paging group;
   with no number, the device itself, as before 0.6.2). Each account can allow several sign-ins at once.
 - Sign-ins use SIP digest authentication; repeated wrong passwords from an address are blocked
@@ -123,12 +123,12 @@ class SipServer(threading.Thread):
             self.detail = (f"port {self.port} is already in use by another program (a softphone or phone system on "
                            f"this PC?) - choose another port" if getattr(exc, "errno", 0) in (48, 98, 10048, 10013)
                            else f"can't open UDP port {self.port}: {exc}")
-            log.error("Azan SIP phone server: %s", self.detail)
+            log.error("AthanBox phone server: %s", self.detail)
             self.started.set()
             return
         self._load()
         self.status, self.detail = "running", f"listening on UDP port {self.port}"
-        log.info("Azan SIP phone server listening on UDP port %s (%d account(s))", self.port, len(self.accounts))
+        log.info("AthanBox phone server listening on UDP port %s (%d account(s))", self.port, len(self.accounts))
         self.started.set()
         self.sock.settimeout(1.0)
         while not self.stop_event.is_set():
@@ -258,7 +258,7 @@ class SipServer(threading.Thread):
             self._register(msg, addr)
         elif m == "OPTIONS":
             self._reply(msg, addr, "200 OK", ["Accept: application/sdp"], to_tag=False)
-        elif m == "INVITE":                    # nobody can call through Azan SIP
+        elif m == "INVITE":                    # nobody can call through AthanBox
             self._reply(msg, addr, "403 Forbidden")
         elif m == "ACK":
             return
@@ -438,7 +438,7 @@ class ServerCallTransport:
 
 
 class ServerManager:
-    """Runs the server to match the settings (one per Azan SIP, on one port)."""
+    """Runs the server to match the settings (one per AthanBox, on one port)."""
 
     def __init__(self):
         self.server: SipServer | None = None
@@ -457,7 +457,7 @@ class ServerManager:
                 if self.server:
                     self.server.stop()
                     self.server = None
-                    log.info("Azan SIP phone server stopped")
+                    log.info("AthanBox phone server stopped")
                 return
             accounts = [Account(str(a.get("username", "")).strip(), str(a.get("password", "")), a.get("name", ""),
                                 KINDS[t["type"]], str(a.get("dial", "")).strip() if t["type"] == "server" else "",
@@ -493,7 +493,7 @@ KINDS = {"server": "trunk", "phones": "phone"}   # target type -> the kind of ac
 
 def check_targets(targets: list) -> None:
     """Both methods share one server: one entry of each, one port, and each username used once."""
-    names = {"server": "Register to Azan SIP", "phones": "Desk phones sign in to Azan SIP"}
+    names = {"server": "Register to AthanBox", "phones": "Desk phones sign in to AthanBox"}
     users: set[str] = set()
     ports = set()
     for typ, label in names.items():
@@ -516,7 +516,7 @@ def check_targets(targets: list) -> None:
 
 @dataclass
 class ServerTarget:
-    """The "Register to Azan SIP" (kind trunk) or "Desk phones sign in to Azan SIP" (kind phone) method:
+    """The "Register to AthanBox" (kind trunk) or "Desk phones sign in to AthanBox" (kind phone) method:
     call every sign-in of every account of that kind."""
     name: str
     codec: str = "PCMU"
@@ -527,7 +527,7 @@ class ServerTarget:
     def play(self, clip, stop: threading.Event) -> bool:
         server = MANAGER.server
         if server is None or server.status != "running":
-            log.warning("[%s] the Azan SIP phone server isn't running%s", self.name,
+            log.warning("[%s] AthanBox phone server isn't running%s", self.name,
                         f": {server.detail}" if server else " - press Save changes first")
             return False
         jobs = []
@@ -536,7 +536,7 @@ class ServerTarget:
             if acct and acct.enabled and acct.kind == self.kind:
                 jobs += [(acct, b) for b in bs]   # every device / phone system signed in with the account
         if not jobs:
-            log.warning("[%s] no %s is signed in to Azan SIP", self.name,
+            log.warning("[%s] no %s is signed in to AthanBox", self.name,
                         "desk phone" if self.kind == "phone" else "phone system")
             return False
         from concurrent.futures import ThreadPoolExecutor

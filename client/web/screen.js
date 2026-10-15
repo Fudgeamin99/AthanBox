@@ -1,6 +1,6 @@
-// Added by the Azan SIP Client to the box's TV app on this screen: the volume buttons and the
+// Added by AthanBox Client to AthanBox's TV app on this screen: the volume buttons and the
 // "Screen settings" button (shown when the mouse moves or a key is pressed), and "Connecting to the
-// Azan SIP Box" whenever the box can't be reached (back to the prayer times by itself). The volume
+// AthanBox" whenever AthanBox can't be reached (back to the prayer times by itself). The volume
 // is the azan's and Makkah live's. Makkah live's sound is switched on and off in Screen settings, and
 // a change made there (on a phone, say) shows here for a moment.
 // On a second screen (a silent copy inside /client/wall), the sound is left to the first one.
@@ -49,7 +49,7 @@
     `<button id="azc-gear" title="The S key">&#9881; Screen settings</button>`;
   const off = document.createElement("div");
   off.id = "azc-off";
-  off.innerHTML = "<b>Connecting to the Azan SIP Box…</b><small></small>";
+  off.innerHTML = "<b>Connecting to AthanBox…</b><small></small>";
   const note = document.createElement("div");
   note.id = "azc-note";
   note.setAttribute("role", "status");
@@ -154,15 +154,15 @@
     if (st) liveCheck(st);
     if (st && st.state === "ok"){
       misses = 0;
-      if (gone) return location.reload();   // back: a fresh page, in case the box was updated
+      if (gone) return location.reload();   // back: a fresh page, in case AthanBox was updated
       // A second screen was plugged in: the prayer times on both
       if (!FRAMED && (st.outputs || []).length > 1 && (st.screens || []).length && location.pathname === "/tv") return location.replace("/");
     } else if (st && ++misses >= 2){
       gone = true;
       off.style.display = "flex";
       off.querySelector("small").textContent = st.state === "not_allowed"
-        ? "The box doesn't let TV screens connect. In its control panel, open TV app and switch on “Let TV screens connect”."
-        : `The box at ${(st.box || "").replace(/^http:\/\//, "")} isn't answering. The prayer times come back by themselves when it does.`;
+        ? "AthanBox doesn't let TV screens connect. In its control panel, open TV app and switch on “Let TV screens connect”."
+        : `AthanBox at ${(st.box || "").replace(/^http:\/\//, "")} isn't answering. The prayer times come back by themselves when it does.`;
     }
     setTimeout(check, 2000);
   }

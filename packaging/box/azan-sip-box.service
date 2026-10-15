@@ -1,5 +1,5 @@
 [Unit]
-Description=Azan SIP Box - automatic azan over VoIP phones, control panel at http://azan.local
+Description=AthanBox - automatic azan over VoIP phones, control panel at http://azan.local
 After=network-online.target time-sync.target avahi-daemon.service
 Wants=network-online.target
 
