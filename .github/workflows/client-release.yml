@@ -8,6 +8,8 @@
 #   azan-sip-client_X.Y.Z_all.deb (the one Update now installs).
 # - A client release is never marked as the repository's latest release: that stays the Box's, which
 #   the Box's own updates follow.
+# - Client 0.3.0 looks in the Box's latest release instead: while that still carries a client package
+#   (Box 0.7.2 did), it's swapped for the new one, so 0.3.0 screens can update from their button.
 name: Client release
 
 on:
@@ -68,5 +70,17 @@ jobs:
             --notes-file notes.md --latest=false \
             client/dist/azan-sip-client.deb "client/dist/azan-sip-client_${v}_all.deb"
           echo "Released $tag"
+          # Client 0.3.0 looks for updates in the Box's latest release, which carried the client up to
+          # Box 0.7.2. While that release still has a client package, swap it for this one, so screens
+          # on 0.3.0 update from their Update button too (and from then on follow these releases).
+          box=$(gh release view -R "$REPO" --json tagName -q .tagName)
+          case "$box" in box-v*) ;; *) box= ;; esac
+          old=$([ -n "$box" ] && gh release view "$box" -R "$REPO" --json assets -q '.assets[].name' \
+                | grep -E '^azan-sip-client(_.*_all)?\.deb$' || true)
+          if [ -n "$old" ]; then
+            for a in $old; do gh release delete-asset "$box" "$a" -R "$REPO" -y; done
+            gh release upload "$box" client/dist/azan-sip-client.deb "client/dist/azan-sip-client_${v}_all.deb" -R "$REPO"
+            echo "Put $tag's package in $box too, for screens with client 0.3.0"
+          fi
           grep -q "releases/download/$tag/" README.md \
             || echo "::warning::The install link in README.md isn't $tag's yet"

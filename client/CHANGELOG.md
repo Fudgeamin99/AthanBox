@@ -10,7 +10,7 @@ install link in the README at the new tag, and merge it to main: the release is 
 
 - **Makkah live follows the screen's volume:** it played at full volume whatever the volume was set to. Now the volume buttons and Screen settings set Makkah live's volume as well as the azan's.
 - **Updates come from the client's own releases** on GitHub (tagged `client-v...`) instead of the Box's, so updating the client no longer makes a new Box version or Docker image, and a Box no longer offers an update when only the client changed.
-- **Once, on a screen with 0.3.0:** its Update button still looks in the Box's releases, so install 0.3.1 with the commands in the README one more time. From 0.3.1 on, **Update now** finds new versions by itself.
+- **Screens with 0.3.0** get 0.3.1 from their **Update now** button as usual: 0.3.0 looks in the Box's latest release, so the 0.3.1 package is put there too. From 0.3.1 on, updates come from the client's own releases.
 - **Box and Docker:** nothing changes.
 
 ## 0.3.0 - Volume buttons, Update button and two screens

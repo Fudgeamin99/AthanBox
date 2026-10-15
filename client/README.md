@@ -82,4 +82,6 @@ Box's: set the new version there, add a `## x.y.z - title` section at the top of
 merge it to main. `.github/workflows/client-release.yml` then publishes release `client-vx.y.z`
 with the package attached as `azan-sip-client.deb` and `azan-sip-client_x.y.z_all.deb`. It isn't
 marked as the repository's latest release, which stays the Box's, so the Box and its Docker image
-don't change. (Box releases up to 0.7.2 carried the client.)
+don't change. (Box releases up to 0.7.2 carried the client, and client 0.3.0 looks for updates
+there: while the Box's latest release still has a client package, the workflow swaps it for the new
+one, so 0.3.0 screens can update from their button.)
