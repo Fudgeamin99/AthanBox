@@ -317,12 +317,16 @@ def wall_needed() -> bool:
 
 def restart_browser():
     """Stops the screen's browser; the kiosk starts it again straight away (kiosk.sh)."""
-    me = os.getuid()
+    me = str(os.getuid())
     for d in Path("/proc").iterdir():
         try:
-            if d.name.isdigit() and d.stat().st_uid == me and (d / "comm").read_text().strip() == "chromium":
+            if not d.name.isdigit() or (d / "comm").read_text().strip() != "chromium":
+                continue
+            # The process's own user ("Uid:" real, effective...): /proc shows sandboxed ones as root's
+            uid = next(line.split()[1] for line in (d / "status").read_text().splitlines() if line.startswith("Uid:"))
+            if uid == me:
                 os.kill(int(d.name), signal.SIGTERM)
-        except (OSError, ValueError):
+        except (OSError, ValueError, StopIteration, IndexError):
             pass
 
 
