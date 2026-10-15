@@ -42,6 +42,9 @@
   off.id = "azc-off";
   off.innerHTML = "<b>Connecting to the Azan SIP Box…</b><small></small>";
   document.body.append(bar, off);
+  const code = document.createElement("script");   // the code for phones and computers, and their test chime
+  code.src = "/client/code.js";
+  document.body.appendChild(code);
 
   let hide;
   const show = () => { bar.classList.add("show"); clearTimeout(hide); hide = setTimeout(() => bar.classList.remove("show"), 4000); };

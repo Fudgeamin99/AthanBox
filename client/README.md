@@ -10,6 +10,7 @@ own. Install instructions for users are in the main [README](../README.md#a-tv-s
 
 ```
 TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on 127.0.0.1:8771 ──LAN──> Azan SIP Box (/tv)
+Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings only)
 ```
 
 - **azan-sip-client.service** runs `azan_client.py serve`. It passes the kiosk's requests on to the
@@ -17,6 +18,16 @@ TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on
   change a setting is refused. It sets the azan's volume in `/api/tv` to this screen's own, and adds
   `web/screen.js` to the page (the *Screen settings* button, and *Connecting to the Azan SIP Box*
   while the box can't be reached, back to the prayer times by itself when it answers).
+- **From a phone or computer:** `serve` also listens on port 8772 (`AZAN_CLIENT_REMOTE_PORT`, 0 for
+  none) on every network address, for Screen settings and its API only (never the box's pages). A
+  browser that isn't signed in gets `web/signin.html`: it asks for a code, which `web/code.js` shows
+  on the TV (on the prayer times, the Connecting page and Screen settings) for 5 minutes. The right
+  code sets an `HttpOnly`, `SameSite=Strict` cookie good for 90 days; only its SHA-256 is kept, in
+  `/var/lib/azan-sip-client/sessions.json`. Five wrong codes end a code and ten in an hour stop new
+  ones for the hour. Posts must be JSON and, when the browser says where from, from this address.
+  The status a phone gets never includes the code. Only the TV can switch it off (`"remote": false`
+  in `client.json`) or sign everyone out. *Play a test chime on the TV* is played by `code.js` on
+  the TV.
 - **azan-sip-client-screen.service** runs `kiosk.sh` in cage on the first console, like the box's
   own screen (`packaging/box/screen.sh`). It picks the TV's sound output at every start, or the
   computer's own speakers when no TV is plugged in (switching a laptop's built-in speaker on).
