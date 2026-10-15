@@ -6,7 +6,9 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
-## 0.7.4 - Several desk phones on one extension
+## 0.7.4 - Several desk phones on one extension, and switched-off trunks stay signed in
+
+- **Switching off a SIP trunk or desk phones** on the Phones page now only stops the azan calls to them. Phone systems and phones can still sign in, so a phone system such as a UCM no longer keeps retrying with "wrong username or password" (which could also get it banned by fail2ban). Switch it back on and the calls start again.
 
 - **Desk phones sign in to Azan SIP:** each extension now has **Sign-ins allowed**, like SIP trunk accounts, so several desk phones can share one extension (up to 50). They all ring for the azan.
 - Each extension shows how many phones are signed in with it, and from where (for example *2 of 3 signed in*).

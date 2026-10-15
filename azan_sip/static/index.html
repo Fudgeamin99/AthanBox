@@ -831,7 +831,7 @@ function refreshRegPills(){
 }
 function regPill(t){
   if(SIPKIND[kindOf(t)]){
-    let info=S&&S.sipserver; if(!info||t.enabled===false) return "";
+    let info=S&&S.sipserver; if(!info) return "";   // switched off: still signed in, just not called
     if(info.status==="failed") return `<span class="pill warn" title="${esc(info.detail)}"><span class="dot"></span>Not running</span><div class="detail" style="color:var(--warn);white-space:normal">${esc(info.detail)}</div>`;
     info={...info, accounts:info.accounts.filter(a=>(a.kind||"trunk")===SIPKIND[kindOf(t)])};
     const n=info.accounts.reduce((c,a)=>c+(a.signins||[]).length,0), all=info.accounts.reduce((c,a)=>c+(a.max||1),0);
