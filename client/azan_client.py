@@ -16,7 +16,7 @@ http://127.0.0.1:8771 only:
   "watch-screens" (run by the kiosk inside cage) keeps the list of screens in screens.json.
   A laptop's own screen is left out while its lid is closed, and the TV gets the prayer times alone.
 * "update" run as root (azan-sip-client-update.service does, when Screen settings asks for it)
-  installs the newest azan-sip-client.deb from the Box's GitHub releases.
+  installs the newest azan-sip-client.deb from the client's own GitHub releases (client-vX.Y.Z).
 
 Run "azan-sip-client serve" (the azan-sip-client service does). The other commands talk to it:
     azan-sip-client status | search | connect <address> [--name NAME] | volume [0-100] | update
@@ -44,7 +44,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 BOX_PORTS = (80, 8765)          # a box on Debian answers on both; Docker and the desktop app on 8765
@@ -57,8 +57,10 @@ PASS_HEADERS = ("content-type", "content-length", "cache-control", "content-disp
 INJECT = b'<script src="/client/screen.js"></script>'
 VOLUME_STEP = 10                # the volume buttons on the screen
 MAX_SCREENS = 8
-# Updates: the newest client is attached to every Box release
-RELEASES = os.environ.get("AZAN_CLIENT_RELEASES", "https://api.github.com/repos/Fudgeamin99/azan-sip-box/releases/latest")
+# Updates: the client has its own releases, tagged client-vX.Y.Z (the Box's are box-vX.Y.Z), so a
+# client-only change never makes a new Box or Docker version
+RELEASES = os.environ.get("AZAN_CLIENT_RELEASES", "https://api.github.com/repos/Fudgeamin99/azan-sip-box/releases?per_page=100")
+TAG_PREFIX = "client-v"
 OFFICIAL = "https://github.com/Fudgeamin99/azan-sip-box/releases/download/"
 DEB_ASSET = re.compile(r"^azan-sip-client_(\d{1,4}(?:\.\d{1,4}){1,3})_all\.deb$")
 # Written by azan-sip-client-update.service (root), read by the client and Screen settings
@@ -371,17 +373,25 @@ def vtuple(v: str) -> tuple:
 
 
 def latest_release(timeout: float = 20) -> dict:
-    """The newest client, from the latest Box release on GitHub: version, url, digest, size."""
+    """The newest client on GitHub, from its own releases (not drafts or pre-releases): version, url,
+    digest, size and tag."""
     req = urllib.request.Request(RELEASES, headers={"Accept": "application/vnd.github+json",
                                                     "User-Agent": f"azan-sip-client/{__version__}"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        j = json.loads(r.read(5_000_000))
-    for a in j.get("assets") or []:
-        m = DEB_ASSET.match(str(a.get("name", "")))
-        if m:
-            return {"version": m.group(1), "url": str(a.get("browser_download_url") or ""),
-                    "digest": str(a.get("digest") or ""), "size": int(a.get("size") or 0), "tag": str(j.get("tag_name", ""))}
-    raise ValueError("The latest release has no azan-sip-client package")
+        j = json.loads(r.read(20_000_000))
+    best = None
+    for rel in j if isinstance(j, list) else [j]:
+        tag = str(rel.get("tag_name", "")) if isinstance(rel, dict) else ""
+        if not tag.startswith(TAG_PREFIX) or rel.get("draft") or rel.get("prerelease"):
+            continue
+        for a in rel.get("assets") or []:
+            m = DEB_ASSET.match(str(a.get("name", "")))
+            if m and (best is None or vtuple(m.group(1)) > vtuple(best["version"])):
+                best = {"version": m.group(1), "url": str(a.get("browser_download_url") or ""),
+                        "digest": str(a.get("digest") or ""), "size": int(a.get("size") or 0), "tag": tag}
+    if best is None:
+        raise ValueError("GitHub has no Azan SIP Client release")
+    return best
 
 
 class Updates:

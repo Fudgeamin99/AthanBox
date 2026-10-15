@@ -31,11 +31,12 @@ TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on
   `/api/tv` with volume 0 (and Makkah live is muted in them), so it's heard once. A laptop's own
   screen is left out while its lid is closed. Unplugging a screen goes back to one by itself.
 - **Volume buttons** on the prayer times (with the mouse, or **+**, **−** and a keyboard's volume
-  keys) change this screen's volume in steps of 10, with a short note at the new volume.
+  keys) change this screen's volume in steps of 10, with a short note at the new volume. The
+  volume is the azan's and Makkah live's: `screen.js` sets the live video's own volume to match.
 - **Updates:** *Update now* in Screen settings writes `/var/lib/azan-sip-client/update-now`;
   `azan-sip-client-update.path` sees it and starts `azan-sip-client-update.service`, which runs
   `azan_client.py update` as root. That downloads `azan-sip-client_<version>_all.deb` from the
-  latest Box release on GitHub, checks GitHub's SHA-256 for it and that it is this package at that
+  newest of the client's own releases on GitHub (tagged `client-v<version>`), checks GitHub's SHA-256 for it and that it is this package at that
   version, and installs it with apt, which restarts the client and the screen. It takes nothing but
   the trigger from the client's own (unprivileged) files. Progress is in
   `/var/lib/azan-sip-client-update/state.json`.
@@ -75,5 +76,12 @@ python3 -m unittest discover -s client  # the tests
 sh client/test-two-screens.sh           # as root in a throwaway Debian container: two screens in cage
 ```
 
-The version is `__version__` in `azan_client.py`. Each Box release attaches the package as
-`azan-sip-client.deb`.
+The version is `__version__` in `azan_client.py`. The client has its own releases, apart from the
+Box's: set the new version there, add a `## x.y.z - title` section at the top of
+[`CHANGELOG.md`](CHANGELOG.md), point the install link in the main README at `client-vx.y.z`, and
+merge it to main. `.github/workflows/client-release.yml` then publishes release `client-vx.y.z`
+with the package attached as `azan-sip-client.deb` and `azan-sip-client_x.y.z_all.deb`. It isn't
+marked as the repository's latest release, which stays the Box's, so the Box and its Docker image
+don't change. (Box releases up to 0.7.2 carried the client, and client 0.3.0 looks for updates
+there: while the Box's latest release still has a client package, the workflow swaps it for the new
+one, so 0.3.0 screens can update from their button.)

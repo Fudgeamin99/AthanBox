@@ -1,6 +1,7 @@
 // Added by the Azan SIP Client to the box's TV app on this screen: the volume buttons and the
 // "Screen settings" button (shown when the mouse moves or a key is pressed), and "Connecting to the
-// Azan SIP Box" whenever the box can't be reached (back to the prayer times by itself).
+// Azan SIP Box" whenever the box can't be reached (back to the prayer times by itself). The volume
+// is the azan's and Makkah live's.
 // On a second screen (a silent copy inside /client/wall), the sound is left to the first one.
 (() => {
   const FRAMED = window.top !== window;
@@ -48,7 +49,13 @@
 
   // The volume of the azan on this screen (the TV app gets it from the client within half a second)
   let vol = null, changed = 0, ac = null;
-  const showVol = () => { bar.querySelector("#azc-vol span").textContent = vol === null ? "" : vol ? vol + "%" : "Off"; };
+  // Makkah live follows this volume too: the TV app only turns the azan itself down
+  const liveVol = () => {
+    if (vol === null) return;
+    for (const m of document.querySelectorAll("video, audio")) if (Math.abs(m.volume - vol / 100) > .001) m.volume = vol / 100;
+  };
+  addEventListener("play", liveVol, true);   // (media events don't bubble, but they pass here first)
+  const showVol = () => { bar.querySelector("#azc-vol span").textContent = vol === null ? "" : vol ? vol + "%" : "Off"; liveVol(); };
   function beep(){   // a short note at the new volume, to hear how loud the azan will be
     if (!vol) return;
     try{
