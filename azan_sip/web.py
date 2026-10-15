@@ -66,10 +66,11 @@ TV_HEAD = b"""<meta name="viewport" content="width=device-width, initial-scale=1
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0e4a40">
 <link rel="apple-touch-icon" href="/icons/tv-180.png">"""
-# The Android app is the desktop app's (built in Fudgeamin99/ATHAN-TO-SIP). AthanBox's Docker image carries
-# a copy (static/AzanTV.apk, added when the image is built); otherwise it comes from the app's latest release.
+# The Android app is the desktop app's (built in Fudgeamin99/ATHAN-TO-SIP, which is private). AthanBox's Docker
+# image carries a copy (static/AzanTV.apk, added when the image is built); otherwise it comes from the copy
+# attached to AthanBox's latest release.
 APK_FILE = STATIC / "AzanTV.apk"
-APK_URL = "https://github.com/Fudgeamin99/ATHAN-TO-SIP/releases/latest/download/AzanTV.apk"
+APK_URL = "https://github.com/Fudgeamin99/azan-sip-box/releases/latest/download/AzanTV.apk"
 TV_MANIFEST = {"name": "Azan SIP TV", "short_name": "Azan TV", "start_url": "/tv", "scope": "/tv",
                "display": "fullscreen", "orientation": "landscape", "background_color": "#0e4a40",
                "theme_color": "#0e4a40", "description": "Prayer times and the azan on a TV",

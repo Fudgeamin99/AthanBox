@@ -6,7 +6,7 @@ name: Docker image
 
 on:
   pull_request:
-    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", packaging/box/security-helper.py, "azan_sip/**", .github/workflows/docker.yml]
+    paths: [Dockerfile, .dockerignore, compose.yaml, "packaging/docker/**", packaging/box/security-helper.py, packaging/fetch-apk.sh, "azan_sip/**", .github/workflows/docker.yml]
   workflow_dispatch:
 
 permissions:
@@ -23,8 +23,8 @@ jobs:
       - name: Add the Android app (AzanTV.apk)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
-             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
+          APP_TOKEN: ${{ secrets.ATHAN_TO_SIP_TOKEN }}
+        run: packaging/fetch-apk.sh azan_sip/static/AzanTV.apk || true
 
       - name: Build the image
         run: docker build -t azan-sip-box:test .
@@ -91,8 +91,8 @@ jobs:
       - name: Add the Android app (AzanTV.apk)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
-             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
+          APP_TOKEN: ${{ secrets.ATHAN_TO_SIP_TOKEN }}
+        run: packaging/fetch-apk.sh azan_sip/static/AzanTV.apk || true
 
       - name: Image name
         id: name

@@ -6,7 +6,9 @@
 #   (with the Windows AzanSIP.exe build) lives only in Fudgeamin99/ATHAN-TO-SIP.
 # - Each new release also publishes the Docker image (see compose.yaml).
 # - The Android TV app (AzanTV.apk) is the desktop app's, built in Fudgeamin99/ATHAN-TO-SIP: each new
-#   release attaches a copy of its newest one, and the Docker image carries it.
+#   release attaches a copy of its newest one, and the Docker image carries it. That repository is
+#   private, so this needs the ATHAN_TO_SIP_TOKEN secret (packaging/fetch-apk.sh); without it the copy
+#   from the previous release is used again.
 # - The Wyse client (client/, the TV screen for a Dell Wyse or a laptop) has its own releases, tagged
 #   client-vX.Y.Z (client-release.yml). AthanBox releases up to 0.7.2 carried it too.
 # - To release from a branch before it's merged, push it as a new branch named release/<anything>
@@ -38,6 +40,7 @@ jobs:
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ secrets.ATHAN_TO_SIP_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -78,11 +81,9 @@ jobs:
           gh release create "$tag" -R "$REPO" "${where[@]}" --title "$title" \
             --notes-file notes.md --latest
           echo "Released $tag"
-          if gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D apk; then
+          if packaging/fetch-apk.sh apk/AzanTV.apk; then
             gh release upload "$tag" apk/AzanTV.apk -R "$REPO"
             echo "Attached the Android app (AzanTV.apk)"
-          else
-            echo "::warning::Couldn't fetch AzanTV.apk from Fudgeamin99/ATHAN-TO-SIP"
           fi
           echo "created=true" >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
@@ -104,8 +105,8 @@ jobs:
       - name: Add the Android app (AzanTV.apk)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download -R Fudgeamin99/ATHAN-TO-SIP -p AzanTV.apk -D azan_sip/static
-             || echo "::warning::Couldn't fetch AzanTV.apk - /apk will send screens to GitHub"
+          APP_TOKEN: ${{ secrets.ATHAN_TO_SIP_TOKEN }}
+        run: packaging/fetch-apk.sh azan_sip/static/AzanTV.apk || true
 
       - name: Image name
         id: name
