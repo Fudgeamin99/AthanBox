@@ -6,6 +6,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.8 - The Docker image is under its usual name again
+
+- **Docker:** the 0.7.7 image was published as `ghcr.io/fudgeamin99/athanbox` after the GitHub repository was renamed to AthanBox, so Docker installs, which pull `ghcr.io/fudgeamin99/azan-sip-box`, didn't see it. Images are published under `azan-sip-box` again, whatever the repository is called. Press **Update** in Settings → Updates, or run `docker compose pull && docker compose up -d`. This brings everything in 0.7.7, including the Android app 1.1.0.
+- **Debian:** nothing changes, update as usual.
+
 ## 0.7.7 - Android app: Update button and Makkah live's picture
 
 - **Azan SIP TV 1.1.0**, the Android app for TV screens:
