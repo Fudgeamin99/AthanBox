@@ -1,18 +1,18 @@
-"""Azan SIP Client: a TV screen for the Azan SIP Box, on a Dell Wyse (or any small PC) running Debian.
+"""AthanBox Client: a TV screen for AthanBox, on a Dell Wyse (or any small PC) running Debian.
 
-The Wyse shows the box's TV app (the prayer-times screen that also plays the azan) full screen on the
-TV plugged into it. This program sits between the Wyse's kiosk browser and the box, on
+The Wyse shows AthanBox's TV app (the prayer-times screen that also plays the azan) full screen on the
+TV plugged into it. This program sits between the Wyse's kiosk browser and AthanBox, on
 http://127.0.0.1:8771 only:
 
-* Everything the screen asks for is passed on to the box. Only reading is passed on (GET and HEAD),
-  so the screen can never change the box's settings.
-* The azan's volume on the TV app is this screen's own: it replaces the box's TV volume.
-* When the box can't be reached (a restart, an update, the network), the screen shows "Connecting to
-  the Azan SIP Box" and goes back to the prayer times by itself as soon as the box answers again.
-* /client/ is this screen's own settings: which box, its name on the box's TV app page, the volume
+* Everything the screen asks for is passed on to AthanBox. Only reading is passed on (GET and HEAD),
+  so the screen can never change AthanBox's settings.
+* The azan's volume on the TV app is this screen's own: it replaces AthanBox's TV volume.
+* When AthanBox can't be reached (a restart, an update, the network), the screen shows "Connecting to
+  AthanBox" and goes back to the prayer times by itself as soon as AthanBox answers again.
+* /client/ is this screen's own settings: which AthanBox, its name on AthanBox's TV app page, the volume
   and updates. The volume also has buttons on the prayer-times screen itself (web/screen.js).
 * The same settings open from a phone or computer on the network, on port 8772 (and nothing else
-  there: not the box's pages). A browser gets in once by typing a code the TV shows, and stays
+  there: not AthanBox's pages). A browser gets in once by typing a code the TV shows, and stays
   signed in for 90 days. It can be switched off in Screen settings on the TV.
 * With more than one screen plugged in (two TVs, or a laptop and a TV), every screen shows the prayer
   times: /client/wall puts one copy of the TV app on each, and only the first one makes a sound.
@@ -58,14 +58,14 @@ CODE_MINUTES = 5                # how long the code on the TV lasts
 BOX_PORTS = (80, 8765)          # a box on Debian answers on both; Docker and the desktop app on 8765
 CONFIG = Path(os.environ.get("AZAN_CLIENT_CONFIG", "/var/lib/azan-sip-client/client.json"))
 WEB = Path(os.environ.get("AZAN_CLIENT_WEB", Path(__file__).resolve().parent / "web"))
-CHECK_EVERY = 5                 # seconds between checks on the box
-# Response headers passed back to the screen (cookies and the box's frame rules are left out)
+CHECK_EVERY = 5                 # seconds between checks on AthanBox
+# Response headers passed back to the screen (cookies and AthanBox's frame rules are left out)
 PASS_HEADERS = ("content-type", "content-length", "cache-control", "content-disposition", "content-range",
                 "accept-ranges", "etag", "last-modified", "location", "x-content-type-options")
 INJECT = b'<script src="/client/screen.js"></script>'
 VOLUME_STEP = 10                # the volume buttons on the screen
 MAX_SCREENS = 8
-# Updates: the client has its own releases, tagged client-vX.Y.Z (the Box's are box-vX.Y.Z), so a
+# Updates: the client has its own releases, tagged client-vX.Y.Z (AthanBox's are box-vX.Y.Z), so a
 # client-only change never makes a new Box or Docker version
 RELEASES = os.environ.get("AZAN_CLIENT_RELEASES", "https://api.github.com/repos/Fudgeamin99/azan-sip-box/releases?per_page=100")
 TAG_PREFIX = "client-v"
@@ -228,7 +228,7 @@ def base_url(host: str, port: int) -> str:
 
 
 def ping(base: str, timeout: float = 3) -> dict:
-    """Asks a server whether it is Azan SIP. state: ok, not_allowed, not_azan or unreachable."""
+    """Asks a server whether it is AthanBox. state: ok, not_allowed, not_azan or unreachable."""
     try:
         with urllib.request.urlopen(urllib.request.Request(base + "/api/ping"), timeout=timeout) as r:
             j = json.loads(r.read(4096).decode("utf-8", "replace"))
@@ -242,7 +242,7 @@ def ping(base: str, timeout: float = 3) -> dict:
 
 
 def find_box(text: str) -> dict:
-    """Checks an address someone typed, on the port given or on the box's usual ports."""
+    """Checks an address someone typed, on the port given or on AthanBox's usual ports."""
     a = parse_address(text)
     if a is None:
         return {"state": "bad_address"}
@@ -278,7 +278,7 @@ def local_networks() -> list[ipaddress.IPv4Interface]:
 
 
 def search(timeout: float = 0.5) -> list[dict]:
-    """Looks for Azan SIP boxes: azan.local, then every address next to this computer's."""
+    """Looks for AthanBoxes: azan.local, then every address next to this computer's."""
     mine = {str(i.ip) for i in local_networks()}
     hosts = ["azan.local"]
     for i in local_networks():
@@ -481,7 +481,7 @@ def latest_release(timeout: float = 20) -> dict:
                 best = {"version": m.group(1), "url": str(a.get("browser_download_url") or ""),
                         "digest": str(a.get("digest") or ""), "size": int(a.get("size") or 0), "tag": tag}
     if best is None:
-        raise ValueError("GitHub has no Azan SIP Client release")
+        raise ValueError("GitHub has no AthanBox Client release")
     return best
 
 
@@ -515,7 +515,7 @@ def installed_version() -> str:
 
 def fetch_deb(rel: dict, folder: Path) -> Path:
     """Downloads the release's package into folder and checks it: the checksum GitHub gives for it,
-    and that it is the Azan SIP Client at that version. Raises ValueError (or OSError) if not."""
+    and that it is AthanBox Client at that version. Raises ValueError (or OSError) if not."""
     folder.mkdir(mode=0o755, parents=True, exist_ok=True)
     deb = folder / f"azan-sip-client_{rel['version']}_all.deb"
     try:
@@ -535,7 +535,7 @@ def fetch_deb(rel: dict, folder: Path) -> Path:
         out = subprocess.run(["dpkg-deb", "-f", str(deb), "Package", "Version"], capture_output=True, text=True, timeout=60).stdout
         info = dict(line.split(": ", 1) for line in out.splitlines() if ": " in line)
         if (info.get("Package"), info.get("Version")) != ("azan-sip-client", rel["version"]):
-            raise ValueError("the download isn't the Azan SIP Client package")
+            raise ValueError("the download isn't AthanBox Client package")
     except BaseException:
         deb.unlink(missing_ok=True)
         raise
@@ -564,18 +564,18 @@ def self_update(say=print) -> int:
         return 1
     have = installed_version()
     if vtuple(rel["version"]) <= vtuple(have):
-        step("done", version=have, message=f"Already up to date: Azan SIP Client {have}.")
+        step("done", version=have, message=f"Already up to date: AthanBox Client {have}.")
         return 0
     if RELEASES.startswith("https://api.github.com/") and not rel["url"].startswith(OFFICIAL):
-        step("failed", error="The update isn't from the Azan SIP Box's own releases, so it wasn't installed.")
+        step("failed", error="The update isn't from AthanBox's own releases, so it wasn't installed.")
         return 1
-    step("downloading", version=rel["version"], message=f"Downloading Azan SIP Client {rel['version']}...")
+    step("downloading", version=rel["version"], message=f"Downloading AthanBox Client {rel['version']}...")
     try:
         deb = fetch_deb(rel, UPDATE_CACHE)
     except (OSError, ValueError, http.client.HTTPException) as e:
         step("failed", error=f"Downloading the update failed: {e}.")
         return 1
-    step("installing", message=f"Installing Azan SIP Client {rel['version']}. The screen restarts by itself.")
+    step("installing", message=f"Installing AthanBox Client {rel['version']}. The screen restarts by itself.")
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
     try:
         # New versions may need new Debian packages: refresh the package lists first (a failure
@@ -591,13 +591,13 @@ def self_update(say=print) -> int:
     if why:
         step("failed", error=f"Installing the update failed: {why}")
         return 1
-    step("done", version=rel["version"], message=f"Updated to Azan SIP Client {rel['version']}.")
+    step("done", version=rel["version"], message=f"Updated to AthanBox Client {rel['version']}.")
     return 0
 
 
-# ------------------------------------------------------------------ the box, checked in the background
+# ------------------------------------------------------------------ AthanBox, checked in the background
 class Watch:
-    """Checks the box every few seconds, so the screen knows whether it's there."""
+    """Checks AthanBox every few seconds, so the screen knows whether it's there."""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -616,7 +616,7 @@ class Watch:
             changed = r["state"] != self.state.get("state")
             self.state = r
         if changed:
-            log(f"The box {base or '(none set)'} is {r['state']}")
+            log(f"AthanBox {base or '(none set)'} is {r['state']}")
         return r
 
     def run(self):
@@ -624,7 +624,7 @@ class Watch:
             try:
                 self.check_now()
             except Exception as e:   # never let the checks stop
-                log(f"Checking the box failed: {e}")
+                log(f"Checking AthanBox failed: {e}")
             self.wake.wait(CHECK_EVERY)
             self.wake.clear()
 
@@ -729,9 +729,9 @@ class Handler(BaseHTTPRequestHandler):
         c = load_config()
         if p == "/client/api/connect":
             r = find_box(str(req.get("address", "")))
-            msg = {"bad_address": "That doesn't look like an address. Type the box's IP address, such as 192.168.1.20, or azan.local.",
-                   "unreachable": "Nothing answers at that address. Check the address and that the box is switched on and on the same network.",
-                   "not_azan": "Something answers at that address, but it isn't an Azan SIP Box."}.get(r["state"])
+            msg = {"bad_address": "That doesn't look like an address. Type AthanBox's IP address, such as 192.168.1.20, or azan.local.",
+                   "unreachable": "Nothing answers at that address. Check the address and that AthanBox is switched on and on the same network.",
+                   "not_azan": "Something answers at that address, but it isn't an AthanBox."}.get(r["state"])
             if msg:
                 return self._json({"ok": False, "error": msg})
             c["box"] = r["base"]
@@ -742,7 +742,7 @@ class Handler(BaseHTTPRequestHandler):
             self.watch.check_now()
             return self._json({"ok": True, **self._status(),
                                "warning": None if r["state"] == "ok" else
-                               "The box doesn't let TV screens connect yet. In its control panel, open TV app and switch on "
+                               "AthanBox doesn't let TV screens connect yet. In its control panel, open TV app and switch on "
                                "“Let TV screens connect”. This screen then connects by itself."})
         if p == "/client/api/settings":
             if "volume" in req:
@@ -791,7 +791,7 @@ class Handler(BaseHTTPRequestHandler):
         c = load_config()
         if not c.get("box"):
             return self._redirect("/client/")
-        if p == "/":   # where the kiosk starts: the TV app, with this screen's name on the box's list
+        if p == "/":   # where the kiosk starts: the TV app, with this screen's name on AthanBox's list
             # Two screens or more: the prayer times on each (never a wall inside a wall)
             if wall_needed() and self.headers.get("Sec-Fetch-Dest") != "iframe":
                 return self._redirect("/client/wall")
@@ -805,10 +805,10 @@ class Handler(BaseHTTPRequestHandler):
         p = urllib.parse.urlsplit(self.path).path
         if p.startswith("/client/api/"):
             return self._client_post(p, req) if req is not None else self._json({"ok": False, "error": "Bad request"}, 400)
-        # The screen only shows the box: it never changes its settings
-        return self._json({"ok": False, "error": "This screen can't change the box's settings. Use the box's control panel."}, 403)
+        # The screen only shows AthanBox: it never changes its settings
+        return self._json({"ok": False, "error": "This screen can't change AthanBox's settings. Use AthanBox's control panel."}, 403)
 
-    # -- passing the screen's requests on to the box
+    # -- passing the screen's requests on to AthanBox
     def _proxy(self, c: dict, url):
         base = urllib.parse.urlsplit(c["box"])
         page = url.path in ("/tv", "/display")
@@ -825,7 +825,7 @@ class Handler(BaseHTTPRequestHandler):
             self.watch.wake.set()   # check again straight away
             if page:   # the prayer times can't be shown: say so, and come back by itself
                 return self._redirect("/client/connecting?to=" + urllib.parse.quote(url.path + ("?" + url.query if url.query else ""), safe=""))
-            return self._send(502, b"The Azan SIP Box can't be reached")
+            return self._send(502, b"AthanBox can't be reached")
         if page and r.status == 403:   # "Let TV screens connect" is off: say so, and connect when it's on
             r.read()
             con.close()
@@ -869,7 +869,7 @@ class Handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _own_volume(body: bytes, c: dict, mirror: bool = False) -> bytes:
-        """The azan plays at this screen's own volume, not the box's (the TV app applies "volume").
+        """The azan plays at this screen's own volume, not AthanBox's (the TV app applies "volume").
         A second screen's copy stays silent, so the azan isn't heard twice."""
         try:
             j = json.loads(body)
@@ -883,7 +883,7 @@ class Handler(BaseHTTPRequestHandler):
 
 class RemoteHandler(Handler):
     """This screen's settings from a phone or computer on the network (REMOTE_PORT): the settings page
-    and its API only, never the box's pages, for browsers signed in with the code shown on the TV."""
+    and its API only, never AthanBox's pages, for browsers signed in with the code shown on the TV."""
     REMOTE = True
     SIGN_IN = {"ok": False, "signin": True, "error": "Type the code shown on the TV first."}
 
@@ -955,7 +955,7 @@ def serve(port: int = PORT):
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     c = load_config()
-    log(f"Azan SIP Client {__version__} on http://127.0.0.1:{port}, box: {c.get('box') or 'not chosen yet'}")
+    log(f"AthanBox Client {__version__} on http://127.0.0.1:{port}, box: {c.get('box') or 'not chosen yet'}")
     if REMOTE_PORT:
         try:
             remote = ThreadingHTTPServer(("0.0.0.0", REMOTE_PORT), RemoteHandler)
@@ -979,27 +979,27 @@ def call(path: str, body: dict | None = None, port: int = PORT) -> dict:
     except urllib.error.HTTPError as e:
         return json.loads(e.read() or b"{}")
     except OSError:
-        sys.exit("The Azan SIP Client isn't running. Start it with: sudo systemctl start azan-sip-client")
+        sys.exit("AthanBox Client isn't running. Start it with: sudo systemctl start azan-sip-client")
 
 
-STATES = {"ok": "connected", "not_allowed": "found, but “Let TV screens connect” is off on the box",
-          "unreachable": "can't be reached", "not_azan": "isn't an Azan SIP Box", "none": "not chosen yet"}
+STATES = {"ok": "connected", "not_allowed": "found, but “Let TV screens connect” is off on AthanBox",
+          "unreachable": "can't be reached", "not_azan": "isn't an AthanBox", "none": "not chosen yet"}
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="azan-sip-client", description="The Azan SIP Box's prayer times and azan on this computer's screen")
+    ap = argparse.ArgumentParser(prog="azan-sip-client", description="AthanBox's prayer times and azan on this computer's screen")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("serve", help="run the client (the azan-sip-client service does this)")
     s.add_argument("--port", type=int, default=PORT)
-    sub.add_parser("status", help="which box this screen shows, and whether it's connected")
-    sub.add_parser("search", help="look for Azan SIP Boxes on the network")
-    c = sub.add_parser("connect", help="show this box's prayer times on this screen")
-    c.add_argument("address", help="the box's address, such as 192.168.1.20 or azan.local")
-    c.add_argument("--name", help="this screen's name on the box's TV app page")
+    sub.add_parser("status", help="which AthanBox this screen shows, and whether it's connected")
+    sub.add_parser("search", help="look for AthanBoxes on the network")
+    c = sub.add_parser("connect", help="show this AthanBox's prayer times on this screen")
+    c.add_argument("address", help="AthanBox's address, such as 192.168.1.20 or azan.local")
+    c.add_argument("--name", help="this screen's name on AthanBox's TV app page")
     v = sub.add_parser("volume", help="show or set the azan's volume on this screen")
     v.add_argument("percent", nargs="?", type=int, help="0 to 100")
-    u = sub.add_parser("update", help="install the newest Azan SIP Client from GitHub (as root)")
+    u = sub.add_parser("update", help="install the newest AthanBox Client from GitHub (as root)")
     u.add_argument("--check", action="store_true", help="only say whether there is a newer version")
     sub.add_parser("watch-screens", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
@@ -1016,20 +1016,20 @@ def main(argv=None):
                 sys.exit(f"Couldn't check for updates: {e}")
             have = installed_version()
             if vtuple(rel["version"]) <= vtuple(have):
-                print(f"Azan SIP Client {have} is the newest version.")
+                print(f"AthanBox Client {have} is the newest version.")
                 return
-            print(f"Azan SIP Client {rel['version']} is available (this computer has {have}).")
+            print(f"AthanBox Client {rel['version']} is available (this computer has {have}).")
             if not a.check:
                 print("To install it, run this as root (su -), or press Update now in Screen settings.")
             return
         sys.exit(self_update())
     if a.cmd == "search":
-        print("Looking for Azan SIP Boxes on the network...")
+        print("Looking for AthanBoxes on the network...")
         boxes = call("/client/api/search")["boxes"]
         for b in boxes:
             print(f"  {b['host']:<18} {STATES.get(b['state'], b['state'])}  (version {b.get('version') or '?'})")
         print("Connect with: azan-sip-client connect <address>" if boxes else
-              "None found. Is the box switched on and on the same network? You can also type its address: azan-sip-client connect <address>")
+              "None found. Is AthanBox switched on and on the same network? You can also type its address: azan-sip-client connect <address>")
         return
     if a.cmd == "connect":
         r = call("/client/api/connect", {"address": a.address, **({"name": a.name} if a.name else {})})
@@ -1047,8 +1047,8 @@ def main(argv=None):
         print(f"Azan volume on this screen: {call('/client/api/status')['volume']}%")
         return
     st = call("/client/api/status")
-    print(f"Azan SIP Client {st['version']}")
-    print(f"Box:    {st.get('box') or '-'} ({STATES.get(st['state'], st['state'])})" + (f", Azan SIP {st['box_version']}" if st.get("box_version") else ""))
+    print(f"AthanBox Client {st['version']}")
+    print(f"Box:    {st.get('box') or '-'} ({STATES.get(st['state'], st['state'])})" + (f", AthanBox {st['box_version']}" if st.get("box_version") else ""))
     print(f"Name:   {st['name']}")
     print(f"Volume: {st['volume']}%")
     if isinstance(st.get("live_sound"), bool):

@@ -18,7 +18,7 @@
   box.innerHTML = "<span>Code for this screen's settings on a phone or computer</span><b></b>";
   document.body.appendChild(box);
 
-  function chime(volume){   // the box's test chime, at this screen's volume
+  function chime(volume){   // AthanBox's test chime, at this screen's volume
     const v = Math.max(0, Math.min(100, volume)) / 100;
     if (!v) return;
     try{

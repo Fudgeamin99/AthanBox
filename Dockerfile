@@ -1,4 +1,4 @@
-# Azan SIP Box as a container: the scheduler and control panel, without the box's own screen.
+# AthanBox as a container: the scheduler and control panel, without AthanBox's own screen.
 # Linux hosts only, with host networking (multicast paging and SIP) - see compose.yaml.
 FROM python:3.12-slim
 
@@ -24,10 +24,10 @@ ENV AZAN_DOCKER=1 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 # where the security container leaves its status, for the control panel to show
 ENV AZAN_SECURITY_STATUS=/data/security/status.json
 # No USER line: the entrypoint starts as root only to give /data to user azan (1000), then
-# runs Azan SIP as that user.
+# runs AthanBox as that user.
 VOLUME /data
 EXPOSE 8765
-# Python runs as process 1, which ignores SIGTERM: stop with Ctrl+C's signal, so the Box signs out
+# Python runs as process 1, which ignores SIGTERM: stop with Ctrl+C's signal, so AthanBox signs out
 # of the phone system and stops in a moment instead of being killed after Docker's timeout.
 STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/local/bin/azan-sip-entrypoint"]

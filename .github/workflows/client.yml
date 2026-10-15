@@ -1,7 +1,7 @@
-# The Azan SIP Client (client/), the TV screen for a Dell Wyse: on each pull request that changes it,
+# AthanBox Client (client/), the TV screen for a Dell Wyse: on each pull request that changes it,
 # runs its tests, builds the Debian package and installs it on Debian 12 and 13 (64-bit) and on
 # 32-bit Debian 12 (an old 32-bit laptop), so a missing dependency or a broken install script is
-# caught before a Box release attaches it. Each one then runs the screen itself with two screens
+# caught before an AthanBox release attaches it. Each one then runs the screen itself with two screens
 # (client/test-two-screens.sh): cage, Chromium and a real Box, checking both show the prayer times,
 # and updates itself to a newer version the way Update now does (client/test-update.sh).
 name: Wyse client

@@ -1,4 +1,4 @@
-// Azan SIP Box: shared helpers for the setup wizard (setup.html) and the prayer-times screen (display.html).
+// AthanBox: shared helpers for the setup wizard (setup.html) and the prayer-times screen (display.html).
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const TITLE = {fajr:"Fajr", sunrise:"Sunrise", dhuhr:"Dhuhr", asr:"Asr", maghrib:"Maghrib", isha:"Isha", jumuah:"Jumu'ah"};
@@ -14,7 +14,7 @@ async function api(path, body, raw){
     else { opt.body = JSON.stringify(body); opt.headers["Content-Type"] = "application/json"; }
   }
   let r;
-  try { r = await fetch(path, opt); } catch(e){ throw new ApiError("Can't reach the Azan SIP Box. Check it's switched on and connected.", 0, {}); }
+  try { r = await fetch(path, opt); } catch(e){ throw new ApiError("Can't reach AthanBox. Check it's switched on and connected.", 0, {}); }
   const j = await r.json().catch(() => ({ok:false, error:"Unexpected reply"}));
   if(!r.ok || j.ok === false) throw new ApiError(j.error || ("Error " + r.status), r.status, j);
   return j;

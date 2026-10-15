@@ -1,15 +1,15 @@
-# Publishes a GitHub Release for each version of the Azan SIP Client (the TV screen for a Dell Wyse or
-# a laptop, in client/), apart from the Box's releases: a client-only change never makes a new Box
+# Publishes a GitHub Release for each version of AthanBox Client (the TV screen for a Dell Wyse or
+# a laptop, in client/), apart from AthanBox's releases: a client-only change never makes a new AthanBox
 # version or Docker image.
 # - The version, title and notes come from the newest "## x.y.z - title" section of
 #   client/CHANGELOG.md, which must match __version__ in client/azan_client.py. Adding a section there
 #   and merging it to main is all it takes. Releases are tagged client-vX.Y.Z.
 # - The package is attached as azan-sip-client.deb (for the README's install link) and as
 #   azan-sip-client_X.Y.Z_all.deb (the one Update now installs).
-# - A client release is never marked as the repository's latest release: that stays the Box's, which
-#   the Box's own updates follow.
-# - Client 0.3.0 looks in the Box's latest release instead: while that still carries a client package
-#   (Box 0.7.2 did), it's swapped for the new one, so 0.3.0 screens can update from their button.
+# - A client release is never marked as the repository's latest release: that stays AthanBox's, which
+#   AthanBox's own updates follow.
+# - Client 0.3.0 looks in AthanBox's latest release instead: while that still carries a client package
+#   (AthanBox 0.7.2 did), it's swapped for the new one, so 0.3.0 screens can update from their button.
 name: Client release
 
 on:
@@ -66,12 +66,12 @@ jobs:
             found {print}
           ' client/CHANGELOG.md > notes.md
           sh client/build-deb.sh
-          gh release create "$tag" -R "$REPO" --target "$GITHUB_SHA" --title "Azan SIP Client $title" \
+          gh release create "$tag" -R "$REPO" --target "$GITHUB_SHA" --title "AthanBox Client $title" \
             --notes-file notes.md --latest=false \
             client/dist/azan-sip-client.deb "client/dist/azan-sip-client_${v}_all.deb"
           echo "Released $tag"
-          # Client 0.3.0 looks for updates in the Box's latest release, which carried the client up to
-          # Box 0.7.2. While that release still has a client package, swap it for this one, so screens
+          # Client 0.3.0 looks for updates in AthanBox's latest release, which carried the client up to
+          # AthanBox 0.7.2. While that release still has a client package, swap it for this one, so screens
           # on 0.3.0 update from their Update button too (and from then on follow these releases).
           box=$(gh release view -R "$REPO" --json tagName -q .tagName)
           case "$box" in box-v*) ;; *) box= ;; esac

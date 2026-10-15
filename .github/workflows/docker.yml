@@ -1,5 +1,5 @@
 # Builds the Docker image for pull requests and checks that it starts and asks for the password,
-# so a broken image is caught before a Box release publishes it. Once that passes, a pull request
+# so a broken image is caught before an AthanBox release publishes it. Once that passes, a pull request
 # from this repository also publishes a test image, ghcr.io/<owner>/azan-sip-box:pr-<number>, so it
 # can be tried on a NAS or server before it's merged.
 name: Docker image
@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The Android TV app, as in the release image, so screens on a network without internet can download it from the box.
+      # The Android TV app, as in the release image, so screens on a network without internet can download it from AthanBox.
       # Without it, /apk sends them to the app's latest release on GitHub.
       - name: Add the Android app (AzanTV.apk)
         env:
@@ -41,7 +41,7 @@ jobs:
           echo "ok: the storage folder was given to user 1000"
           docker logs azan
 
-      - name: Check the updater (the Update button) can see the Box's container
+      - name: Check the updater (the Update button) can see AthanBox's container
         run: |
           docker run -d --name updater --network host -e AZAN_UPDATE_TARGET=azan \
                      -v /var/run/docker.sock:/var/run/docker.sock -v "$RUNNER_TEMP/data:/data:ro" \
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The Android TV app, as in the release image, so screens on a network without internet can download it from the box.
+      # The Android TV app, as in the release image, so screens on a network without internet can download it from AthanBox.
       # Without it, /apk sends them to the app's latest release on GitHub.
       - name: Add the Android app (AzanTV.apk)
         env:

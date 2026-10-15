@@ -1,11 +1,11 @@
-"""Makkah live: relays an IPTV (HLS / .m3u8) stream through Azan SIP.
+"""Makkah live: relays an IPTV (HLS / .m3u8) stream through AthanBox.
 
-Screens play /live/stream.m3u8 from Azan SIP itself instead of the TV channel's server:
+Screens play /live/stream.m3u8 from AthanBox itself instead of the TV channel's server:
 - it works in every browser (many IPTV servers don't allow web pages to read them directly),
-- the box's own screen, TVs and phones on the network can all show it,
+- AthanBox's own screen, TVs and phones on the network can all show it,
 - several screens share one download of each video segment.
 
-Only links that Azan SIP wrote into a playlist itself (signed with a random key) are fetched,
+Only links that AthanBox wrote into a playlist itself (signed with a random key) are fetched,
 so the relay can't be used to open any other address.
 """
 from __future__ import annotations
@@ -201,13 +201,13 @@ class LiveRelay:
         if ctype != M3U8:
             raise StreamError("The Makkah live link isn't an IPTV (.m3u8) stream")
         if new_viewer:
-            log.info("Makkah live started on %s", "the box's own screen" if viewer.startswith("127.") or viewer == "::1"
+            log.info("Makkah live started on %s", "AthanBox's own screen" if viewer.startswith("127.") or viewer == "::1"
                      else viewer)
         return ctype, body
 
     def allows_pages(self, url: str) -> bool:
         """Whether the stream lets a web page from another address read it (CORS), which screens need to
-        fetch it themselves instead of through the box."""
+        fetch it themselves instead of through AthanBox."""
         req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "*/*", "Origin": "http://azan.local"})
         try:
             with _opener.open(req, timeout=10) as r:

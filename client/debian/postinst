@@ -26,8 +26,8 @@ if [ "$1" = configure ]; then
         systemctl restart azan-sip-client-update.path
         if systemctl is-enabled azan-sip-screen >/dev/null 2>&1; then
             systemctl disable azan-sip-client-screen >/dev/null 2>&1 || true
-            echo "The Azan SIP Box's own screen is on here, so the client's screen isn't started."
-            echo "To show another box's prayer times instead: sudo sh packaging/box/screen.sh off, then sudo systemctl enable --now azan-sip-client-screen"
+            echo "AthanBox's own screen is on here, so the client's screen isn't started."
+            echo "To show another AthanBox's prayer times instead: sudo sh packaging/box/screen.sh off, then sudo systemctl enable --now azan-sip-client-screen"
         elif ls /dev/dri/card* >/dev/null 2>&1; then
             systemctl enable azan-sip-client-screen >/dev/null
             systemctl restart azan-sip-client-screen || true
@@ -36,11 +36,11 @@ if [ "$1" = configure ]; then
         fi
     fi
     echo
-    echo "Azan SIP Client is installed. Choose the box on the screen, or run:"
-    echo "    azan-sip-client search             find Azan SIP Boxes on the network"
-    echo "    azan-sip-client connect <address>  show that box's prayer times here"
+    echo "AthanBox Client is installed. Choose AthanBox on the screen, or run:"
+    echo "    azan-sip-client search             find AthanBoxes on the network"
+    echo "    azan-sip-client connect <address>  show that AthanBox's prayer times here"
     echo "    azan-sip-client update             install a newer version (as root)"
     echo "Its settings also open from a phone or computer on the network, on port 8772: see Phones and computers in Screen settings."
-    echo "On the box, switch on \"Let TV screens connect\" on the TV app page."
+    echo "On AthanBox, switch on \"Let TV screens connect\" on the TV app page."
 fi
 exit 0

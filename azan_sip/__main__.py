@@ -24,7 +24,7 @@ def main(argv=None):
 
     r = sub.add_parser("run", parents=[common], help="run the scheduler + control panel without opening a browser")
     r.add_argument("--box", action="store_true",
-                   help="Azan SIP Box: open the panel to the network (port 8765 and 80), password needed for changes")
+                   help="AthanBox: open the panel to the network (port 8765 and 80), password needed for changes")
     sub.add_parser("panel", parents=[common], help="run and open the control panel in the browser")
 
     t = sub.add_parser("times", parents=[common], help="show prayer times")
@@ -38,13 +38,13 @@ def main(argv=None):
     s.add_argument("--reminder", action="store_true", help="play the reminder audio")
     s.add_argument("--seconds", type=float, help="only play the first N seconds")
 
-    b = sub.add_parser("box-password", parents=[common], help="Azan SIP Box: set the control panel password")
+    b = sub.add_parser("box-password", parents=[common], help="AthanBox: set the control panel password")
     b.add_argument("--factory", action="store_true", help="set the factory (sticker) password instead of the owner's")
     b.add_argument("--serial", default="", help="serial number to keep with the factory password")
     b.add_argument("--stdin", action="store_true", help="read the password from standard input (for scripts)")
 
     sub.add_parser("factory-reset", parents=[common],
-                   help="Azan SIP Box: remove settings, recordings and the owner's password (stop the service first)")
+                   help="AthanBox: remove settings, recordings and the owner's password (stop the service first)")
 
     args = ap.parse_args(argv)
     for name, default in (("config", "config.toml"), ("verbose", False), ("log_file", None)):

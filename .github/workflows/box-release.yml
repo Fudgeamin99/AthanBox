@@ -1,4 +1,4 @@
-# Publishes a GitHub Release for each Azan SIP Box version.
+# Publishes a GitHub Release for each AthanBox version.
 # - The version, title and notes come from the newest "## x.y.z - title" section of BOX_CHANGELOG.md,
 #   so adding a section there and merging it to main is all it takes. Releases are tagged box-vX.Y.Z.
 # - The desktop app's CHANGELOG.md and version (azan_sip/__init__.py) are ignored here, so merging
@@ -8,10 +8,10 @@
 # - The Android TV app (AzanTV.apk) is the desktop app's, built in Fudgeamin99/ATHAN-TO-SIP: each new
 #   release attaches a copy of its newest one, and the Docker image carries it.
 # - The Wyse client (client/, the TV screen for a Dell Wyse or a laptop) has its own releases, tagged
-#   client-vX.Y.Z (client-release.yml). Box releases up to 0.7.2 carried it too.
+#   client-vX.Y.Z (client-release.yml). AthanBox releases up to 0.7.2 carried it too.
 # - To release from a branch before it's merged, push it as a new branch named release/<anything>
 #   (or push the tag box-vX.Y.Z on it). Its newest BOX_CHANGELOG.md version is published.
-name: Box release
+name: AthanBox release
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Publish the newest Box version
+      - name: Publish the newest AthanBox version
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -87,7 +87,7 @@ jobs:
           echo "created=true" >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
-  # The Docker image for each new Box release: ghcr.io/<owner>/azan-sip-box:<version> and :latest,
+  # The Docker image for each new AthanBox release: ghcr.io/<owner>/azan-sip-box:<version> and :latest,
   # for 64-bit PCs and for ARM boards such as the Raspberry Pi.
   image:
     needs: release
@@ -99,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The Android TV app, so screens on a network without internet can download it from the box.
+      # The Android TV app, so screens on a network without internet can download it from AthanBox.
       # Without it, /apk sends them to the app's latest release on GitHub.
       - name: Add the Android app (AzanTV.apk)
         env:

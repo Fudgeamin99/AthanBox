@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""Azan SIP Box: applies the Security page (fail2ban, whitelist and blacklist) as root.
+"""AthanBox: applies the Security page (fail2ban, whitelist and blacklist) as root.
 
 The control panel runs as the unprivileged user "azan" and can't change the firewall or fail2ban
 itself. It writes what the owner chose to /opt/azan-sip/security/settings.json (and one-off
@@ -56,7 +56,7 @@ FILTERS = {
     "azan-sip-panel": r"^\s*WARNING\s+Wrong control panel (?:password|setup code) from <HOST>$",
     "azan-sip-sip": r"^\s*WARNING\s+SIP sign-in for .* from <HOST> failed: wrong username or password$",
 }
-FILTER_TEXT = """# Written by the Azan SIP Box (Security page). Changes here are overwritten.
+FILTER_TEXT = """# Written by AthanBox (Security page). Changes here are overwritten.
 [Definition]
 failregex = {regex}
 ignoreregex =
@@ -201,7 +201,7 @@ def jail_text(s: dict, log: Path) -> str:
     ignore = " ".join(["127.0.0.1/8", "::1"] + [str(n) for n in s["allow"]])
     have_log = log.is_file()
     lines = [
-        "# Written by the Azan SIP Box (Security page in the control panel). Changes here are overwritten.",
+        "# Written by AthanBox (Security page in the control panel). Changes here are overwritten.",
         "[DEFAULT]",
         f"ignoreip = {ignore}",
         f"bantime = {s['bantime']}",
@@ -394,7 +394,7 @@ def handle_request(sec: Path, state: dict) -> str:
 
 
 def once(base: Path) -> None:
-    """base: the Box's folder (/opt/azan-sip)."""
+    """base: AthanBox's folder (/opt/azan-sip)."""
     RUN.mkdir(mode=0o755, exist_ok=True)
     sec = base / "security"
     state = read_json(STATE)   # in /run, so it starts empty after a restart and everything is applied again
@@ -469,7 +469,7 @@ def watch(base: Path) -> int:
     seen, last = None, 0.0
     while True:
         now = (mtime(base / "security" / "settings.json"), mtime(base / "security" / "request.json"))
-        # wait for the Box to start and write its settings (and own the folder) the first time
+        # wait for AthanBox to start and write its settings (and own the folder) the first time
         if now[0] and (now != seen or time.monotonic() - last > 60):
             seen, last = now, time.monotonic()
             try:

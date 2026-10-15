@@ -1,4 +1,4 @@
-# Azan SIP Box in Docker (Linux only).
+# AthanBox in Docker (Linux only).
 #   1. Set AZAN_PASSWORD below.
 #   2. Start it:  docker compose up -d   (from a copy of this repository: docker compose up -d --build)
 #   3. Open http://<this computer's address>:8765 and sign in with that password.
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     entrypoint: ["python", "-m", "azan_sip.dockerupdate"]
     environment:
-      AZAN_UPDATE_TARGET: azan-sip   # the container_name of the Box above
+      AZAN_UPDATE_TARGET: azan-sip   # the container_name of AthanBox above
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - azan-data:/data:ro      # the same storage as above (use ./data:/data:ro with a folder)
@@ -40,12 +40,12 @@ services:
   # Fail2ban, the whitelist and the blacklist on this computer's firewall (the Security page). Fail2ban
   # bans addresses that keep guessing the control panel or SIP passwords, on every port. It needs to
   # change the firewall, so it gets the NET_ADMIN capability and runs as root in a container of its
-  # own; the Box itself still runs as user 1000. Leave this whole section out if you don't want it:
+  # own; AthanBox itself still runs as user 1000. Leave this whole section out if you don't want it:
   # the blacklist then only covers the control panel and SIP. Uses nftables, or iptables if this
   # computer's kernel has no nftables (some NAS boxes).
   security:
     image: ghcr.io/fudgeamin99/azan-sip-box:latest
-    container_name: azan-sip-security   # the updater updates it along with the Box
+    container_name: azan-sip-security   # the updater updates it along with AthanBox
     network_mode: host
     cap_add: [NET_ADMIN, NET_RAW]
     restart: unless-stopped

@@ -1,5 +1,5 @@
 [Unit]
-Description=Azan SIP Box - prayer-times screen on the TV plugged into the box
+Description=AthanBox - prayer-times screen on the TV plugged into AthanBox
 # A login session on the first console, so the kiosk may use the screen, keyboard and sound
 # (set up by packaging/box/screen.sh, which also adds /etc/pam.d/azan-screen).
 After=azan-sip-box.service seatd.service systemd-user-sessions.service dbus.socket systemd-logind.service getty@tty1.service

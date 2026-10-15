@@ -1,5 +1,5 @@
 [Unit]
-Description=Azan SIP Box - apply the Security page (fail2ban, whitelist and blacklist)
+Description=AthanBox - apply the Security page (fail2ban, whitelist and blacklist)
 # Started by azan-sip-security.path when the control panel saves a change, by the timer every
 # minute (to keep the list of banned addresses fresh), and once at start-up.
 After=network-online.target nftables.service fail2ban.service azan-sip-box.service

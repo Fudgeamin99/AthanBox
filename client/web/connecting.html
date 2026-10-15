@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Azan SIP Client</title>
+<title>AthanBox Client</title>
 <style>
 html,body{margin:0;height:100%;background:#0d4a3f;color:#fff;font-family:system-ui,"DejaVu Sans",sans-serif;overflow:hidden}
 main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;text-align:center;padding:0 8vw;box-sizing:border-box}
@@ -19,18 +19,18 @@ button{font:600 2.4vh system-ui,sans-serif;padding:1.4vh 3vh;border-radius:1.4vh
 <body>
 <main>
   <div id="clock"></div>
-  <h1 id="title">Connecting to the Azan SIP Box</h1>
+  <h1 id="title">Connecting to AthanBox</h1>
   <div><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-  <p id="msg">The prayer times come back by themselves as soon as the box answers.</p>
+  <p id="msg">The prayer times come back by themselves as soon as AthanBox answers.</p>
   <button onclick="top.location.assign('/client/')">Screen settings</button>
 </main>
 <script>
 const to = new URLSearchParams(location.search).get("to") || "/";
 const dest = /^\/(?!\/)/.test(to) ? to : "/";
 const MSG = {
-  unreachable: box => `The box at ${box} isn't answering. Check it's switched on and this screen's network cable is in. The prayer times come back by themselves as soon as it answers.`,
-  not_allowed: () => "The box doesn't let TV screens connect. In its control panel, open TV app and switch on “Let TV screens connect”. This screen then connects by itself.",
-  not_azan: box => `Something answers at ${box}, but it isn't an Azan SIP Box. Press Screen settings to choose the box.`,
+  unreachable: box => `AthanBox at ${box} isn't answering. Check it's switched on and this screen's network cable is in. The prayer times come back by themselves as soon as it answers.`,
+  not_allowed: () => "AthanBox doesn't let TV screens connect. In its control panel, open TV app and switch on “Let TV screens connect”. This screen then connects by itself.",
+  not_azan: box => `Something answers at ${box}, but it isn't an AthanBox. Press Screen settings to choose AthanBox.`,
 };
 function tick(){ document.getElementById("clock").textContent = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", hour12:false}); }
 async function check(){

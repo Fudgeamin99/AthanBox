@@ -1,5 +1,5 @@
 [Unit]
-Description=Azan SIP Client - download the newest client from GitHub and install it
+Description=AthanBox Client - download the newest client from GitHub and install it
 # Started by azan-sip-client-update.path when Update now is pressed in Screen settings
 After=network-online.target
 Wants=network-online.target
@@ -8,7 +8,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=oneshot
 # As root, to install the package. It takes nothing from the client's own files: it downloads
-# azan-sip-client.deb from the Azan SIP Box's latest GitHub release, checks it and installs it
+# azan-sip-client.deb from AthanBox's latest GitHub release, checks it and installs it
 # with apt, which restarts the client and the screen. Progress goes to
 # /var/lib/azan-sip-client-update/state.json for Screen settings.
 ExecStart=/usr/bin/python3 -I /usr/lib/azan-sip-client/azan_client.py update

@@ -1,25 +1,25 @@
-# Azan SIP Client (for a Dell Wyse or a laptop)
+# AthanBox Client (for a Dell Wyse or a laptop)
 
-A TV screen for the Azan SIP Box, on a Dell Wyse thin client, a laptop or any small computer running
+A TV screen for AthanBox, on a Dell Wyse thin client, a laptop or any small computer running
 Debian, 64-bit or 32-bit (Debian 12's i386 for a 32-bit computer).
-The Wyse connects to the box over the network, shows its prayer-times screen full screen on the TV,
+The Wyse connects to AthanBox over the network, shows its prayer-times screen full screen on the TV,
 and plays the azan through the TV's speakers at the same moment as the phones. Its volume is its
 own. Install instructions for users are in the main [README](../README.md#a-tv-screen-on-a-dell-wyse-or-a-laptop).
 
 ## How it works
 
 ```
-TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on 127.0.0.1:8771 ──LAN──> Azan SIP Box (/tv)
+TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on 127.0.0.1:8771 ──LAN──> AthanBox (/tv)
 Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings only)
 ```
 
 - **azan-sip-client.service** runs `azan_client.py serve`. It passes the kiosk's requests on to the
-  box's TV app (`/tv`, `/api/tv`, the recordings and the rest), reading only: anything that would
+  AthanBox's TV app (`/tv`, `/api/tv`, the recordings and the rest), reading only: anything that would
   change a setting is refused. It sets the azan's volume in `/api/tv` to this screen's own, and adds
-  `web/screen.js` to the page (the *Screen settings* button, and *Connecting to the Azan SIP Box*
-  while the box can't be reached, back to the prayer times by itself when it answers).
+  `web/screen.js` to the page (the *Screen settings* button, and *Connecting to AthanBox*
+  while AthanBox can't be reached, back to the prayer times by itself when it answers).
 - **From a phone or computer:** `serve` also listens on port 8772 (`AZAN_CLIENT_REMOTE_PORT`, 0 for
-  none) on every network address, for Screen settings and its API only (never the box's pages). A
+  none) on every network address, for Screen settings and its API only (never AthanBox's pages). A
   browser that isn't signed in gets `web/signin.html`: it asks for a code, which `web/code.js` shows
   on the TV (on the prayer times, the Connecting page and Screen settings) for 5 minutes. The right
   code sets an `HttpOnly`, `SameSite=Strict` cookie good for 90 days; only its SHA-256 is kept, in
@@ -28,7 +28,7 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
   The status a phone gets never includes the code. Only the TV can switch it off (`"remote": false`
   in `client.json`) or sign everyone out. *Play a test chime on the TV* is played by `code.js` on
   the TV.
-- **azan-sip-client-screen.service** runs `kiosk.sh` in cage on the first console, like the box's
+- **azan-sip-client-screen.service** runs `kiosk.sh` in cage on the first console, like AthanBox's
   own screen (`packaging/box/screen.sh`). It picks the TV's sound output at every start, or the
   computer's own speakers when no TV is plugged in (switching a laptop's built-in speaker on).
   It runs `azan-sip-client watch-screens` alongside the browser, which keeps the list of screens
@@ -62,23 +62,23 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
   removed again when the package is removed).
 - **32-bit:** the package is `Architecture: all` (Python and shell only), so the same .deb installs on
   64-bit and 32-bit Debian. CI installs it on Debian 12 and 13 (amd64) and Debian 12 (i386).
-- **Screen settings** (`/client/`, or press **S** on a keyboard) chooses the box (by address or by
-  searching the network), the screen's name on the box's TV app page, the volume, Makkah live's
+- **Screen settings** (`/client/`, or press **S** on a keyboard) chooses AthanBox (by address or by
+  searching the network), the screen's name on AthanBox's TV app page, the volume, Makkah live's
   sound and updates. With
   several screens it opens on the first one.
-- The box sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the
+- AthanBox sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the
   screen is listed on the TV app page under its name.
 - Settings are kept in `/var/lib/azan-sip-client/client.json`.
 
-It works with any Azan SIP that has the TV app: the Box, or the desktop app 1.10.0 or newer. The
-volume of its own needs the Box 0.4.3 or newer.
+It works with any AthanBox that has the TV app: AthanBox, or the desktop app 1.10.0 or newer. The
+volume of its own needs AthanBox 0.4.3 or newer.
 
 ## Commands
 
 ```sh
-azan-sip-client status                  # which box, connected or not, the volume
-azan-sip-client search                  # find Azan SIP Boxes on the network
-azan-sip-client connect 192.168.1.20    # show this box (--name "Main hall" for its name)
+azan-sip-client status                  # which AthanBox, connected or not, the volume
+azan-sip-client search                  # find AthanBoxes on the network
+azan-sip-client connect 192.168.1.20    # show this AthanBox (--name "Main hall" for its name)
 azan-sip-client volume 60               # the azan's volume on this screen, 0-100
 azan-sip-client update --check          # is there a newer client?
 azan-sip-client update                  # install it (as root)
@@ -96,11 +96,11 @@ sh client/test-two-screens.sh           # as root in a throwaway Debian containe
 ```
 
 The version is `__version__` in `azan_client.py`. The client has its own releases, apart from the
-Box's: set the new version there, add a `## x.y.z - title` section at the top of
+AthanBox's: set the new version there, add a `## x.y.z - title` section at the top of
 [`CHANGELOG.md`](CHANGELOG.md), point the install link in the main README at `client-vx.y.z`, and
 merge it to main. `.github/workflows/client-release.yml` then publishes release `client-vx.y.z`
 with the package attached as `azan-sip-client.deb` and `azan-sip-client_x.y.z_all.deb`. It isn't
-marked as the repository's latest release, which stays the Box's, so the Box and its Docker image
-don't change. (Box releases up to 0.7.2 carried the client, and client 0.3.0 looks for updates
-there: while the Box's latest release still has a client package, the workflow swaps it for the new
+marked as the repository's latest release, which stays AthanBox's, so AthanBox and its Docker image
+don't change. (AthanBox releases up to 0.7.2 carried the client, and client 0.3.0 looks for updates
+there: while AthanBox's latest release still has a client package, the workflow swaps it for the new
 one, so 0.3.0 screens can update from their button.)

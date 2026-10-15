@@ -1,8 +1,8 @@
-"""The volume of the computer the Box runs on (a laptop, or a Wyse with a TV on HDMI).
+"""The volume of the computer AthanBox runs on (a laptop, or a Wyse with a TV on HDMI).
 
 The TV app page's volume slider sets the computer's own sound card volume with amixer, so the
-azan on the box's own screen gets quieter or louder like any other sound on that computer. Where
-there is no volume control to set (Docker, no sound card, or an HDMI output without one), the box's
+azan on AthanBox's own screen gets quieter or louder like any other sound on that computer. Where
+there is no volume control to set (Docker, no sound card, or an HDMI output without one), AthanBox's
 own screen turns the azan down itself instead.
 """
 from __future__ import annotations

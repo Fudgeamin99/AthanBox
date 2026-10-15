@@ -3,8 +3,8 @@
 Runs the scheduler in the background and serves a local web page to manage everything:
 location, calculation, audio, phones, tests and logs. Only reachable from this computer.
 
-Box mode (`azan-sip run --box`, used on the Azan SIP Box): the panel is also reachable from the
-network (port 8765 and port 80, e.g. http://azan.local) and changing anything needs the box's
+Box mode (`azan-sip run --box`, used on AthanBox): the panel is also reachable from the
+network (port 8765 and port 80, e.g. http://azan.local) and changing anything needs AthanBox's
 password. Viewing the prayer times does not.
 """
 from __future__ import annotations
@@ -42,7 +42,7 @@ from .praytimes import METHODS, PRAYERS, SHAFAQ, get_zone
 log = logging.getLogger("azan-sip")
 
 DEFAULT_PORT = 8765
-# The version shown in the panel: the Box's own (BOX_CHANGELOG.md), or the desktop app's without it.
+# The version shown in the panel: AthanBox's own (BOX_CHANGELOG.md), or the desktop app's without it.
 VERSION = updater.box_version() or __version__
 AUDIO_EXT = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".wma", ".mp4"}
 STATIC = Path(__file__).with_name("static")
@@ -66,7 +66,7 @@ TV_HEAD = b"""<meta name="viewport" content="width=device-width, initial-scale=1
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0e4a40">
 <link rel="apple-touch-icon" href="/icons/tv-180.png">"""
-# The Android app is the desktop app's (built in Fudgeamin99/ATHAN-TO-SIP). The Box's Docker image carries
+# The Android app is the desktop app's (built in Fudgeamin99/ATHAN-TO-SIP). AthanBox's Docker image carries
 # a copy (static/AzanTV.apk, added when the image is built); otherwise it comes from the app's latest release.
 APK_FILE = STATIC / "AzanTV.apk"
 APK_URL = "https://github.com/Fudgeamin99/ATHAN-TO-SIP/releases/latest/download/AzanTV.apk"
@@ -86,7 +86,7 @@ DEFAULT_CONFIG = {
     "audio": {"azan": "tone", "volume_db": 0, "lead_in_ms": 400},
     "network": {"local_ip": "", "multicast_ttl": 4},
     # Makkah live stream (empty = Saudi Quran TV). direct: screens fetch it themselves; fallback: when a screen
-    # can't, it goes through the box (off: the box never relays it, so it uses no data for it)
+    # can't, it goes through AthanBox (off: AthanBox never relays it, so it uses no data for it)
     "live": {"url": "", "direct": True, "fallback": True},
     "targets": [{"name": "All phones (multicast)", "type": "multicast", "address": "224.5.6.20:10008",
                  "codec": "PCMU", "enabled": True}],
@@ -133,7 +133,7 @@ tr.ten td{{background-color:#f3ecd9}} tr.ten td.k{{background:#eadfbf}}
 {rows}
   </tbody></table>
   <div class="legend"><span><i></i>Last ten nights</span><span><b>Fri</b> in bold: Jumu'ah</span><span>Taraweeh every night after Isha</span></div>
-  <div class="foot"><span>{note}</span><span>Printed from Azan SIP</span></div>
+  <div class="foot"><span>{note}</span><span>Printed from AthanBox</span></div>
 </div></body></html>"""
 
 
@@ -191,7 +191,7 @@ def local_ips() -> list[str]:
 
 
 def box_ip() -> str:
-    """The address phones and PCs reach this box on (the one with the default route)."""
+    """The address phones and PCs reach this AthanBox on (the one with the default route)."""
     ip = rtp.local_ip_for()
     return ip if not ip.startswith("127.") else (local_ips() or ["127.0.0.1"])[0]
 
@@ -281,7 +281,7 @@ def set_windows_startup(enabled: bool, base: Path):
         f'sh.Run {cmd}, 0, False\r\n', encoding="utf-8")
 
 
-def message_box(text: str, title: str = "Azan SIP"):
+def message_box(text: str, title: str = "AthanBox"):
     if os.name == "nt":
         try:
             import ctypes
@@ -293,7 +293,7 @@ def message_box(text: str, title: str = "Azan SIP"):
         print(text, file=sys.stderr)
 
 
-# Azan recordings that come with the Box (azan_sip/sounds). Each is copied into audio/ once, so it can
+# Azan recordings that come with AthanBox (azan_sip/sounds). Each is copied into audio/ once, so it can
 # be picked on the Azan sound page; one the owner removes afterwards isn't added back.
 SOUNDS = Path(__file__).with_name("sounds")
 
@@ -319,9 +319,9 @@ def add_bundled_sounds(audio_dir: Path) -> None:
             offered.add(src.name)
         note.write_text(json.dumps(sorted(offered)), encoding="utf-8")
         if added:
-            log.info("Added %d azan recording(s) that come with the Box: %s", len(added), ", ".join(added))
+            log.info("Added %d azan recording(s) that come with AthanBox: %s", len(added), ", ".join(added))
     except OSError as exc:
-        log.warning("Couldn't add the azan recordings that come with the Box: %s", exc)
+        log.warning("Couldn't add the azan recordings that come with AthanBox: %s", exc)
 
 
 # ------------------------------------------------------------------ service
@@ -392,7 +392,7 @@ class Service:
             self._stop_scheduler(halt_audio=False)  # an azan that is playing carries on
             self.app, self.cfg, self.error = app, cfg, None
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
-            sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to Azan SIP
+            sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to AthanBox
             g = cfg.get("general", {})
             self._host_volume(g.get("tv_volume", 100))
             if g.get("scheduler_enabled", True) and g.get("configured", True):
@@ -418,7 +418,7 @@ class Service:
         return ((self.cfg.get("live") or {}).get("url") or "").strip() or live.DEFAULT_URL
 
     def live_screen(self) -> dict:
-        """Where screens get Makkah live: through the box, or (direct) from the stream itself, so the box
+        """Where screens get Makkah live: through AthanBox, or (direct) from the stream itself, so AthanBox
         uses no data for it. The link is only shared with screens when they need it."""
         lv = self.cfg.get("live") or {}
         if lv.get("direct") is not False:   # on unless switched off
@@ -427,7 +427,7 @@ class Service:
 
     @property
     def relay_off(self) -> bool:
-        """Screens must fetch Makkah live themselves: the box doesn't relay it at all."""
+        """Screens must fetch Makkah live themselves: AthanBox doesn't relay it at all."""
         info = self.live_screen()
         return info["direct"] and not info["fallback"]
 
@@ -445,12 +445,12 @@ class Service:
         if not self.configured():
             self.auth.new_setup_code()
         if not self.auth.has_password():
-            log.warning("No password is set on this box - set one with: python -m azan_sip box-password --factory")
+            log.warning("No password is set on this AthanBox - set one with: python -m azan_sip box-password --factory")
         if updater.DOCKER:
             updater.ensure_helper_token(self.base)
 
     def factory_reset(self):
-        """Back to how the box left the factory: settings, recordings, timetable and own password removed."""
+        """Back to how AthanBox left the factory: settings, recordings, timetable and own password removed."""
         with self.lock:
             if self.app and self.app.now_playing:
                 self.app.stop_audio()
@@ -500,8 +500,8 @@ class Service:
         log.info("TV screens %s", "can connect" if on else "switched off - every TV screen is disconnected")
 
     def tv_links(self, host: str = "") -> dict:
-        """Addresses for the TV app page: the one the page was opened on first (say azan.local), then the box's
-        own. The Android app gets the box's IP address: it adds port 8765 by itself."""
+        """Addresses for the TV app page: the one the page was opened on first (say azan.local), then AthanBox's
+        own. The Android app gets AthanBox's IP address: it adds port 8765 by itself."""
         port = self.server.server_address[1] if self.server else DEFAULT_PORT
         here = "" if self.extra_servers else f":{port}"   # with port 80 open, no port is needed
         hosts = [host] if host else []
@@ -518,7 +518,7 @@ class Service:
         """What TV screens ask about twice a second: what's playing (and since when, so they join in at
         the right place), how the last one ended, and what plays next (to download it early)."""
         sh = self.shared
-        try:  # The box's own screen: the volume slider on the TV app page, 0-100 %. When the computer's
+        try:  # AthanBox's own screen: the volume slider on the TV app page, 0-100 %. When the computer's
               # own volume was set instead (hostvol), the screen plays at full volume.
             vol = max(0.0, min(100.0, float(self.cfg.get("general", {}).get("tv_volume", 100)))) / 100
         except (TypeError, ValueError):
@@ -662,7 +662,7 @@ class Service:
                   "live": self.live_screen(),
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
-                  "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to Azan SIP
+                  "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to AthanBox
                   "screens": {"on": self.screens_on, "list": self.tvs.info()}}
             if app is None:
                 return st
@@ -737,7 +737,7 @@ class Service:
         """Start a fresh copy of the app (which waits for our port) and stop this one."""
         self.restarting = True
         spawned = updater.spawn_replacement(self.base)
-        log.info("Restarting Azan SIP%s", "" if spawned else " (service manager will start it again)")
+        log.info("Restarting AthanBox%s", "" if spawned else " (service manager will start it again)")
         threading.Timer(1.0, self.server.shutdown).start()
 
     def auto_update_checker(self):
@@ -766,7 +766,7 @@ class Service:
             if r["status"] == "failed":
                 w.append(f"Extension {r['extension']} is not registered on the phone system: {r['detail']}")
         if (self.update_info or {}).get("available"):
-            w.append(f"A new version of Azan SIP ({self.update_info.get('latest_version')}) is available - "
+            w.append(f"A new version of AthanBox ({self.update_info.get('latest_version')}) is available - "
                      "install it from Settings > Updates.")
         tzname = self.cfg.get("location", {}).get("timezone", "local")
         if app.times.tz is None and str(tzname).lower() not in ("", "local", "system"):
@@ -899,7 +899,7 @@ class Service:
             return self.wizard["rev"]
 
     def setup_usb(self) -> dict:
-        """Copy azan recordings from a USB stick plugged into the box."""
+        """Copy azan recordings from a USB stick plugged into AthanBox."""
         if not self.box or updater.DOCKER:
             return {"available": False, "found": [], "copied": []}
         found, copied = find_usb_audio(), []
@@ -968,7 +968,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.service.box:
             return False
         # Box mode: only names that can't point a web page somewhere else (DNS rebinding):
-        # the box's IP addresses, and .local names (mDNS, only answered on this network).
+        # AthanBox's IP addresses, and .local names (mDNS, only answered on this network).
         try:
             ipaddress.ip_address(host)
             return True
@@ -990,11 +990,11 @@ class Handler(BaseHTTPRequestHandler):
         return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 
     def _setup_keep(self) -> str | None:
-        """Whose setup-code session survives the end of setup: a phone or PC, never the box's own screen."""
+        """Whose setup-code session survives the end of setup: a phone or PC, never AthanBox's own screen."""
         return None if self._client_local() else self._token()
 
     def _tv_allowed(self, p: str) -> bool:
-        """The TV app follows "Let TV screens connect" (on the TV app page) on every device but the box itself."""
+        """The TV app follows "Let TV screens connect" (on the TV app page) on every device but AthanBox itself."""
         if not (p in TV_PATHS or p.startswith(TV_PREFIXES)):
             return True
         return self._client_local() or self.service.screens_on
@@ -1019,7 +1019,7 @@ class Handler(BaseHTTPRequestHandler):
         return raw
 
     def _setup_urls(self) -> list[str]:
-        """Links for the setup QR code: the address this page was opened on first, then the box's own."""
+        """Links for the setup QR code: the address this page was opened on first, then AthanBox's own."""
         svc = self.service
         hostport = "" if svc.extra_servers else f":{svc.server.server_address[1]}"
         raw = (self.headers.get("Host") or "").split(":")[0]
@@ -1028,7 +1028,7 @@ class Handler(BaseHTTPRequestHandler):
                 for ip in dict.fromkeys(ips + [box_ip(), *local_ips()])]
 
     def _may_see_setup_code(self) -> bool:
-        """The box's own screen, or someone already signed in (to carry on from their phone)."""
+        """AthanBox's own screen, or someone already signed in (to carry on from their phone)."""
         svc = self.service
         return bool(svc.box and svc.auth.setup_code and (self._client_local() or self._authed()))
 
@@ -1064,7 +1064,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         p = url.path
         if not self._tv_allowed(p):
-            return self._send(403, "TV screens can't connect. In the Azan SIP Box's control panel, go to TV app and "
+            return self._send(403, "TV screens can't connect. In AthanBox's control panel, go to TV app and "
                                    "switch on \u201cLet TV screens connect\u201d. Then try again.".encode("utf-8"),
                               "text/plain; charset=utf-8")
         try:
@@ -1085,7 +1085,7 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/tv":   # the TV app: the prayer-times screen, which also plays the azan
                 body = re.sub(rb'<meta name="viewport"[^>]*>\s*<!--tv-->', lambda m: TV_HEAD,
                               (STATIC / "display.html").read_bytes(), count=1)
-                body = body.replace(b"<title>Azan SIP \xc2\xb7 Prayer times</title>", b"<title>Azan SIP TV</title>", 1)
+                body = body.replace(b"<title>AthanBox \xc2\xb7 Prayer times</title>", b"<title>Azan SIP TV</title>", 1)
                 return self._send(200, body, "text/html; charset=utf-8")
             if p == "/apk":   # the Android app (Azan SIP TV)
                 if APK_FILE.is_file():
@@ -1128,7 +1128,7 @@ class Handler(BaseHTTPRequestHandler):
                                                               for a in srv["accounts"]]})
                 return self._json(st)
             if p in ("/live/stream.m3u8", "/live/x") and svc.relay_off:
-                return self._json({"ok": False, "error": "Makkah live through the box is turned off on the Display page"}, 403)
+                return self._json({"ok": False, "error": "Makkah live through AthanBox is turned off on the Display page"}, 403)
             if p == "/live/stream.m3u8":  # Makkah live, relayed so any screen can play it
                 try:
                     ctype, body = svc.live.entry(self.client_address[0])
@@ -1165,7 +1165,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(svc.tv_links(self._page_host()))
             if p == "/api/security":   # the Security page: fail2ban, whitelist and blacklist
                 if not svc.security:
-                    return self._json({"ok": False, "error": "Security settings are only on the Azan SIP Box"}, 404)
+                    return self._json({"ok": False, "error": "Security settings are only on AthanBox"}, 404)
                 return self._json(svc.security.state(self.client_address[0]))
             if p.startswith("/audio/"):
                 f = svc.audio_dir / Path(unquote(p[7:])).name
@@ -1231,7 +1231,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "config": svc.cfg})
             if p == "/api/password":
                 if not svc.box:
-                    raise ValueError("Passwords are only used on the Azan SIP Box")
+                    raise ValueError("Passwords are only used on AthanBox")
                 if not svc.auth.setup_code and not svc.auth.verify(str(req.get("current") or "")):
                     raise ValueError("The current password is wrong")
                 svc.auth.set_password(str(req.get("new") or ""))
@@ -1240,7 +1240,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if p == "/api/factory-reset":
                 if not svc.box:
-                    raise ValueError("Factory reset is only available on the Azan SIP Box")
+                    raise ValueError("Factory reset is only available on AthanBox")
                 if req.get("confirm") != "RESET":
                     raise ValueError("Type RESET to confirm")
                 svc.factory_reset()
@@ -1277,7 +1277,7 @@ class Handler(BaseHTTPRequestHandler):
                 svc.set_screens(bool(req.get("on")))
                 return self._json({"ok": True, **svc.tv_links(self._page_host())})
             if p.startswith("/api/security/") and not svc.security:
-                raise ValueError("Security settings are only on the Azan SIP Box")
+                raise ValueError("Security settings are only on AthanBox")
             if p == "/api/security/fail2ban":
                 svc.security.set_fail2ban(req)
                 return self._json({"ok": True, **svc.security.state(self.client_address[0])})
@@ -1348,7 +1348,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "files": svc.meta()["audio_files"]})
             if p == "/api/quit":
                 if svc.box:
-                    raise ValueError("The box can't be quit from the control panel")
+                    raise ValueError("AthanBox can't be quit from the control panel")
                 self._json({"ok": True})
                 log.info("Quit requested from the control panel")
                 threading.Thread(target=svc.server.shutdown, daemon=True).start()
@@ -1408,11 +1408,11 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
             break
     if server is None:
         if _already_running(port):
-            log.info("Azan SIP is already running - opening its control panel")
+            log.info("AthanBox is already running - opening its control panel")
             if open_browser:
                 webbrowser.open(url)
             return 0
-        message_box(f"Azan SIP could not start: port {port} is used by another program.\n"
+        message_box(f"AthanBox could not start: port {port} is used by another program.\n"
                     f"Change [general] port in {config_path.name}.")
         return 1
 
@@ -1428,8 +1428,8 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
                              daemon=True).start()
         except OSError as exc:
             log.warning("Could not open port 80 (%s) - the panel is on port %d only", exc, port)
-        log.info("Box mode: control panel open to the network, password needed to change settings")
-    log.info("Azan SIP%s %s - control panel at %s", " Box" if updater.box_version() else "", VERSION, url)
+        log.info("AthanBox mode: control panel open to the network, password needed to change settings")
+    log.info("AthanBox %s - control panel at %s", VERSION, url)
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     threading.Thread(target=svc.auto_update_checker, name="update-check", daemon=True).start()
@@ -1449,13 +1449,13 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
             extra.server_close()
         svc.shutdown()
         server.server_close()
-        log.info("Azan SIP stopped")
+        log.info("AthanBox stopped")
     return 0
 
 
 def main(argv=None):
     import argparse
-    ap = argparse.ArgumentParser(prog="Azan SIP")
+    ap = argparse.ArgumentParser(prog="AthanBox")
     ap.add_argument("-c", "--config", default=None)
     ap.add_argument("--background", action="store_true", help="don't open the browser (used at Windows start-up)")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -1465,7 +1465,7 @@ def main(argv=None):
         sys.exit(serve(cfg, open_browser=not args.background, verbose=args.verbose))
     except Exception as exc:
         logging.getLogger("azan-sip").exception("fatal error")
-        message_box(f"Azan SIP stopped because of an error:\n\n{exc}\n\nSee azan.log for details.")
+        message_box(f"AthanBox stopped because of an error:\n\n{exc}\n\nSee azan.log for details.")
         sys.exit(1)
 
 
