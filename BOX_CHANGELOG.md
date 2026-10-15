@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.4 - Several desk phones on one extension, and switched-off trunks stay signed in
+
+- **Switching off a SIP trunk or desk phones** on the Phones page now only stops the azan calls to them. Phone systems and phones can still sign in, so a phone system such as a UCM no longer keeps retrying with "wrong username or password" (which could also get it banned by fail2ban). Switch it back on and the calls start again.
+- **Desk phones sign in to Azan SIP:** each extension now has **Sign-ins allowed**, like SIP trunk accounts, so several desk phones can share one extension (up to 50). They all ring for the azan.
+- Each extension shows how many phones are signed in with it, and from where (for example *2 of 3 signed in*).
+- **Debian and Docker:** nothing to run. Update as usual.
+
 ## 0.7.3 - Desk phones sign in to the Box, and a shorter banned list
 
 - **Desk phones sign in to Azan SIP:** a new, sixth way to reach the phones. Each desk phone adds the Box as a line, with its own extension and password on the Box (101, 102 and so on). For the azan, the Box rings every signed-in phone with an auto-answer request, so they pick up by themselves and play it on the speaker. No phone system is needed, and it can be a second line next to the phone system's. Setup steps for Yealink, Grandstream, Fanvil, Snom and Poly are in the guide on the Phones page.

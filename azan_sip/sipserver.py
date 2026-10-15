@@ -448,7 +448,9 @@ class ServerManager:
     def sync(self, cfg: dict, base: Path | None = None):
         if base is not None:
             self.state_file = Path(base) / ".sip_bindings.json"
-        ts = [t for t in cfg.get("targets", []) if t.get("type") in KINDS and t.get("enabled", True)]
+        # entries switched off still let their phones and phone systems sign in (so a phone system doesn't keep
+        # retrying, or get banned, while it is off): only the azan calls stop, as off entries aren't played to
+        ts = [t for t in cfg.get("targets", []) if t.get("type") in KINDS]
         local_ip = cfg.get("network", {}).get("local_ip") or None
         with self.lock:
             if not ts:
@@ -507,8 +509,7 @@ def check_targets(targets: list) -> None:
                 if u in users:
                     raise ValueError(f"The username {u} is used by a desk phone and a SIP trunk; give each its own")
                 users.add(u)
-            if t.get("enabled", True):
-                ports.add(int(t.get("port", 5060) or 5060))
+            ports.add(int(t.get("port", 5060) or 5060))
     if len(ports) > 1:
         raise ValueError("Desk phones and SIP trunks sign in to the same SIP server, so give both the same SIP port")
 
