@@ -1,7 +1,8 @@
 // Added by the Azan SIP Client to the box's TV app on this screen: the volume buttons and the
 // "Screen settings" button (shown when the mouse moves or a key is pressed), and "Connecting to the
 // Azan SIP Box" whenever the box can't be reached (back to the prayer times by itself). The volume
-// is the azan's and Makkah live's.
+// is the azan's and Makkah live's. Makkah live's sound is switched on and off in Screen settings, and
+// a change made there (on a phone, say) shows here for a moment.
 // On a second screen (a silent copy inside /client/wall), the sound is left to the first one.
 (() => {
   const FRAMED = window.top !== window;
@@ -26,12 +27,20 @@
 #azc-bar svg{width:2.8vh;height:2.8vh}
 #azc-vol{min-width:17vh;text-align:center;font-variant-numeric:tabular-nums}
 #azc-vol b{display:block;font-size:1.5vh;font-weight:500;color:#cfe3dc}
+#azc-note{position:fixed;left:50%;top:2vh;transform:translate(-50%,-1vh);z-index:10001;display:flex;align-items:center;gap:1.6vh;padding:1.6vh 2.6vh;
+  border-radius:1.6vh;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.75);color:#fff;font:600 2.8vh system-ui,"DejaVu Sans",sans-serif;
+  opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;white-space:nowrap}
+#azc-note.show{opacity:1;transform:translate(-50%,0)}
+#azc-note svg{width:3.6vh;height:3.6vh;flex:none}
+#azc-note i{display:block;width:24vh;height:.8vh;margin-top:.9vh;border-radius:.4vh;background:rgba(255,255,255,.2);overflow:hidden}
+#azc-note i b{display:block;height:100%;background:#f3e2b4}
 #azc-off{position:fixed;inset:0;z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
   background:rgba(8,40,34,.92);color:#fff;font:500 3vh system-ui,sans-serif;text-align:center;padding:6vh}
 #azc-off b{font-size:5vh}
 #azc-off small{font-size:2.4vh;color:#cfe3dc;max-width:70vw}`;
   document.head.appendChild(css);
   const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/>';
+  const SOUND = SPK + '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>', QUIET = SPK + '<path d="m22 9-6 6M16 9l6 6"/></svg>';
   const bar = document.createElement("div");
   bar.id = "azc-bar";
   bar.innerHTML = `<button id="azc-down" title="Quieter (the - key)">${SPK}<path d="M15.5 12h5"/></svg></button>` +
@@ -41,13 +50,24 @@
   const off = document.createElement("div");
   off.id = "azc-off";
   off.innerHTML = "<b>Connecting to the Azan SIP Box…</b><small></small>";
-  document.body.append(bar, off);
+  const note = document.createElement("div");
+  note.id = "azc-note";
+  note.setAttribute("role", "status");
+  document.body.append(bar, off, note);
   const code = document.createElement("script");   // the code for phones and computers, and their test chime
   code.src = "/client/code.js";
   document.body.appendChild(code);
 
-  let hide;
-  const show = () => { bar.classList.add("show"); clearTimeout(hide); hide = setTimeout(() => bar.classList.remove("show"), 4000); };
+  let hide, noteHide;
+  const show = () => { note.classList.remove("show"); bar.classList.add("show"); clearTimeout(hide); hide = setTimeout(() => bar.classList.remove("show"), 4000); };
+  // A setting changed in Screen settings (on a phone, say): a short note on the TV
+  function popup(icon, text, level){
+    note.innerHTML = icon + "<div><span></span>" + (level === undefined ? "" : `<i><b style="width:${level}%"></b></i>`) + "</div>";
+    note.querySelector("span").textContent = text;
+    bar.classList.remove("show");
+    note.classList.add("show"); clearTimeout(noteHide); noteHide = setTimeout(() => note.classList.remove("show"), 3500);
+  }
+  const post = body => fetch("/client/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).then(r => r.json());
   for (const ev of ["mousemove", "touchstart", "keydown"]) addEventListener(ev, show, true);
 
   // The volume of the azan on this screen (the TV app gets it from the client within half a second)
@@ -72,7 +92,7 @@
   async function setVol(body){
     show(); changed = Date.now();
     try{
-      const r = await (await fetch("/client/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})).json();
+      const r = await post(body);
       if (r.ok){ vol = r.volume; showVol(); beep(); }
     }catch(e){}
   }
@@ -93,11 +113,45 @@
     e.preventDefault();
   }, true);
 
+  // Makkah live's sound, from Screen settings. The TV app keeps its own choice (its Sound button on the
+  // video) in azanLiveSound, and in LV while it runs: both are set here, and that button sets Screen
+  // settings in turn. While the azan plays the TV app keeps Makkah live quiet either way.
+  let live = null, liveChanged = 0;
+  const tvLive = () => typeof LV === "object" && LV ? LV : null;   // (the TV app's own, in the page's script)
+  const ownLive = () => { try{ return localStorage.getItem("azanLiveSound") === "1"; }catch(e){ return false; } };
+  function liveSound(on){
+    live = on;
+    try{ localStorage.setItem("azanLiveSound", on ? "1" : "0"); }catch(e){}
+    const L = tvLive(), v = document.getElementById("video");
+    if (!L || L.want === on) return;
+    L.want = on;
+    if (v && L.on && !L.azanMuted){ v.muted = !on; if (on) v.play().catch(() => {}); }
+  }
+  const ownBtn = document.getElementById("sound");   // the TV app's Sound button on Makkah live
+  if (ownBtn && !MIRROR) ownBtn.addEventListener("click", () => {   // (after the TV app's own handler)
+    live = tvLive() ? tvLive().want : ownLive(); liveChanged = Date.now();
+    post({live_sound: live}).catch(() => {});
+  });
+  function liveCheck(st){
+    if (typeof st.live_sound === "boolean"){
+      if (st.live_sound === live || Date.now() - liveChanged < 3000) return;
+      if (live !== null) popup(st.live_sound ? SOUND : QUIET, `Makkah live sound ${st.live_sound ? "on" : "off"}`);
+      liveSound(st.live_sound);
+    } else if (live === null && !MIRROR){   // not chosen in Screen settings yet: it starts from this screen's own choice
+      live = ownLive(); liveChanged = Date.now();
+      post({live_sound: live}).catch(() => {});
+    }
+  }
+
   let misses = 0, gone = false;
   async function check(){
     let st = null;
     try{ st = await (await fetch("/client/api/status", {cache:"no-store"})).json(); }catch(e){}
-    if (st && Date.now() - changed > 3000){ vol = st.volume; showVol(); }
+    if (st && Date.now() - changed > 3000){
+      if (vol !== null && st.volume !== vol) popup(st.volume ? SOUND : QUIET, st.volume ? `Volume ${st.volume}%` : "Volume off", st.volume);
+      vol = st.volume; showVol();
+    }
+    if (st) liveCheck(st);
     if (st && st.state === "ok"){
       misses = 0;
       if (gone) return location.reload();   // back: a fresh page, in case the box was updated
@@ -110,7 +164,7 @@
         ? "The box doesn't let TV screens connect. In its control panel, open TV app and switch on “Let TV screens connect”."
         : `The box at ${(st.box || "").replace(/^http:\/\//, "")} isn't answering. The prayer times come back by themselves when it does.`;
     }
-    setTimeout(check, gone ? 2000 : 4000);
+    setTimeout(check, 2000);
   }
   check();
 })();

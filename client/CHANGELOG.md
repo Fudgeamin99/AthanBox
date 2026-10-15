@@ -6,6 +6,14 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.5.0 - Makkah live sound in Screen settings, and a note when the volume changes
+
+- **Makkah live sound** can be switched on and off in Screen settings, on the TV or from a phone or computer. Before, it could only be changed with the *Sound on/off* button on the video itself, which needed a mouse. That button still works, and Screen settings follows it. Makkah live still goes quiet by itself while the azan plays.
+- **A note on the TV** when the volume or Makkah live's sound is changed in Screen settings (from a phone, say): such as *Volume 40%* at the top of the screen for a few seconds.
+- **Screen settings** says *Volume set to 40%* (or *Makkah live sound off*) when it has saved the change.
+- `azan-sip-client status` says whether Makkah live's sound is on.
+- **Box and Docker:** nothing changes.
+
 ## 0.4.0 - Screen settings from a phone or computer
 
 - **Change a screen's settings from a phone or computer** on the same network: open the address shown in Screen settings on the TV, such as `http://192.168.1.31:8772`. The box, the screen's name, the volume and updates can all be changed there, and **Play a test chime on the TV** plays it through the TV's speakers.

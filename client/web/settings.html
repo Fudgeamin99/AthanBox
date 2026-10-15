@@ -32,6 +32,11 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 .switch{display:flex;gap:12px;align-items:center;font-weight:600;margin:6px 0 4px;cursor:pointer}
 .switch input{width:24px;height:24px;accent-color:var(--accent)}
 #rurl{font-weight:700;color:#fff;word-break:break-all}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);z-index:20;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;padding:12px 22px;
+  border-radius:12px;background:var(--accent);color:#14312a;font-weight:700;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.35);
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--bad);color:#3a120c}
 @media (max-width:600px){main{padding:24px 16px 40px}section{padding:18px 16px}h1{font-size:26px}}
 </style>
 </head>
@@ -63,6 +68,8 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
     <input type="range" id="volume" min="0" max="100" step="5">
     <div class="row"><button id="test">Play a test chime here</button></div>
     <div class="msg" id="tmsg"></div>
+    <label class="switch"><input type="checkbox" id="live"> Makkah live sound</label>
+    <p>When Makkah live is on this screen. It goes quiet by itself while the azan plays.</p>
   </section>
 
   <section>
@@ -91,6 +98,7 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
   <footer id="foot"></footer>
 </main>
 </div>
+<div id="toast" role="status"></div>
 <script>
 const $ = s => document.querySelector(s);
 const STATE = {ok:["Connected","ok"], not_allowed:["TV screens not allowed yet","bad"], unreachable:["Not answering","bad"],
@@ -102,6 +110,12 @@ async function api(path, body){
   return r.json();
 }
 function msg(text, kind){ const m = $("#msg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+let toastT;
+function toast(text, kind){   // a short note that a change was saved
+  const t = $("#toast");
+  t.textContent = text; t.className = "show " + (kind || "");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2500);
+}
 function show(st, fill){
   ST = st;
   document.body.classList.toggle("remote", !!st.remote);
@@ -123,6 +137,7 @@ function show(st, fill){
     $("#name").value = st.name || "";
     $("#volume").value = st.volume;
   }
+  if (Date.now() - liveT > 3000) $("#live").checked = !!st.live_sound;
   $("#vol").textContent = $("#volume").value + "%";
   $("#back").disabled = !st.box;
   $("#foot").textContent = `Azan SIP Client ${st.version}`;
@@ -130,13 +145,15 @@ function show(st, fill){
 }
 // With several screens plugged in, this page is spread over all of them: keep it on the first one
 function place(sc, all){
-  const a = $("#area"), wall = !ST.remote && all.length > 1 && sc.length > 0;
+  const a = $("#area"), t = $("#toast"), wall = !ST.remote && all.length > 1 && sc.length > 0;
   a.classList.toggle("wall", wall);
   document.documentElement.style.overflow = wall ? "hidden" : "";
-  if (!wall) return a.removeAttribute("style");
+  if (!wall){ t.removeAttribute("style"); return a.removeAttribute("style"); }
   const x0 = Math.min(...all.map(s => s.x)), y0 = Math.min(...all.map(s => s.y));
   const kx = innerWidth / (Math.max(...all.map(s => s.x + s.w)) - x0), ky = innerHeight / (Math.max(...all.map(s => s.y + s.h)) - y0);
-  Object.assign(a.style, {left: (sc[0].x - x0) * kx + "px", top: (sc[0].y - y0) * ky + "px", width: sc[0].w * kx + "px", height: sc[0].h * ky + "px"});
+  const x = (sc[0].x - x0) * kx, y = (sc[0].y - y0) * ky, w = sc[0].w * kx, h = sc[0].h * ky;
+  Object.assign(a.style, {left: x + "px", top: y + "px", width: w + "px", height: h + "px"});
+  Object.assign(t.style, {left: x + w / 2 + "px", bottom: innerHeight - y - h + 24 + "px"});   // the note too
 }
 async function connect(address){
   msg("Connecting…"); $("#connect").disabled = true;
@@ -168,10 +185,23 @@ $("#search").onclick = async () => {
   }catch(e){ msg("Searching didn't work.", "bad"); }
   finally{ $("#search").disabled = false; }
 };
-let saveT;
+let saveT, liveT = 0;
 $("#volume").oninput = () => {
   $("#vol").textContent = $("#volume").value + "%";
-  clearTimeout(saveT); saveT = setTimeout(() => api("/client/api/settings", {volume: +$("#volume").value}), 250);
+  clearTimeout(saveT); saveT = setTimeout(async () => {
+    try{
+      const r = await api("/client/api/settings", {volume: +$("#volume").value});
+      if (r.ok) toast(r.volume ? `Volume set to ${r.volume}%` : "Volume off");
+    }catch(e){ toast("The volume wasn't saved. Try again.", "bad"); }
+  }, 250);
+};
+$("#live").onchange = async () => {
+  const on = $("#live").checked;
+  liveT = Date.now();
+  try{
+    const r = await api("/client/api/settings", {live_sound: on});
+    if (r.ok) toast(`Makkah live sound ${on ? "on" : "off"}`);
+  }catch(e){ toast("That wasn't saved. Try again.", "bad"); }
 };
 $("#name").onchange = () => { if (ST.box) api("/client/api/settings", {name: $("#name").value}); };
 $("#test").onclick = async () => {   // the box's chime, at this screen's volume

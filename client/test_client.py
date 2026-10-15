@@ -225,9 +225,10 @@ class ClientTest(unittest.TestCase):
         self.assertTrue(st["remote"])
         self.assertNotIn("pair_code", st)
         self.assertNotIn("remote_url", st)
-        r, body = self.phone("/client/api/settings", {"volume": 30, "remote": False}, cookie=cookie)
+        r, body = self.phone("/client/api/settings", {"volume": 30, "remote": False, "live_sound": True}, cookie=cookie)
         self.assertTrue(json.loads(body)["ok"])
         self.assertEqual(tv()["volume"], 30)
+        self.assertIs(tv()["live_sound"], True)
         self.assertTrue(tv()["remote_on"])   # a phone can't switch phones off
         self.assertEqual(tv()["signed_in"], 1)
         before = tv()["chime"]
@@ -363,6 +364,17 @@ class ClientTest(unittest.TestCase):
         st = json.loads(body)
         self.assertEqual((st["box"], st["name"], st["volume"], st["version"]), (self.box_base, "Main hall", 60, ac.__version__))
 
+
+    def test_makkah_live_sound(self):
+        st = lambda: json.loads(self.get("/client/api/status")[1])
+        self.assertIsNone(st()["live_sound"])   # not chosen yet: the TV app's own choice (web/screen.js sends it)
+        for on in (True, False):
+            r, body = self.get("/client/api/settings", "POST", json.dumps({"live_sound": on}))
+            self.assertIs(json.loads(body)["live_sound"], on)
+            self.assertIs(st()["live_sound"], on)
+        r, body = self.get("/client/api/settings", "POST", json.dumps({"live_sound": "yes"}))
+        self.assertEqual(r.status, 400)
+        self.assertIs(st()["live_sound"], False)
 
     # -- the volume buttons on the screen
     def test_volume_buttons(self):
