@@ -293,12 +293,44 @@ def message_box(text: str, title: str = "Azan SIP"):
         print(text, file=sys.stderr)
 
 
+# Azan recordings that come with the Box (azan_sip/sounds). Each is copied into audio/ once, so it can
+# be picked on the Azan sound page; one the owner removes afterwards isn't added back.
+SOUNDS = Path(__file__).with_name("sounds")
+
+
+def add_bundled_sounds(audio_dir: Path) -> None:
+    try:
+        bundled = sorted(p for p in SOUNDS.glob("*") if p.suffix.lower() in AUDIO_EXT)
+        if not bundled:
+            return
+        audio_dir.mkdir(parents=True, exist_ok=True)
+        note = audio_dir / ".bundled.json"
+        try:
+            offered = set(json.loads(note.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            offered = set()
+        added = []
+        for src in bundled:
+            if src.name in offered:
+                continue
+            if not (audio_dir / src.name).exists():
+                shutil.copyfile(src, audio_dir / src.name)
+                added.append(src.name)
+            offered.add(src.name)
+        note.write_text(json.dumps(sorted(offered)), encoding="utf-8")
+        if added:
+            log.info("Added %d azan recording(s) that come with the Box: %s", len(added), ", ".join(added))
+    except OSError as exc:
+        log.warning("Couldn't add the azan recordings that come with the Box: %s", exc)
+
+
 # ------------------------------------------------------------------ service
 class Service:
     def __init__(self, config_path: Path):
         self.config_path = Path(config_path).resolve()
         self.base = self.config_path.parent
         self.audio_dir = self.base / "audio"
+        add_bundled_sounds(self.audio_dir)
         self.lock = threading.RLock()
         self.app: AzanApp | None = None
         self.thread: threading.Thread | None = None
