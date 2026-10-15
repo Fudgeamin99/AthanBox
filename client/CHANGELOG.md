@@ -6,8 +6,9 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
-## 0.3.1 - The client gets its own releases
+## 0.3.1 - Makkah live follows the volume, and the client gets its own releases
 
+- **Makkah live follows the screen's volume:** it played at full volume whatever the volume was set to. Now the volume buttons and Screen settings set Makkah live's volume as well as the azan's.
 - **Updates come from the client's own releases** on GitHub (tagged `client-v...`) instead of the Box's, so updating the client no longer makes a new Box version or Docker image, and a Box no longer offers an update when only the client changed.
 - **Once, on a screen with 0.3.0:** its Update button still looks in the Box's releases, so install 0.3.1 with the commands in the README one more time. From 0.3.1 on, **Update now** finds new versions by itself.
 - **Box and Docker:** nothing changes.

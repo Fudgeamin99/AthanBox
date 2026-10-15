@@ -31,7 +31,8 @@ TV ── HDMI ── Wyse: Chromium (kiosk, in cage) ──> azan-sip-client on
   `/api/tv` with volume 0 (and Makkah live is muted in them), so it's heard once. A laptop's own
   screen is left out while its lid is closed. Unplugging a screen goes back to one by itself.
 - **Volume buttons** on the prayer times (with the mouse, or **+**, **−** and a keyboard's volume
-  keys) change this screen's volume in steps of 10, with a short note at the new volume.
+  keys) change this screen's volume in steps of 10, with a short note at the new volume. The
+  volume is the azan's and Makkah live's: `screen.js` sets the live video's own volume to match.
 - **Updates:** *Update now* in Screen settings writes `/var/lib/azan-sip-client/update-now`;
   `azan-sip-client-update.path` sees it and starts `azan-sip-client-update.service`, which runs
   `azan_client.py update` as root. That downloads `azan-sip-client_<version>_all.deb` from the
