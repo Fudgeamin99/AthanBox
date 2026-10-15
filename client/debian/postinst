@@ -40,6 +40,7 @@ if [ "$1" = configure ]; then
     echo "    azan-sip-client search             find Azan SIP Boxes on the network"
     echo "    azan-sip-client connect <address>  show that box's prayer times here"
     echo "    azan-sip-client update             install a newer version (as root)"
+    echo "Its settings also open from a phone or computer on the network, on port 8772: see Phones and computers in Screen settings."
     echo "On the box, switch on \"Let TV screens connect\" on the TV app page."
 fi
 exit 0

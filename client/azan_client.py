@@ -11,6 +11,9 @@ http://127.0.0.1:8771 only:
   the Azan SIP Box" and goes back to the prayer times by itself as soon as the box answers again.
 * /client/ is this screen's own settings: which box, its name on the box's TV app page, the volume
   and updates. The volume also has buttons on the prayer-times screen itself (web/screen.js).
+* The same settings open from a phone or computer on the network, on port 8772 (and nothing else
+  there: not the box's pages). A browser gets in once by typing a code the TV shows, and stays
+  signed in for 90 days. It can be switched off in Screen settings on the TV.
 * With more than one screen plugged in (two TVs, or a laptop and a TV), every screen shows the prayer
   times: /client/wall puts one copy of the TV app on each, and only the first one makes a sound.
   "watch-screens" (run by the kiosk inside cage) keeps the list of screens in screens.json.
@@ -27,11 +30,13 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import hashlib
+import hmac
 import http.client
 import ipaddress
 import json
 import os
 import re
+import secrets
 import signal
 import socket
 import subprocess
@@ -44,9 +49,12 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 PORT = 8771                     # 8770 is the Docker box's updater
+REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
+SESSION_DAYS = 90               # how long a phone or computer stays signed in
+CODE_MINUTES = 5                # how long the code on the TV lasts
 BOX_PORTS = (80, 8765)          # a box on Debian answers on both; Docker and the desktop app on 8765
 CONFIG = Path(os.environ.get("AZAN_CLIENT_CONFIG", "/var/lib/azan-sip-client/client.json"))
 WEB = Path(os.environ.get("AZAN_CLIENT_WEB", Path(__file__).resolve().parent / "web"))
@@ -100,6 +108,89 @@ def read_json(path: Path) -> dict:
         return j if isinstance(j, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+# ------------------------------------------------------------------ settings from a phone or computer
+def sessions_file() -> Path:
+    return CONFIG.parent / "sessions.json"
+
+
+def new_session(device: str) -> str:
+    """Signs a browser in (after it typed the code on the TV): the token for its cookie."""
+    token, now = secrets.token_urlsafe(32), time.time()
+    keep = [x for x in read_json(sessions_file()).get("sessions", []) if isinstance(x, dict) and x.get("until", 0) > now]
+    keep = keep[-19:] + [{"hash": hashlib.sha256(token.encode()).hexdigest(), "made": now,
+                          "until": now + SESSION_DAYS * 86400, "device": str(device)[:80]}]
+    write_json(sessions_file(), {"sessions": keep}, 0o600)
+    return token
+
+
+def session_ok(token: str) -> bool:
+    if not token:
+        return False
+    h, now = hashlib.sha256(token.encode()).hexdigest(), time.time()
+    return any(isinstance(x, dict) and hmac.compare_digest(str(x.get("hash", "")), h) and x.get("until", 0) > now
+               for x in read_json(sessions_file()).get("sessions", []))
+
+
+def signed_in() -> int:
+    now = time.time()
+    return sum(1 for x in read_json(sessions_file()).get("sessions", []) if isinstance(x, dict) and x.get("until", 0) > now)
+
+
+class Pairing:
+    """The code a phone or computer types to open this screen's settings: shown on the TV for a few
+    minutes. Five wrong tries end a code, and ten in an hour stop new ones for the rest of the hour."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.code, self.until, self.tries, self.wrong = None, 0.0, 0, []
+
+    def _recent(self, now: float) -> list:
+        self.wrong = [t for t in self.wrong if now - t < 3600]
+        return self.wrong
+
+    def start(self) -> bool:
+        with self.lock:
+            now = time.time()
+            if self.code and now < self.until:
+                return True
+            if len(self._recent(now)) >= 10:
+                return False
+            self.code, self.until, self.tries = f"{secrets.randbelow(10 ** 6):06d}", now + CODE_MINUTES * 60, 0
+            log("A phone or computer asked for this screen's settings: the code is on the TV")
+            return True
+
+    def shown(self) -> str | None:
+        with self.lock:
+            return self.code if self.code and time.time() < self.until else None
+
+    def check(self, code: str) -> bool | None:
+        """True: right. False: wrong. None: no code showing (expired, or too many tries)."""
+        with self.lock:
+            now = time.time()
+            if not self.code or now >= self.until:
+                return None
+            if hmac.compare_digest(re.sub(r"\D", "", str(code))[:6], self.code):
+                self.code = None
+                return True
+            self._recent(now).append(now)
+            self.tries += 1
+            if self.tries >= 5 or len(self.wrong) >= 10:
+                self.code = None
+            return False
+
+
+_remote_url = (0.0, "")
+
+
+def remote_url() -> str:
+    """Where a phone or computer opens this screen's settings, such as http://192.168.1.31:8772/."""
+    global _remote_url
+    if time.time() - _remote_url[0] > 60:
+        nets = local_networks()
+        _remote_url = (time.time(), f"http://{nets[0].ip}:{REMOTE_PORT}/" if nets else "")
+    return _remote_url[1]
 
 
 def volume_of(c: dict) -> int:
@@ -546,6 +637,9 @@ def log(msg: str):
 class Handler(BaseHTTPRequestHandler):
     watch: Watch = None
     updates: Updates = None
+    pairing: Pairing = None
+    REMOTE = False                  # True for a phone or computer (RemoteHandler)
+    chime_at = 0.0                  # "Play a test chime on the TV", from a phone or computer
     server_version = "azan-sip-client"
     protocol_version = "HTTP/1.1"
 
@@ -580,9 +674,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def _status(self) -> dict:
         c, w = load_config(), self.watch.get()
-        return {"state": w["state"], "box_version": w.get("version"), "box": c.get("box"),
-                "name": c.get("name") or default_name(), "volume": volume_of(c), "version": __version__,
-                **dict(zip(("screens", "outputs"), read_screens()))}
+        st = {"state": w["state"], "box_version": w.get("version"), "box": c.get("box"),
+              "name": c.get("name") or default_name(), "volume": volume_of(c), "version": __version__,
+              **dict(zip(("screens", "outputs"), read_screens())), "remote": self.REMOTE, "chime": Handler.chime_at}
+        if not self.REMOTE:   # the TV only: the code, and where phones and computers open these settings
+            on = c.get("remote", True) is not False and bool(REMOTE_PORT)
+            st.update(remote_on=on, remote_url=remote_url() if on else "", signed_in=signed_in(),
+                      pair_code=self.pairing.shown() if on and self.pairing else None)
+        return st
 
     def _update_status(self, force: bool) -> dict:
         u = (self.updates or Updates()).check(force)
@@ -599,6 +698,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._file("wall.html")
         if p == "/client/screen.js":
             return self._file("screen.js")
+        if p == "/client/code.js":
+            return self._file("code.js")
         if p == "/client/api/status":
             return self._json(self._status())
         if p == "/client/api/search":
@@ -612,14 +713,18 @@ class Handler(BaseHTTPRequestHandler):
         f = WEB / name
         return self._send(200, f.read_bytes(), types[f.suffix])
 
-    def _client_post(self, p: str):
+    def _body(self) -> dict | None:
         try:
             n = int(self.headers.get("Content-Length") or 0)
-            req = json.loads(self.rfile.read(n) or b"{}") if n <= 10000 else {}
-            if not isinstance(req, dict):
-                raise ValueError
+            if not 0 <= n <= 10000:
+                self.close_connection = True   # (left unread)
+                return None
+            req = json.loads(self.rfile.read(n) or b"{}")
+            return req if isinstance(req, dict) else None
         except ValueError:
-            return self._json({"ok": False, "error": "Bad request"}, 400)
+            return None
+
+    def _client_post(self, p: str, req: dict):
         c = load_config()
         if p == "/client/api/connect":
             r = find_box(str(req.get("address", "")))
@@ -648,7 +753,16 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "Bad request"}, 400)
             if "name" in req:
                 c["name"] = str(req["name"]).strip()[:40]
+            if "remote" in req and not self.REMOTE:   # switched on and off on the TV only
+                c["remote"] = bool(req["remote"])
             save_config(c)
+            return self._json({"ok": True, **self._status()})
+        if p == "/client/api/chime":   # the prayer times on the TV play it (web/screen.js)
+            Handler.chime_at = time.time()
+            return self._json({"ok": True})
+        if p == "/client/api/forget" and not self.REMOTE:   # sign every phone and computer out
+            write_json(sessions_file(), {"sessions": []}, 0o600)
+            log("Every phone and computer was signed out of this screen's settings")
             return self._json({"ok": True, **self._status()})
         if p == "/client/api/update":
             # azan-sip-client-update.path sees this and runs the update as root
@@ -680,11 +794,12 @@ class Handler(BaseHTTPRequestHandler):
         self._proxy(c, url)
 
     def do_POST(self):
+        req = self._body()   # (read before answering, even a refusal, or it's taken for the next request)
         if not self._ok_request():
             return
         p = urllib.parse.urlsplit(self.path).path
         if p.startswith("/client/api/"):
-            return self._client_post(p)
+            return self._client_post(p, req) if req is not None else self._json({"ok": False, "error": "Bad request"}, 400)
         # The screen only shows the box: it never changes its settings
         return self._json({"ok": False, "error": "This screen can't change the box's settings. Use the box's control panel."}, 403)
 
@@ -761,15 +876,90 @@ class Handler(BaseHTTPRequestHandler):
         return body
 
 
+class RemoteHandler(Handler):
+    """This screen's settings from a phone or computer on the network (REMOTE_PORT): the settings page
+    and its API only, never the box's pages, for browsers signed in with the code shown on the TV."""
+    REMOTE = True
+    SIGN_IN = {"ok": False, "signin": True, "error": "Type the code shown on the TV first."}
+
+    def _signed_in(self) -> bool:
+        for part in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == "azc" and session_ok(v):
+                return True
+        return False
+
+    def _switched_on(self) -> bool:
+        if load_config().get("remote", True) is False:
+            self._send(403, "Changing this screen's settings from a phone or computer is switched off. "
+                            "Switch it on in Screen settings on the TV.".encode())
+            return False
+        return True
+
+    def do_GET(self):
+        if not self._switched_on():
+            return
+        url = urllib.parse.urlsplit(self.path)
+        p = url.path
+        if p in ("/", "/client", "/client/"):
+            return self._file("settings.html" if self._signed_in() else "signin.html")
+        if p == "/client/code.js":   # (Screen settings loads it; it does nothing here)
+            return self._file("code.js")
+        if p in ("/client/api/status", "/client/api/search", "/client/api/update"):
+            return self._client_get(p, url.query) if self._signed_in() else self._json(self.SIGN_IN, 401)
+        return self._send(404, b"Not found")
+
+    def do_POST(self):
+        req = self._body()   # (read before answering, even a refusal, or it's taken for the next request)
+        if not self._switched_on():
+            return
+        p = urllib.parse.urlsplit(self.path).path
+        # Only this screen's own pages may post here: JSON (which a page elsewhere can't send without
+        # asking first), and from this address
+        origin, host = self.headers.get("Origin"), self.headers.get("Host", "")
+        if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json" \
+                or (origin and origin != f"http://{host}"):
+            return self._json({"ok": False, "error": "Forbidden"}, 403)
+        if req is None:
+            return self._json({"ok": False, "error": "Bad request"}, 400)
+        if p == "/client/api/signin/code":   # show a code on the TV
+            if self.pairing.start():
+                return self._json({"ok": True, "minutes": CODE_MINUTES})
+            return self._json({"ok": False, "error": "Too many wrong codes. Try again in an hour."})
+        if p == "/client/api/signin":
+            ok = self.pairing.check(str(req.get("code", "")))
+            if ok is None:
+                return self._json({"ok": False, "expired": True, "error": "That code isn't showing any more. Press Show the code again for a new one."})
+            if not ok:
+                return self._json({"ok": False, "error": "That isn't the code on the TV. Check it and try again."})
+            token = new_session(self.headers.get("User-Agent") or "")
+            log(f"A phone or computer ({self.client_address[0]}) signed in to this screen's settings")
+            return self._send(200, b'{"ok": true}', "application/json", {
+                "Set-Cookie": f"azc={token}; Max-Age={SESSION_DAYS * 86400}; Path=/; HttpOnly; SameSite=Strict"})
+        if p in ("/client/api/connect", "/client/api/settings", "/client/api/update", "/client/api/chime"):
+            return self._client_post(p, req) if self._signed_in() else self._json(self.SIGN_IN, 401)
+        return self._json({"ok": False, "error": "Not found"}, 404)
+
+
 def serve(port: int = PORT):
     watch = Watch()
     Handler.watch = watch
     Handler.updates = Updates()
+    Handler.pairing = Pairing()
     threading.Thread(target=watch.run, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     c = load_config()
     log(f"Azan SIP Client {__version__} on http://127.0.0.1:{port}, box: {c.get('box') or 'not chosen yet'}")
+    if REMOTE_PORT:
+        try:
+            remote = ThreadingHTTPServer(("0.0.0.0", REMOTE_PORT), RemoteHandler)
+            remote.daemon_threads = True
+            threading.Thread(target=remote.serve_forever, daemon=True).start()
+            log(f"Screen settings from a phone or computer: {remote_url() or f'port {REMOTE_PORT}'}"
+                + ("" if c.get("remote", True) is not False else " (switched off in Screen settings)"))
+        except OSError as e:
+            log(f"Screen settings from a phone or computer aren't available: port {REMOTE_PORT}: {e}")
     server.serve_forever()
 
 
@@ -856,6 +1046,10 @@ def main(argv=None):
     print(f"Box:    {st.get('box') or '-'} ({STATES.get(st['state'], st['state'])})" + (f", Azan SIP {st['box_version']}" if st.get("box_version") else ""))
     print(f"Name:   {st['name']}")
     print(f"Volume: {st['volume']}%")
+    if st.get("remote_on"):
+        print(f"Phones and computers: {st.get('remote_url') or f'port {REMOTE_PORT}'} (with the code the TV shows)")
+    else:
+        print("Phones and computers: switched off in Screen settings")
 
 
 if __name__ == "__main__":

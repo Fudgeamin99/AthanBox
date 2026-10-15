@@ -6,6 +6,14 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.4.0 - Screen settings from a phone or computer
+
+- **Change a screen's settings from a phone or computer** on the same network: open the address shown in Screen settings on the TV, such as `http://192.168.1.31:8772`. The box, the screen's name, the volume and updates can all be changed there, and **Play a test chime on the TV** plays it through the TV's speakers.
+- **Signing in:** the first time, the phone or computer asks for a 6-digit code that shows on the TV for 5 minutes. After that it stays signed in for 90 days. Five wrong codes end a code, and ten wrong codes in an hour stop new ones for the rest of the hour.
+- **On the TV,** Screen settings has a new **Phones and computers** section: the address to open, how many are signed in, **Sign them all out**, and a switch to turn it off. Only the TV can turn it off or sign them out.
+- Only the settings open on that port: not the Box's prayer times or anything else.
+- **Box and Docker:** nothing changes.
+
 ## 0.3.1 - Makkah live follows the volume, and the client gets its own releases
 
 - **Makkah live follows the screen's volume:** it played at full volume whatever the volume was set to. Now the volume buttons and Screen settings set Makkah live's volume as well as the azan's.

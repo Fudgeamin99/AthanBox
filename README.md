@@ -4,7 +4,7 @@ The Azan SIP Box plays the azan (call to prayer) automatically at every prayer t
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in box (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.7.2, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.3.1](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.3.1). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.7.2, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.4.0](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.4.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 > Looking for the Windows program (AzanSIP.exe)? That's the desktop app, [Azan SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP), which the Box is built from.
 
@@ -98,7 +98,7 @@ A spare Dell Wyse, an old laptop or any small PC can be a TV screen for a Box so
 
 ```sh
 sudo apt update && sudo apt install -y wget
-wget https://github.com/Fudgeamin99/azan-sip-box/releases/download/client-v0.3.1/azan-sip-client.deb
+wget https://github.com/Fudgeamin99/azan-sip-box/releases/download/client-v0.4.0/azan-sip-client.deb
 sudo apt install -y ./azan-sip-client.deb
 ```
 
@@ -109,6 +109,8 @@ If it says `sudo: command not found` (Debian leaves sudo out when you set a root
 **On a laptop:** with no TV plugged in, it shows the prayer times on the laptop's own screen and plays the azan through its speakers. With a TV on HDMI, the prayer times and the azan go to the TV instead, and the laptop keeps going with its lid closed. Keep it plugged into power. It works on 64-bit and 32-bit laptops alike.
 
 The Wyse shows on the Box's **TV app** page under its name, where *Test chime* checks the sound. **Volume:** move the mouse and use the volume buttons at the top of the screen, or press **+** and **−** (or a keyboard's volume keys), or run `azan-sip-client volume 60` over SSH. It sets Makkah live's volume as well as the azan's. To change the Box or the name later, press **Screen settings** next to them (or **S** on a keyboard). The Wyse can only show the prayer times: it can't change the Box's settings. More in [`client/README.md`](client/README.md).
+
+**From a phone or computer:** Screen settings also opens in a browser on the same network, at the address shown under **Phones and computers** in Screen settings on the TV, such as `http://192.168.1.31:8772`. The first time, type the code that shows on the TV; the browser then stays signed in. From there you can choose the Box, rename the screen, set the volume, play a test chime on the TV and update. It can be switched off, or everyone signed out, in Screen settings on the TV.
 
 **Updates:** open **Screen settings** and press **Update now** when it says a new version is available. The Wyse downloads it from the client's own releases on this repository (tagged `client-v...`, apart from the Box's, so a client update never changes the Box or its Docker image), installs it and restarts the screen by itself. Over SSH, `azan-sip-client update` as root does the same. The Update button arrived in version 0.3.0, so a Wyse with an older client needs the three commands above once more. What's new in each version is in [`client/CHANGELOG.md`](client/CHANGELOG.md).
 

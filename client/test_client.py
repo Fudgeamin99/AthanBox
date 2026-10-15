@@ -141,14 +141,18 @@ class ClientTest(unittest.TestCase):
         ac.RELEASES = f"http://127.0.0.1:{cls.github.server_address[1]}/releases?per_page=100"
         ac.Handler.watch = ac.Watch()
         ac.Handler.updates = ac.Updates()
+        ac.Handler.pairing = ac.Pairing()
         cls.client = serve(ac.Handler)
         cls.port = cls.client.server_address[1]
+        cls.remote = serve(ac.RemoteHandler)   # the settings from a phone or computer
+        cls.rport = cls.remote.server_address[1]
 
     @classmethod
     def tearDownClass(cls):
         cls.box.shutdown()
         cls.github.shutdown()
         cls.client.shutdown()
+        cls.remote.shutdown()
         cls.tmp.cleanup()
 
     def setUp(self):
@@ -166,6 +170,95 @@ class ClientTest(unittest.TestCase):
         data = r.read()
         c.close()
         return r, data
+
+    def phone(self, path, body=None, cookie="", headers=None):
+        """A request from a phone or computer on the network, to the remote settings port."""
+        c = http.client.HTTPConnection("127.0.0.1", self.rport, timeout=10)
+        h = {"Host": f"192.168.1.31:{self.rport}", **({"Cookie": cookie} if cookie else {}),
+             **({"Content-Type": "application/json"} if body is not None else {}), **(headers or {})}
+        c.request("POST" if body is not None else "GET", path, body=None if body is None else json.dumps(body), headers=h)
+        r = c.getresponse()
+        data = r.read()
+        c.close()
+        return r, data
+
+    def test_phone_signs_in_with_the_code_on_the_tv(self):
+        ac.Handler.pairing = ac.Pairing()
+        tv = lambda: json.loads(self.get("/client/api/status")[1])
+        # Not signed in: the sign-in page, and nothing else
+        r, body = self.phone("/")
+        self.assertEqual(r.status, 200)
+        self.assertIn(b"The code on the TV", body)
+        for path, req in (("/client/api/status", None), ("/client/api/settings", {"volume": 5}), ("/client/api/update", {}),
+                          ("/client/api/connect", {"address": "10.0.0.9"}), ("/client/api/chime", {})):
+            self.assertEqual(self.phone(path, req)[0].status, 401, path)
+        for path in ("/tv", "/api/tv", "/client/wall", "/client/api/forget", "/display"):   # never the box's pages
+            self.assertEqual(self.phone(path)[0].status, 404, path)
+        self.assertEqual(tv()["volume"], 60)
+        self.assertIsNone(tv()["pair_code"])
+        # Asking for a code shows it on the TV, and only there
+        r, body = self.phone("/client/api/signin/code", {})
+        self.assertTrue(json.loads(body)["ok"])
+        code = tv()["pair_code"]
+        self.assertRegex(code, r"^\d{6}$")
+        self.assertEqual(json.loads(self.phone("/client/api/signin/code", {})[1])["ok"], True)
+        self.assertEqual(tv()["pair_code"], code)   # asking again keeps the same code
+        wrong = "%06d" % ((int(code) + 1) % 10 ** 6)
+        r, body = self.phone("/client/api/signin", {"code": wrong})
+        self.assertFalse(json.loads(body)["ok"])
+        self.assertIsNone(r.getheader("Set-Cookie"))
+        # From a page elsewhere, or not as JSON: refused
+        self.assertEqual(self.phone("/client/api/signin", {"code": code}, headers={"Origin": "http://evil.example"})[0].status, 403)
+        self.assertEqual(self.phone("/client/api/signin", {"code": code}, headers={"Content-Type": "text/plain"})[0].status, 403)
+        r, body = self.phone("/client/api/signin", {"code": code[:3] + " " + code[3:]})
+        self.assertTrue(json.loads(body)["ok"])
+        cookie = r.getheader("Set-Cookie").split(";")[0]
+        self.assertIn("HttpOnly", r.getheader("Set-Cookie"))
+        self.assertIn("SameSite=Strict", r.getheader("Set-Cookie"))
+        self.assertIsNone(tv()["pair_code"])   # used: gone from the TV
+        self.assertNotIn(cookie.split("=", 1)[1], ac.sessions_file().read_text())   # only its hash is kept
+        # Signed in: the settings page and its API
+        r, body = self.phone("/", cookie=cookie)
+        self.assertIn(b"Screen settings", body)
+        self.assertNotIn(b"The code on the TV", body)
+        st = json.loads(self.phone("/client/api/status", cookie=cookie)[1])
+        self.assertTrue(st["remote"])
+        self.assertNotIn("pair_code", st)
+        self.assertNotIn("remote_url", st)
+        r, body = self.phone("/client/api/settings", {"volume": 30, "remote": False}, cookie=cookie)
+        self.assertTrue(json.loads(body)["ok"])
+        self.assertEqual(tv()["volume"], 30)
+        self.assertTrue(tv()["remote_on"])   # a phone can't switch phones off
+        self.assertEqual(tv()["signed_in"], 1)
+        before = tv()["chime"]
+        self.assertTrue(json.loads(self.phone("/client/api/chime", {}, cookie=cookie)[1])["ok"])
+        self.assertGreater(tv()["chime"], before)   # the TV plays it
+        self.assertEqual(self.phone("/client/api/status", cookie="azc=made-up")[0].status, 401)
+        # Switched off on the TV: refused; and signing everyone out ends the cookie
+        self.get("/client/api/settings", "POST", json.dumps({"remote": False}))
+        self.assertEqual(self.phone("/", cookie=cookie)[0].status, 403)
+        self.get("/client/api/settings", "POST", json.dumps({"remote": True}))
+        self.assertEqual(self.phone("/client/api/status", cookie=cookie)[0].status, 200)
+        self.assertEqual(json.loads(self.get("/client/api/forget", "POST", "{}")[1])["signed_in"], 0)
+        self.assertEqual(self.phone("/client/api/status", cookie=cookie)[0].status, 401)
+        self.assertEqual(self.phone("/client/api/forget", {}, cookie=cookie)[0].status, 404)   # the TV's own
+
+    def test_wrong_codes_are_limited(self):
+        pr = ac.Pairing()
+        self.assertTrue(pr.start())
+        code = pr.shown()
+        wrong = "%06d" % ((int(code) + 1) % 10 ** 6)
+        for _ in range(4):
+            self.assertIs(pr.check(wrong), False)
+        self.assertIs(pr.check(wrong), False)   # the fifth: the code is gone
+        self.assertIsNone(pr.check(code))
+        self.assertIsNone(pr.shown())
+        self.assertTrue(pr.start())
+        for _ in range(5):
+            pr.check("%06d" % ((int(pr.shown() or 0) + 1) % 10 ** 6))
+        self.assertFalse(pr.start())   # ten wrong in an hour: no new codes for now
+        pr.wrong = [t - 3601 for t in pr.wrong]
+        self.assertTrue(pr.start())
 
     def test_addresses(self):
         self.assertEqual(ac.parse_address("192.168.1.20"), ("192.168.1.20", None))

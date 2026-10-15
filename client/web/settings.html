@@ -28,13 +28,19 @@ button:disabled{opacity:.5;cursor:default}
 #vol{font-variant-numeric:tabular-nums;font-weight:700}
 footer{color:var(--muted);font-size:15px;margin-top:22px}
 #area.wall{position:absolute;overflow:auto}
+.remote .tv-only,body:not(.remote) .remote-only{display:none}
+.switch{display:flex;gap:12px;align-items:center;font-weight:600;margin:6px 0 4px;cursor:pointer}
+.switch input{width:24px;height:24px;accent-color:var(--accent)}
+#rurl{font-weight:700;color:#fff;word-break:break-all}
+@media (max-width:600px){main{padding:24px 16px 40px}section{padding:18px 16px}h1{font-size:26px}}
 </style>
 </head>
 <body>
 <div id="area">
 <main>
   <h1>Screen settings</h1>
-  <p class="sub">This screen shows the prayer times from your Azan SIP Box and plays the azan through the TV.</p>
+  <p class="sub tv-only">This screen shows the prayer times from your Azan SIP Box and plays the azan through the TV.</p>
+  <p class="sub remote-only" id="rsub">You're changing a TV screen's settings from this phone or computer.</p>
 
   <section>
     <h2>Azan SIP Box <span id="state" class="state"></span></h2>
@@ -53,9 +59,10 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 
   <section>
     <h2>Azan volume on this screen: <span id="vol"></span></h2>
-    <p>Only this screen. The phones, the box's own screen and other TV screens keep theirs. On the prayer times, move the mouse for the volume buttons, or press <b>+</b> and <b>−</b> on a keyboard.</p>
+    <p>Only this screen, for the azan and Makkah live. The phones, the box's own screen and other TV screens keep theirs.<span class="tv-only"> On the prayer times, move the mouse for the volume buttons, or press <b>+</b> and <b>−</b> on a keyboard.</span></p>
     <input type="range" id="volume" min="0" max="100" step="5">
     <div class="row"><button id="test">Play a test chime here</button></div>
+    <div class="msg" id="tmsg"></div>
   </section>
 
   <section>
@@ -68,7 +75,17 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
     <div class="msg" id="umsg"></div>
   </section>
 
-  <div class="row">
+  <section class="tv-only">
+    <h2>Phones and computers</h2>
+    <label class="switch"><input type="checkbox" id="ron"> Let phones and computers change these settings</label>
+    <p id="rhow">On a phone or computer on the same network, open <span id="rurl"></span>. The first time, it asks for a code that shows on this TV.</p>
+    <div class="row">
+      <span id="rcount"></span>
+      <button id="forget" hidden>Sign them all out</button>
+    </div>
+  </section>
+
+  <div class="row tv-only">
     <button class="main" id="back">Back to the prayer times</button>
   </div>
   <footer id="foot"></footer>
@@ -81,11 +98,24 @@ const STATE = {ok:["Connected","ok"], not_allowed:["TV screens not allowed yet",
 let ST = {};
 async function api(path, body){
   const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {cache:"no-store"});
+  if (r.status === 401 || r.status === 403) location.reload();   // on a phone or computer: signed out, or switched off on the TV
   return r.json();
 }
 function msg(text, kind){ const m = $("#msg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
 function show(st, fill){
   ST = st;
+  document.body.classList.toggle("remote", !!st.remote);
+  if (st.remote){
+    $("#rsub").textContent = `You're changing the settings of the TV screen “${st.name}” from this phone or computer.`;
+    $("#test").textContent = "Play a test chime on the TV";
+  } else {
+    $("#ron").checked = !!st.remote_on;
+    $("#rhow").hidden = !st.remote_on;
+    $("#rurl").textContent = st.remote_url || `port 8772 of this computer's address`;
+    const n = st.signed_in || 0;
+    $("#rcount").textContent = n ? `${n} signed in` : "None signed in";
+    $("#forget").hidden = !n;
+  }
   const [t, k] = STATE[st.state] || [st.state, ""];
   $("#state").textContent = t; $("#state").className = "state " + k;
   if (fill){
@@ -100,7 +130,7 @@ function show(st, fill){
 }
 // With several screens plugged in, this page is spread over all of them: keep it on the first one
 function place(sc, all){
-  const a = $("#area"), wall = all.length > 1 && sc.length > 0;
+  const a = $("#area"), wall = !ST.remote && all.length > 1 && sc.length > 0;
   a.classList.toggle("wall", wall);
   document.documentElement.style.overflow = wall ? "hidden" : "";
   if (!wall) return a.removeAttribute("style");
@@ -115,6 +145,7 @@ async function connect(address){
     if (!r.ok) return msg(r.error, "bad");
     show(r, true);
     if (r.warning) return msg(r.warning, "warn");
+    if (ST.remote) return msg("Connected. The TV shows this box's prayer times now.", "ok");
     msg("Connected. Showing the prayer times…", "ok");
     setTimeout(() => location.assign("/"), 1200);
   }catch(e){ msg("This screen's own program isn't answering. Restart the computer.", "bad"); }
@@ -143,7 +174,15 @@ $("#volume").oninput = () => {
   clearTimeout(saveT); saveT = setTimeout(() => api("/client/api/settings", {volume: +$("#volume").value}), 250);
 };
 $("#name").onchange = () => { if (ST.box) api("/client/api/settings", {name: $("#name").value}); };
-$("#test").onclick = () => {   // the box's chime, at this screen's volume
+$("#test").onclick = async () => {   // the box's chime, at this screen's volume
+  const t = $("#tmsg");
+  if (ST.remote){   // on the TV itself, through its own speakers
+    try{
+      await api("/client/api/chime", {});
+      t.textContent = ST.state === "ok" ? "Playing on the TV now." : "Asked the TV to play it.";
+    }catch(e){ t.textContent = "The TV isn't answering."; }
+    return setTimeout(() => { t.textContent = ""; }, 6000);
+  }
   const c = new (window.AudioContext || window.webkitAudioContext)(), v = $("#volume").value / 100, notes = [659.25, 523.25, 587.33, 392.0];
   notes.forEach((f, i) => {
     const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + .1 + i * .6;
@@ -153,6 +192,8 @@ $("#test").onclick = () => {   // the box's chime, at this screen's volume
   });
 };
 $("#back").onclick = () => location.assign("/");
+$("#ron").onchange = async () => show(await api("/client/api/settings", {remote: $("#ron").checked}), false);
+$("#forget").onclick = async () => show(await api("/client/api/forget", {}), false);
 // Updates: Update now asks the computer to install the newest client from GitHub. It restarts the
 // screen when it's done, which brings back the prayer times with the new version.
 let asked = 0;
@@ -191,12 +232,13 @@ $("#recheck").onclick = () => { umsg(""); $("#upd").textContent = "Checking for 
 updates();
 // Left open on the TV: go back to the prayer times after a few minutes without a touch
 let idle;
-const still = () => { clearTimeout(idle); idle = setTimeout(() => { if (ST.box && ST.state === "ok" && !asked) location.assign("/"); else still(); }, 180000); };
+const still = () => { clearTimeout(idle); idle = setTimeout(() => { if (ST.box && ST.state === "ok" && !asked && !ST.remote) location.assign("/"); else still(); }, 180000); };
 for (const ev of ["mousemove", "keydown", "touchstart", "input"]) addEventListener(ev, still, true);
 still();
 api("/client/api/status").then(st => show(st, true));
 setInterval(() => api("/client/api/status").then(st => show(st, false)).catch(() => {}), 4000);
 addEventListener("resize", () => place(ST.screens || [], ST.outputs || []));
 </script>
+<script src="/client/code.js"></script>
 </body>
 </html>
