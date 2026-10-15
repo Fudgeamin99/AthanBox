@@ -93,12 +93,19 @@ class FakeGitHub(BaseHTTPRequestHandler):
 
     def do_GET(self):
         base = f"http://127.0.0.1:{self.server.server_address[1]}"
-        if self.path == "/releases/latest":
-            body = json.dumps({"tag_name": "box-v9.9.0", "assets": [
-                {"name": "AzanTV.apk", "browser_download_url": base + "/apk", "size": 1},
-                {"name": "azan-sip-client.deb", "browser_download_url": base + "/deb", "size": len(self.deb)},
-                {"name": "azan-sip-client_9.9.9_all.deb", "browser_download_url": base + "/deb", "size": len(self.deb),
-                 "digest": "sha256:" + hashlib.sha256(self.deb).hexdigest()}]}).encode()
+        if self.path.split("?")[0] == "/releases":
+            def client(v, **kw):
+                return {"tag_name": f"client-v{v}", "assets": [
+                    {"name": "azan-sip-client.deb", "browser_download_url": base + "/deb", "size": len(self.deb)},
+                    {"name": f"azan-sip-client_{v}_all.deb", "browser_download_url": base + "/deb", "size": len(self.deb),
+                     "digest": "sha256:" + hashlib.sha256(self.deb).hexdigest()}], **kw}
+            body = json.dumps([
+                client("9.9.11", prerelease=True), client("9.9.10", draft=True),
+                # A Box release: the client packages attached to Box releases up to 0.7.2 don't count
+                {"tag_name": "box-v10.0.0", "assets": [
+                    {"name": "AzanTV.apk", "browser_download_url": base + "/apk", "size": 1},
+                    {"name": "azan-sip-client_10.0.0_all.deb", "browser_download_url": base + "/deb", "size": 1}]},
+                client("9.9.9"), client("9.9.1")]).encode()
         elif self.path == "/deb":
             body = self.deb
         else:
@@ -131,7 +138,7 @@ class ClientTest(unittest.TestCase):
         cls.box_base = f"http://127.0.0.1:{cls.box.server_address[1]}"
         ac.UPDATE_STATE = Path(cls.tmp.name) / "update" / "state.json"
         cls.github = serve(FakeGitHub)
-        ac.RELEASES = f"http://127.0.0.1:{cls.github.server_address[1]}/releases/latest"
+        ac.RELEASES = f"http://127.0.0.1:{cls.github.server_address[1]}/releases?per_page=100"
         ac.Handler.watch = ac.Watch()
         ac.Handler.updates = ac.Updates()
         cls.client = serve(ac.Handler)
@@ -364,8 +371,8 @@ class ClientTest(unittest.TestCase):
         out = Path(self.tmp.name) / "test.deb"
         subprocess.run(["dpkg-deb", "--root-owner-group", "--build", str(pkg), str(out)], check=True, capture_output=True)
         FakeGitHub.deb = out.read_bytes()
-        rel = ac.latest_release()
-        self.assertEqual(rel["version"], "9.9.9")
+        rel = ac.latest_release()   # the newest client release, not a Box release, draft or pre-release
+        self.assertEqual((rel["version"], rel["tag"]), ("9.9.9", "client-v9.9.9"))
         cache = Path(self.tmp.name) / "cache"
         deb = ac.fetch_deb(rel, cache)
         self.assertEqual(deb.read_bytes(), FakeGitHub.deb)

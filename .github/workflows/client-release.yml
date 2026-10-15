@@ -1,0 +1,72 @@
+# Publishes a GitHub Release for each version of the Azan SIP Client (the TV screen for a Dell Wyse or
+# a laptop, in client/), apart from the Box's releases: a client-only change never makes a new Box
+# version or Docker image.
+# - The version, title and notes come from the newest "## x.y.z - title" section of
+#   client/CHANGELOG.md, which must match __version__ in client/azan_client.py. Adding a section there
+#   and merging it to main is all it takes. Releases are tagged client-vX.Y.Z.
+# - The package is attached as azan-sip-client.deb (for the README's install link) and as
+#   azan-sip-client_X.Y.Z_all.deb (the one Update now installs).
+# - A client release is never marked as the repository's latest release: that stays the Box's, which
+#   the Box's own updates follow.
+name: Client release
+
+on:
+  push:
+    branches: [main]
+    paths: [client/CHANGELOG.md]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tests
+        run: python3 -m unittest discover -s client
+
+      - name: Publish the newest client version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          heading=$(grep -m1 -E '^## [0-9]+\.[0-9]+\.[0-9]+( |$)' client/CHANGELOG.md || true)
+          if [ -z "$heading" ]; then
+            echo "No version in client/CHANGELOG.md yet - nothing to publish"
+            exit 0
+          fi
+          title="${heading#\#\# }"        # "0.3.1 - The client gets its own releases"
+          v="${title%% *}"                # "0.3.1"
+          tag="client-v$v"
+          have=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' client/azan_client.py)
+          if [ "$have" != "$v" ]; then
+            echo "::error::client/CHANGELOG.md's newest version is $v, but __version__ in client/azan_client.py is $have"
+            exit 1
+          fi
+          if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then
+            echo "$tag is already published"
+            exit 0
+          fi
+          # Never publish an older version after a newer one
+          newest=$(git ls-remote --tags origin 'client-v*' | sed -n 's|.*refs/tags/client-v\([0-9.]*\)$|\1|p' \
+                   | sort -V | tail -n 1)
+          if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$v" "$newest" | sort -V | tail -n 1)" != "$v" ]; then
+            echo "client-v$newest is already out, so $v isn't published"
+            exit 0
+          fi
+          awk -v v="$v" '
+            $0 ~ "^## " v "( |$)" {found=1; next}
+            found && /^## / {exit}
+            found {print}
+          ' client/CHANGELOG.md > notes.md
+          sh client/build-deb.sh
+          gh release create "$tag" -R "$REPO" --target "$GITHUB_SHA" --title "Azan SIP Client $title" \
+            --notes-file notes.md --latest=false \
+            client/dist/azan-sip-client.deb "client/dist/azan-sip-client_${v}_all.deb"
+          echo "Released $tag"
+          grep -q "releases/download/$tag/" README.md \
+            || echo "::warning::The install link in README.md isn't $tag's yet"
