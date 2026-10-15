@@ -44,6 +44,13 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
 - **Volume buttons** on the prayer times (with the mouse, or **+**, **−** and a keyboard's volume
   keys) change this screen's volume in steps of 10, with a short note at the new volume. The
   volume is the azan's and Makkah live's: `screen.js` sets the live video's own volume to match.
+  When the volume changes anywhere else (Screen settings, a phone, `azan-sip-client volume`),
+  `screen.js` shows it at the top of the screen for a few seconds.
+- **Makkah live's sound** is `"live_sound"` in `client.json`, switched in Screen settings. The TV
+  app keeps its own choice (its *Sound on/off* button on the video) in the browser, as
+  `azanLiveSound`, and in its `LV` object while it runs: `screen.js` sets both to match, and when
+  that button is pressed it sets `"live_sound"` in turn. Until it is first set, `screen.js` sets
+  it from the TV app's own choice. The TV app still keeps Makkah live quiet while the azan plays.
 - **Updates:** *Update now* in Screen settings writes `/var/lib/azan-sip-client/update-now`;
   `azan-sip-client-update.path` sees it and starts `azan-sip-client-update.service`, which runs
   `azan_client.py update` as root. That downloads `azan-sip-client_<version>_all.deb` from the
@@ -56,7 +63,8 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
 - **32-bit:** the package is `Architecture: all` (Python and shell only), so the same .deb installs on
   64-bit and 32-bit Debian. CI installs it on Debian 12 and 13 (amd64) and Debian 12 (i386).
 - **Screen settings** (`/client/`, or press **S** on a keyboard) chooses the box (by address or by
-  searching the network), the screen's name on the box's TV app page, the volume and updates. With
+  searching the network), the screen's name on the box's TV app page, the volume, Makkah live's
+  sound and updates. With
   several screens it opens on the first one.
 - The box sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the
   screen is listed on the TV app page under its name.

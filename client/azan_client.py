@@ -49,7 +49,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -676,7 +676,8 @@ class Handler(BaseHTTPRequestHandler):
         c, w = load_config(), self.watch.get()
         st = {"state": w["state"], "box_version": w.get("version"), "box": c.get("box"),
               "name": c.get("name") or default_name(), "volume": volume_of(c), "version": __version__,
-              **dict(zip(("screens", "outputs"), read_screens())), "remote": self.REMOTE, "chime": Handler.chime_at}
+              **dict(zip(("screens", "outputs"), read_screens())), "remote": self.REMOTE, "chime": Handler.chime_at,
+              "live_sound": c.get("live_sound") if isinstance(c.get("live_sound"), bool) else None}
         if not self.REMOTE:   # the TV only: the code, and where phones and computers open these settings
             on = c.get("remote", True) is not False and bool(REMOTE_PORT)
             st.update(remote_on=on, remote_url=remote_url() if on else "", signed_in=signed_in(),
@@ -753,6 +754,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "Bad request"}, 400)
             if "name" in req:
                 c["name"] = str(req["name"]).strip()[:40]
+            if "live_sound" in req:   # Makkah live's sound on this screen (web/screen.js applies it)
+                if not isinstance(req["live_sound"], bool):
+                    return self._json({"ok": False, "error": "Bad request"}, 400)
+                c["live_sound"] = req["live_sound"]
             if "remote" in req and not self.REMOTE:   # switched on and off on the TV only
                 c["remote"] = bool(req["remote"])
             save_config(c)
@@ -1046,6 +1051,8 @@ def main(argv=None):
     print(f"Box:    {st.get('box') or '-'} ({STATES.get(st['state'], st['state'])})" + (f", Azan SIP {st['box_version']}" if st.get("box_version") else ""))
     print(f"Name:   {st['name']}")
     print(f"Volume: {st['volume']}%")
+    if isinstance(st.get("live_sound"), bool):
+        print(f"Makkah live sound: {'on' if st['live_sound'] else 'off'}")
     if st.get("remote_on"):
         print(f"Phones and computers: {st.get('remote_url') or f'port {REMOTE_PORT}'} (with the code the TV shows)")
     else:
