@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.7.5 - Six azan recordings come with the Box
+
+- **Azan recordings included:** AZAN 1 to AZAN 5 and Bangladeshi Village Azan now come with the Box, ready to pick on the **Azan sound** page (and in the setup guide) without uploading anything.
+- A new box has them from the start. A box that updates to 0.7.5 gets them once too, next to its own recordings. A recording you remove isn't added back.
+- **Debian and Docker:** nothing to run. Update as usual.
+
 ## 0.7.4 - Several desk phones on one extension, and switched-off trunks stay signed in
 
 - **Switching off a SIP trunk or desk phones** on the Phones page now only stops the azan calls to them. Phone systems and phones can still sign in, so a phone system such as a UCM no longer keeps retrying with "wrong username or password" (which could also get it banned by fail2ban). Switch it back on and the calls start again.
