@@ -6,6 +6,18 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.8.0 - Kids mode
+
+- **Kids mode** gives a TV screen in a child's room a brighter prayer-times screen, in Sky, Garden or Space colours: a picture for each prayer, a big "2 hours 10 min to go!" countdown with a bar that fills up, and the five prayers as cards.
+  - **"Time for wudu!"** shows the steps of wudu 10 minutes before each azan (5, 10, 15 minutes or off), with a soft chime.
+  - **"Did you pray Asr?"** comes up after each azan for 20 minutes. A tap, or **OK** on a TV remote, earns a star, with a "Masha'Allah, well done!" screen. The week's stars show on the screen and start again every Monday.
+  - At azan time kids screens can play the full azan, a gentle chime or nothing, up to a volume you choose, and can keep Fajr quiet so nobody is woken.
+  - Switch it on and choose the colours on the **Display** page (its preview has a **Kids screen** button), then switch on **Kids** for each screen on the **TV app** page. Other screens, phones and speakers don't change.
+- Kids screens work on iPads, the Android app and the Wyse client. The Android app needs no update. **The Wyse needs Azan SIP Client 0.5.4** for its stars (press **Update now** in Screen settings); with an older client it shows kids mode but can't save a star.
+- Stars are kept in `kids.json` next to `config.toml`. Factory reset removes it.
+- **Debian:** update as usual in Settings → Updates. The updater keeps `kids.json` when it updates. Nothing else changes: no new packages, services or ports.
+- **Docker:** press **Update** in Settings → Updates, or run `docker compose pull && docker compose up -d`. Stars are kept in `/data`, so they survive updates. `compose.yaml` doesn't change.
+
 ## 0.7.8 - The Docker image is under its usual name again
 
 - **Docker:** the 0.7.7 image was published as `ghcr.io/fudgeamin99/athanbox` after the GitHub repository was renamed to AthanBox, so Docker installs, which pull `ghcr.io/fudgeamin99/azan-sip-box`, didn't see it. Images are published under `azan-sip-box` again, whatever the repository is called. Press **Update** in Settings → Updates, or run `docker compose pull && docker compose up -d`. This brings everything in 0.7.7, including the Android app 1.1.0.

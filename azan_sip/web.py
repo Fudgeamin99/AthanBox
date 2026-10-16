@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, hostvol, live, look, ramadan, rtp, screens, security, sipserver, tomlw, updater
+from . import __version__, hostvol, kids, live, look, ramadan, rtp, screens, security, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import app_dir
 from .sipreg import Registration, RegistrationManager
@@ -53,7 +53,7 @@ USB_ROOTS = ("/media", "/run/media")  # where Debian mounts USB sticks
 
 # The TV app's own routes. From other devices these follow "Let TV screens connect" only, so switching
 # it off disconnects every TV screen. (The prayer-times screen itself stays open to everyone, as before.)
-TV_PATHS = {"/tv", "/tv.webmanifest", "/api/tv", "/apk"}
+TV_PATHS = {"/tv", "/tv.webmanifest", "/api/tv", "/api/tv/star", "/apk"}
 TV_PREFIXES = ("/tv/sound/", "/icons/")
 
 # Added to the display when it is opened as the TV app (/tv): what an iPad needs to add it to the
@@ -317,6 +317,7 @@ class Service:
         self.tvs = screens.Screens()       # TV screens that play the azan (the TV app)
         self.sounds = screens.Sounds()
         self.shared.screens_listening = self.tvs.listening
+        self.stars = kids.Stars(self.base / "kids.json")   # kids mode: "Did you pray?" stars, per screen
         self._tv_next = (0.0, None, None)
         self.security: security.Security | None = None   # the Security page (box mode only)
         self.load()
@@ -349,6 +350,7 @@ class Service:
     def apply(self, cfg: dict, save: bool = True):
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
         look.check(cfg)
+        kids.check(cfg)
         ramadan.check(cfg.get("ramadan"))
         sipserver.check_targets(cfg.get("targets", []))
         with self.lock:
@@ -480,7 +482,46 @@ class Service:
                 "tv_qr": qr_svg(urls[0] + "tv").decode() if urls and on else None,
                 "apk_qr": qr_svg(urls[0] + "apk").decode() if urls and on else None}
 
-    def tv_state(self) -> dict:
+    def today(self) -> date:
+        app = self.app
+        return app.now().date() if app is not None else date.today()
+
+    def kids_screen(self, sid: str) -> dict | None:
+        """Kids mode for one TV screen, or None when it isn't a kids screen."""
+        if not kids.is_kids(self.cfg, sid):
+            return None
+        k = kids.settings(self.cfg)
+        del k["screens"]
+        if k["stars"]:
+            k["week"] = self.stars.week(sid, self.today())
+        return k
+
+    def set_kids_screen(self, sid: str, on: bool):
+        cfg = copy.deepcopy(self.cfg)
+        k = cfg.setdefault("kids", {})
+        ids = [s for s in kids.settings(cfg)["screens"] if s != kids.screen_id(sid)]
+        if on:
+            ids.append(kids.screen_id(sid))
+        k["screens"] = ids
+        self.apply(cfg, save=True)
+        log.info("Kids mode %s on a TV screen", "switched on" if on else "switched off")
+
+    def add_star(self, sid: str, prayer: str) -> dict:
+        """A child pressed "Yes, give me my star" on a kids screen, after that prayer's time."""
+        k = self.kids_screen(sid)
+        if not k or not k["stars"]:
+            raise ValueError("Stars aren't switched on for this screen")
+        app = self.app
+        if app is None or prayer not in kids.PRAYERS:
+            raise ValueError("That isn't one of today's prayers")
+        now = app.now()
+        row = next((r for r in self.rows_for(app, now.date(), now, None) if r["name"] == prayer), None)
+        if row is None or row["time"] > f"{now:%H:%M}":
+            raise ValueError("It isn't time for that prayer yet")
+        self.stars.add(sid, now.date(), prayer)
+        return self.stars.week(sid, now.date())
+
+    def tv_state(self, sid: str = "") -> dict:
         """What TV screens ask about twice a second: what's playing (and since when, so they join in at
         the right place), how the last one ended, and what plays next (to download it early)."""
         sh = self.shared
@@ -492,7 +533,7 @@ class Service:
         if getattr(self, "host_volume_set", False):
             vol = 1.0
         out = {"now": int(time.time() * 1000), "version": VERSION, "playing": None, "last": sh.last,
-               "next": None, "volume": vol}
+               "next": None, "volume": vol, "kids": self.kids_screen(sid) if sid else None}
         p = sh.playing
         if p and p["screens"]:
             out["playing"] = {"seq": p["seq"], "label": p["label"], "started": int(p["started"] * 1000),
@@ -620,6 +661,7 @@ class Service:
         with self.lock:
             app = self.app
             ui = self.update_info or {}
+            kid_ids = set(kids.settings(self.cfg)["screens"])
             st = {"version": VERSION, "error": self.error, "restarting": self.restarting,
                   "update": {"available": bool(ui.get("available")), "latest_version": ui.get("latest_version")}, "running": bool(self.thread and self.thread.is_alive()),
                   "configured": self.cfg.get("general", {}).get("configured", True),
@@ -629,7 +671,7 @@ class Service:
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
                   "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to AthanBox
-                  "screens": {"on": self.screens_on, "list": self.tvs.info()}}
+                  "screens": {"on": self.screens_on, "list": [dict(s, kids=s["id"] in kid_ids) for s in self.tvs.info()]}}
             if app is None:
                 return st
             now = app.now()
@@ -1070,7 +1112,7 @@ class Handler(BaseHTTPRequestHandler):
                 playing = one("playing", 12)
                 svc.tvs.touch(one("id"), self.client_address[0], one("name"), one("sound") == "1", one("audio", 16),
                               int(playing) if playing.isdigit() else None)
-                return self._json(svc.tv_state())
+                return self._json(svc.tv_state(one("id")))
             if p.startswith("/tv/sound/"):
                 got = svc.sounds.body(p[10:], phone=parse_qs(url.query).get("phone", [""])[0] == "1")
                 if got is None:
@@ -1158,6 +1200,12 @@ class Handler(BaseHTTPRequestHandler):
                 log.info("Signed in to the control panel from %s", self.client_address[0])
                 return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (
                     f"{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_SECONDS}")})
+            if p == "/api/tv/star":   # kids mode: a TV screen, without the password
+                if not self._tv_allowed(p):
+                    return self._send(403, b"Forbidden", "text/plain")
+                req = json.loads(self._body(2_000) or b"{}")
+                week = svc.add_star(str(req.get("id") or ""), str(req.get("prayer") or ""))
+                return self._json({"ok": True, "week": week})
             if p == "/api/logout":
                 svc.auth.logout(self._token())
                 return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (
@@ -1237,6 +1285,9 @@ class Handler(BaseHTTPRequestHandler):
                 svc.set_wizard({"finished": True}, "")
                 log.info("Setup guide finished" if again else "First-time setup finished")
                 return self._json({"ok": True})
+            if p == "/api/kids/screen":   # the TV app page: kids mode on one screen
+                svc.set_kids_screen(str(req.get("id") or ""), bool(req.get("on")))
+                return self._json({"ok": True, "screens": kids.settings(svc.cfg)["screens"]})
             if p == "/api/screens":
                 svc.set_screens(bool(req.get("on")))
                 return self._json({"ok": True, **svc.tv_links(self._page_host())})

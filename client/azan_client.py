@@ -52,7 +52,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -838,8 +838,27 @@ class Handler(BaseHTTPRequestHandler):
         p = urllib.parse.urlsplit(self.path).path
         if p.startswith("/client/api/"):
             return self._client_post(p, req) if req is not None else self._json({"ok": False, "error": "Bad request"}, 400)
+        if p == "/api/tv/star":   # kids mode's "Did you pray?": a star on this screen's chart, nothing else
+            c = load_config()
+            if not c.get("box") or req is None:
+                return self._json({"ok": False, "error": "Bad request"}, 400)
+            return self._star(c, req)
         # The screen only shows AthanBox: it never changes its settings
         return self._json({"ok": False, "error": "This screen can't change AthanBox's settings. Use AthanBox's control panel."}, 403)
+
+    def _star(self, c: dict, req: dict):
+        base = urllib.parse.urlsplit(c["box"])
+        body = json.dumps({"id": str(req.get("id") or "")[:40], "prayer": str(req.get("prayer") or "")[:10]}).encode()
+        try:
+            con = http.client.HTTPConnection(base.hostname, base.port or 80, timeout=15)
+            con.request("POST", "/api/tv/star", body, {"Host": base.netloc, "User-Agent": f"azan-sip-client/{__version__}",
+                                                       "Content-Type": "application/json", "X-Azan-Panel": "1", "Connection": "close"})
+            r = con.getresponse()
+            out = r.read(20_000)
+            con.close()
+        except (OSError, http.client.HTTPException):
+            return self._send(502, b"AthanBox can't be reached")
+        return self._send(r.status, out, r.getheader("Content-Type", "application/json"))
 
     # -- passing the screen's requests on to AthanBox
     def _proxy(self, c: dict, url):

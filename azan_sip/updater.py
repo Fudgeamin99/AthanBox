@@ -38,7 +38,7 @@ UA = {"User-Agent": f"azan-sip/{__version__}", "Accept": "application/vnd.github
 
 # Never overwritten or deleted by an update.
 USER_FILES = {"config.toml", "config.toml.bak", "config.tmp", "timetable.csv", ".installed.json", ".sessions.json",
-              ".sip_bindings.json"}
+              ".sip_bindings.json", "kids.json", "kids.tmp"}
 USER_DIRS = {"audio", "auth", "backups", "security", ".git", "__pycache__"}
 KEEP_BACKUPS = 3
 
