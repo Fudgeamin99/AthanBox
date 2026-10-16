@@ -49,7 +49,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer

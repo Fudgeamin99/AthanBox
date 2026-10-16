@@ -22,13 +22,16 @@ pick_sound() {
 }
 # Before each start of the browser (at boot, and when a screen is plugged in or out): the sound
 # output, and the sound card itself at full volume (the volume is set on the screen, in Screen settings).
+# The sound always reaches the card at 48000 Hz, which every TV and sound chip plays. Chromium sends
+# each sound at its own rate (Makkah live at 22050 Hz, the azan at 48000 Hz), HDMI has no 22050 Hz,
+# and at the rate ALSA picks for it instead, a Dell Wyse 3040's HDMI played Makkah live silently.
 set_sound() {
     sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
     if [ -n "$sound" ]; then
         card=${sound%,*} dev=${sound#*,}
         cat > "$HOME/.asoundrc" <<ASOUND
 # Written by AthanBox Client at each start: the sound goes to the TV (card $card, device $dev).
-pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
+pcm.!default { type plug; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000 } }
 ctl.!default { type hw; card $card }
 ASOUND
         echo "Sound: the TV on card $card, device $dev"
@@ -41,7 +44,7 @@ ASOUND
             card=${own%,*} dev=${own#*,}
             cat > "$HOME/.asoundrc" <<ASOUND
 # Written by AthanBox Client at each start: no TV, so the computer's own sound (card $card, device $dev).
-pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
+pcm.!default { type plug; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000 } }
 ctl.!default { type hw; card $card }
 ASOUND
             # Some laptops' sound chips start with the built-in speaker off: their ALSA profile switches it on

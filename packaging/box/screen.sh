@@ -62,12 +62,15 @@ pick_sound() {
         fi
     done
 }
+# The sound always reaches the TV at 48000 Hz: Chromium sends each sound at its own rate (Makkah
+# live at 22050 Hz), HDMI has no 22050 Hz, and at the rate ALSA picks for it instead, a Dell Wyse
+# 3040's HDMI played Makkah live silently.
 sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
 if [ -n "$sound" ]; then
     card=${sound%,*} dev=${sound#*,}
     cat > /var/lib/azan-screen/.asoundrc <<EOF
 # Written by packaging/box/screen.sh: the screen's sound goes to the TV (card $card, device $dev).
-pcm.!default { type plug; slave.pcm "hw:CARD=$card,DEV=$dev" }
+pcm.!default { type plug; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000 } }
 ctl.!default { type hw; card $card }
 EOF
     echo "Sound: the TV on card $card, device $dev"
