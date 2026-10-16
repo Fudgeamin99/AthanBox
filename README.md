@@ -70,6 +70,8 @@ cd azan-sip-box
 sudo sh packaging/box/install.sh
 ```
 
+If it says `sudo: command not found`, Debian left sudo out because you set a root password in the installer. Sign in as `root` (or run `su -` and type the root password), then run the same commands without `sudo`. The same goes for every `sudo` command below.
+
 It installs Python and ffmpeg, names AthanBox `azan` on the network, asks for the factory password, and starts AthanBox on every boot. Open `http://azan.local` (or `http://<its address>`) and the setup wizard starts. AthanBox needs to be on the same network as your phone system.
 
 ### Prayer times on a TV plugged into AthanBox
