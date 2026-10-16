@@ -4,7 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.7.8, Docker](https://github.com/Fudgeamin99/azan-sip-box/releases/latest). Wyse client: [client-v0.5.0](https://github.com/Fudgeamin99/azan-sip-box/releases/tag/client-v0.5.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.7.8, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.0](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
@@ -54,6 +54,7 @@ Then start it:
 Open `http://<the computer's address>:8765`, sign in with your password, and the setup wizard starts.
 
 - **Linux only.** Host networking doesn't work in Docker Desktop on Windows or Mac.
+- **The image keeps its name,** `ghcr.io/fudgeamin99/azan-sip-box`, although the repository is now called AthanBox. Keep that name in `compose.yaml`: the Update button pulls the name the container already runs.
 - **No ports to add.** The panel is always on port 8765 of the computer it runs on.
 - **Nothing to set up for the folder.** Docker creates `data` on first start, and the container takes it over itself.
 - **The image** is for 64-bit PCs (amd64) and ARM boards (arm64), and includes ffmpeg for MP3 recordings.
@@ -64,7 +65,7 @@ On a small PC that stays on, such as a Dell Wyse thin client, install Debian 12 
 
 ```sh
 sudo apt update && sudo apt install -y git
-git clone https://github.com/Fudgeamin99/azan-sip-box.git
+git clone https://github.com/Fudgeamin99/AthanBox.git azan-sip-box
 cd azan-sip-box
 sudo sh packaging/box/install.sh
 ```
@@ -96,7 +97,7 @@ A spare Dell Wyse, an old laptop or any small PC can be a TV screen for an Athan
 
 ```sh
 sudo apt update && sudo apt install -y wget
-wget https://github.com/Fudgeamin99/azan-sip-box/releases/download/client-v0.5.0/azan-sip-client.deb
+wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.0/azan-sip-client.deb
 sudo apt install -y ./azan-sip-client.deb
 ```
 
@@ -130,6 +131,8 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 **Makkah live:** press *Makkah live* on the prayer-times screen (or open `/display?live=1`) to show the live picture from Masjid al-Haram next to the next azan and today's times. The sound starts off and goes quiet by itself while your own azan plays. AthanBox relays the stream, so screens watching at the same time share one download. Each screen remembers whether it shows Makkah live. If AthanBox runs on a cloud server, turn on *Screens fetch the stream themselves* on the Display page, so each screen downloads the stream over its own internet connection and the server uses no data for it. To make sure it never does, also turn off *If a screen can't fetch it, go through AthanBox*.
 
 **TV app:** on the **TV app** page, switch on *Let TV screens connect*. A TV screen then shows the prayer times and plays the azan through the TV's speakers, at the same moment as the phones. Use an old iPad (scan the QR code, then *Add to Home Screen*), the **Azan SIP TV** Android app (scan the second QR code, or open `http://<AthanBox's address>:8765/apk` on the device), or a smart TV's browser at `http://<AthanBox's address>:8765/tv`. The page lists the screens and can test them.
+
+**Android app updates:** on the screen, press **Back** (or the remote's **Menu** button) for the app's menu, then **Update the app**. Android asks before it installs the update. A screen that got the app before AthanBox 0.7.7 needs it removed and installed again once, from `/apk`, because the app is now signed with its permanent key. If Makkah live doesn't show a picture on a screen, the same menu switches it to the other video player.
 
 **Ramadan:** the **Ramadan** page sets the dates, the extra sounds on the phones (Suhoor ends, the Iftar azan, Taraweeh and more), Isha in Ramadan, the Ramadan screens (countdowns, the dua at Iftar, Eid) and prints the month's timetable. It switches itself on and off on the dates you set.
 
@@ -170,7 +173,7 @@ The button needs the `updater` part of the compose file above. It's a small help
 
 **By hand:** pull the new image and restart: `docker compose pull && docker compose up -d`, or redeploy the project in your NAS's Docker app. This also updates the helper itself.
 
-What's new in each version is under [Releases](https://github.com/Fudgeamin99/azan-sip-box/releases) and in [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md).
+What's new in each version is under [Releases](https://github.com/Fudgeamin99/AthanBox/releases) and in [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md).
 
 ## What's next
 
@@ -185,6 +188,6 @@ What's new in each version is under [Releases](https://github.com/Fudgeamin99/az
 
 ## About this repository
 
-`main` holds AthanBox's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. AthanBox started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP); its new features are brought over here by hand. 0.4.0 matches the desktop app's 1.11.2. AthanBox runs on Debian and in Docker only; there's no Windows program.
+`main` holds AthanBox's code. To publish a version, add a `## x.y.z - title` section at the top of [`BOX_CHANGELOG.md`](BOX_CHANGELOG.md) and merge it to `main`: the release and the Docker image are published automatically. AthanBox started from the desktop app, [ATHAN-TO-SIP](https://github.com/Fudgeamin99/ATHAN-TO-SIP) (now archived); its new features are brought over here by hand. 0.4.0 matches the desktop app's 1.11.2. AthanBox runs on Debian and in Docker only; there's no Windows program.
 
 The Android TV app (**Azan SIP TV**) is in [`android/`](android). Each release builds it (`packaging/apk.sh`), attaches `AzanTV.apk` and puts it in the Docker image. It's signed with the app's own key, which TVs need to install its updates, from two repository secrets: `ANDROID_KEYSTORE` (the keystore file, base64) and `ANDROID_KEYSTORE_PASSWORD`. Without them a release reuses the app from the newest release that has one. Its version is `android:versionCode` and `versionName` in [`android/AndroidManifest.xml`](android/AndroidManifest.xml): raise both for a new version of the app.
