@@ -1,0 +1,20 @@
+# Temporary: Makkah live's sound on the Wyse client when the sound card takes one stream at a time,
+# like the Wyse's HDMI (removed again after).
+name: Makkah live probe
+on:
+  push:
+    branches: [claude/project-thread-dtkbi3]
+    paths: [.github/workflows/live-probe.yml, client/test-live-sound.sh, client/probe/**]
+jobs:
+  live-sound:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: A stand-in for a sound card that takes one stream at a time
+        run: gcc -shared -fPIC -O2 -o busy.so client/probe/busy.c -ldl
+      - name: Makkah live's sound on the Wyse client
+        run: |
+          mkdir -p live-sound
+          docker run --rm --shm-size=1g -e BUSY_SO=/src/busy.so -v "$PWD:/src" -v "$PWD/live-sound:/tmp/live-sound" \
+            -w /src debian:trixie sh client/test-live-sound.sh
