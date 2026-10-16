@@ -6,6 +6,12 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.5.1 - Makkah live's sound on a Dell Wyse 3040's HDMI
+
+- **Makkah live's sound plays on the TV** of a Dell Wyse 3040 on HDMI: it was silent there, while the azan and the test chime played. Chromium sends Makkah live's sound at 22050 Hz, which HDMI has no setting for, and the rate it was changed to on the way played nothing. Now every sound reaches the TV at 48000 Hz, which every TV plays.
+- **Box:** a TV plugged straight into AthanBox gets the same fix by running `sudo sh packaging/box/screen.sh` again after `git pull`.
+- **Docker:** nothing changes.
+
 ## 0.5.0 - Makkah live sound in Screen settings, and a note when the volume changes
 
 - **Makkah live sound** can be switched on and off in Screen settings, on the TV or from a phone or computer. Before, it could only be changed with the *Sound on/off* button on the video itself, which needed a mouse. That button still works, and Screen settings follows it. Makkah live still goes quiet by itself while the azan plays.

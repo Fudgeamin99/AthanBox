@@ -22,9 +22,9 @@ pick_sound() {
 }
 # Before each start of the browser (at boot, and when a screen is plugged in or out): the sound
 # output, and the sound card itself at full volume (the volume is set on the screen, in Screen settings).
-# The sound always reaches the card at 48000 Hz. Chromium sends each sound at its own rate (Makkah
-# live is 44100 Hz, the azan 48000 Hz), and some HDMI outputs, such as a Dell Wyse 3040's, play
-# nothing at 44100 Hz. Every TV and sound chip plays 48000 Hz.
+# The sound always reaches the card at 48000 Hz, which every TV and sound chip plays. Chromium sends
+# each sound at its own rate (Makkah live at 22050 Hz, the azan at 48000 Hz), HDMI has no 22050 Hz,
+# and at the rate ALSA picks for it instead, a Dell Wyse 3040's HDMI played Makkah live silently.
 set_sound() {
     sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
     if [ -n "$sound" ]; then
