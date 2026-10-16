@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
-    systemctl disable --now azan-sip-client-screen azan-sip-client azan-sip-client-update.path >/dev/null 2>&1 || true
+    systemctl disable --now azan-sip-client-screen azan-sip-client azan-sip-client-update.path azan-sip-client-shutdown.path >/dev/null 2>&1 || true
     systemctl start getty@tty1 >/dev/null 2>&1 || true
 fi
 exit 0

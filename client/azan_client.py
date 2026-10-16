@@ -20,6 +20,8 @@ http://127.0.0.1:8771 only:
   A laptop's own screen is left out while its lid is closed, and the TV gets the prayer times alone.
 * "update" run as root (azan-sip-client-update.service does, when Screen settings asks for it)
   installs the newest azan-sip-client.deb from the client's own GitHub releases (client-vX.Y.Z).
+* "shutdown" run as root (azan-sip-client-shutdown.service does, when Shut down is pressed in
+  Screen settings) turns the computer off.
 
 Run "azan-sip-client serve" (the azan-sip-client service does). The other commands talk to it:
     azan-sip-client status | search | connect <address> [--name NAME] | volume [0-100] | update
@@ -39,6 +41,7 @@ import re
 import secrets
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import threading
@@ -49,7 +52,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -598,6 +601,27 @@ def self_update(say=print) -> int:
     return 0
 
 
+SHUTDOWN_FRESH = 120   # seconds: an older Shut down (or one from the future) is ignored
+
+
+def power_off(say=print, off=lambda: subprocess.run(["systemctl", "poweroff"]).returncode) -> int:
+    """As root: turns the computer off when Shut down was pressed in Screen settings in the last two
+    minutes. It only looks at when the client wrote shutdown-now, never at what it holds."""
+    if os.geteuid() != 0:
+        say("Shutting down needs root: run poweroff as root, or press Shut down in Screen settings.")
+        return 1
+    try:
+        st = os.lstat(CONFIG.parent / "shutdown-now")
+    except OSError:
+        say("Shut down wasn't pressed in Screen settings, so the computer stays on.")
+        return 0
+    if not stat.S_ISREG(st.st_mode) or abs(time.time() - st.st_mtime) > SHUTDOWN_FRESH:
+        say("Shut down was pressed in Screen settings too long ago, so the computer stays on.")
+        return 0
+    say("Shut down was pressed in Screen settings: turning the computer off.")
+    return off()
+
+
 # ------------------------------------------------------------------ AthanBox, checked in the background
 class Watch:
     """Checks AthanBox every few seconds, so the screen knows whether it's there."""
@@ -779,6 +803,12 @@ class Handler(BaseHTTPRequestHandler):
             (CONFIG.parent / "update-now").write_text(f"{at}\n")
             log("Update asked for in Screen settings")
             return self._json({"ok": True, "asked": at})
+        if p == "/client/api/shutdown":
+            # azan-sip-client-shutdown.path sees this and turns the computer off as root
+            # (azan-sip-client-shutdown.service), which only looks at when it was written
+            (CONFIG.parent / "shutdown-now").write_text(f"{time.time()}\n")
+            log("Shut down asked for in Screen settings" + (f" from a phone or computer ({self.client_address[0]})" if self.REMOTE else ""))
+            return self._json({"ok": True})
         return self._json({"ok": False, "error": "Not found"}, 404)
 
     def do_HEAD(self):
@@ -944,7 +974,8 @@ class RemoteHandler(Handler):
             log(f"A phone or computer ({self.client_address[0]}) signed in to this screen's settings")
             return self._send(200, b'{"ok": true}', "application/json", {
                 "Set-Cookie": f"azc={token}; Max-Age={SESSION_DAYS * 86400}; Path=/; HttpOnly; SameSite=Strict"})
-        if p in ("/client/api/connect", "/client/api/settings", "/client/api/update", "/client/api/chime"):
+        if p in ("/client/api/connect", "/client/api/settings", "/client/api/update", "/client/api/chime",
+                 "/client/api/shutdown"):
             return self._client_post(p, req) if self._signed_in() else self._json(self.SIGN_IN, 401)
         return self._json({"ok": False, "error": "Not found"}, 404)
 
@@ -1005,12 +1036,15 @@ def main(argv=None):
     u = sub.add_parser("update", help="install the newest AthanBox Client from GitHub (as root)")
     u.add_argument("--check", action="store_true", help="only say whether there is a newer version")
     sub.add_parser("watch-screens", help=argparse.SUPPRESS)
+    sub.add_parser("shutdown", help=argparse.SUPPRESS)   # (azan-sip-client-shutdown.service)
     a = ap.parse_args(argv)
 
     if a.cmd == "serve":
         return serve(a.port)
     if a.cmd == "watch-screens":
         return watch_screens()
+    if a.cmd == "shutdown":
+        sys.exit(power_off())
     if a.cmd == "update":
         if a.check or os.geteuid() != 0:
             try:

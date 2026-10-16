@@ -9,9 +9,11 @@ import socket
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
 
 import azan_client as ac
 
@@ -190,7 +192,8 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(r.status, 200)
         self.assertIn(b"The code on the TV", body)
         for path, req in (("/client/api/status", None), ("/client/api/settings", {"volume": 5}), ("/client/api/update", {}),
-                          ("/client/api/connect", {"address": "10.0.0.9"}), ("/client/api/chime", {})):
+                          ("/client/api/connect", {"address": "10.0.0.9"}), ("/client/api/chime", {}),
+                          ("/client/api/shutdown", {})):
             self.assertEqual(self.phone(path, req)[0].status, 401, path)
         for path in ("/tv", "/api/tv", "/client/wall", "/client/api/forget", "/display"):   # never the box's pages
             self.assertEqual(self.phone(path)[0].status, 404, path)
@@ -234,6 +237,10 @@ class ClientTest(unittest.TestCase):
         before = tv()["chime"]
         self.assertTrue(json.loads(self.phone("/client/api/chime", {}, cookie=cookie)[1])["ok"])
         self.assertGreater(tv()["chime"], before)   # the TV plays it
+        off = ac.CONFIG.parent / "shutdown-now"
+        off.unlink(missing_ok=True)
+        self.assertTrue(json.loads(self.phone("/client/api/shutdown", {}, cookie=cookie)[1])["ok"])
+        self.assertTrue(off.exists())   # a phone can turn the TV's computer off
         self.assertEqual(self.phone("/client/api/status", cookie="azc=made-up")[0].status, 401)
         # Switched off on the TV: refused; and signing everyone out ends the cookie
         self.get("/client/api/settings", "POST", json.dumps({"remote": False}))
@@ -466,6 +473,31 @@ class ClientTest(unittest.TestCase):
         _, body = self.get("/client/api/update")
         self.assertEqual(json.loads(body)["update"]["step"], "installing")
         self.assertGreater(ac.vtuple("0.10.0"), ac.vtuple("0.9.9"))
+
+    def test_shut_down(self):
+        trigger = ac.CONFIG.parent / "shutdown-now"
+        trigger.unlink(missing_ok=True)
+        _, body = self.get("/client/api/shutdown", "POST", "{}")
+        self.assertTrue(json.loads(body)["ok"])
+        self.assertTrue(trigger.exists())   # azan-sip-client-shutdown.path turns the computer off from this
+        offs, quiet = [], lambda m: None
+        off = lambda: offs.append(1) or 0   # (never the real systemctl poweroff, even as root)
+        with mock.patch.object(ac.os, "geteuid", return_value=0):
+            self.assertEqual(ac.power_off(quiet, off), 0)
+            self.assertEqual(len(offs), 1)
+            os.utime(trigger, (time.time() - 600,) * 2)   # pressed ten minutes ago: stays on
+            self.assertEqual(ac.power_off(quiet, off), 0)
+            os.utime(trigger, (time.time() + 600,) * 2)   # from the future (a wrong clock): stays on
+            self.assertEqual(ac.power_off(quiet, off), 0)
+            trigger.unlink()   # never pressed: stays on
+            self.assertEqual(ac.power_off(quiet, off), 0)
+            trigger.symlink_to(ac.CONFIG)   # only the client's own file counts
+            self.assertEqual(ac.power_off(quiet, off), 0)
+            trigger.unlink()
+        self.assertEqual(len(offs), 1)
+        with mock.patch.object(ac.os, "geteuid", return_value=1000):   # not root: refused
+            self.assertEqual(ac.power_off(quiet, off), 1)
+        self.assertEqual(len(offs), 1)
 
     def test_updates_come_from_athanbox_releases(self):
         # GitHub serves the packages under the repository's new name; the old one is still accepted

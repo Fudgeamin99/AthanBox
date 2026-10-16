@@ -58,13 +58,17 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
   version, and installs it with apt, which restarts the client and the screen. It takes nothing but
   the trigger from the client's own (unprivileged) files. Progress is in
   `/var/lib/azan-sip-client-update/state.json`.
+- **Shut down** in Screen settings (on the TV or from a phone) writes
+  `/var/lib/azan-sip-client/shutdown-now`; `azan-sip-client-shutdown.path` sees it and starts
+  `azan-sip-client-shutdown.service`, which runs `azan_client.py shutdown` as root. That runs
+  `systemctl poweroff` if the file was written in the last two minutes, and reads nothing in it.
 - **Laptops** keep running with the lid closed (`/etc/systemd/logind.conf.d/azan-sip-client.conf`,
   removed again when the package is removed).
 - **32-bit:** the package is `Architecture: all` (Python and shell only), so the same .deb installs on
   64-bit and 32-bit Debian. CI installs it on Debian 12 and 13 (amd64) and Debian 12 (i386).
 - **Screen settings** (`/client/`, or press **S** on a keyboard) chooses AthanBox (by address or by
   searching the network), the screen's name on AthanBox's TV app page, the volume, Makkah live's
-  sound and updates. With
+  sound, updates and shutting down. With
   several screens it opens on the first one.
 - AthanBox sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the
   screen is listed on the TV app page under its name.

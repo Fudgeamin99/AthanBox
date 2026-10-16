@@ -1,0 +1,12 @@
+[Unit]
+Description=AthanBox Client - turn the computer off, as Screen settings asked
+# Started by azan-sip-client-shutdown.path when Shut down is pressed in Screen settings
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+# As root, to turn the computer off. It takes nothing from the client's own files: it only checks
+# that shutdown-now was written in the last two minutes, then runs systemctl poweroff.
+ExecStart=/usr/bin/python3 -I /usr/lib/azan-sip-client/azan_client.py shutdown
+WorkingDirectory=/
+TimeoutStartSec=60
