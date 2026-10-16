@@ -76,7 +76,16 @@ for name, x0, x1 in (("left", 0, w // 2), ("right", w // 2, w)):
     assert t > 0.005 and c > 0.005, f"the {name} screen doesn't show the prayer times"
 print("ok: both screens show the prayer times")
 PY
-shot() { wl grim -t ppm - > "$out/$1.ppm"; wl grim - > "$out/$1.png" || true; python3 "$out/check.py" "$out/$1.ppm"; }
+# While the azan plays (at a prayer time: the built-in chime, for 6 seconds) no prayer is marked as
+# the next one, so a picture taken then is taken again a little later.
+shot() {
+    for try in 1 2 3; do
+        wl grim -t ppm - > "$out/$1.ppm"; wl grim - > "$out/$1.png" || true
+        python3 "$out/check.py" "$out/$1.ppm" && return 0
+        [ "$try" = 3 ] || { echo "Taking the picture again in 20 seconds, in case the azan was playing"; sleep 20; }
+    done
+    return 1
+}
 # The browser's processes. Zombies don't count: in a container nothing reaps the processes the old
 # browser leaves behind (on a computer, systemd does).
 chromium_pids() {

@@ -20,20 +20,37 @@ pick_sound() {
         fi
     done
 }
+# The screen's sound, on card $1 device $2 ($3 says which, for the file). Chromium opens one sound
+# for the TV app's azan as soon as it starts and another for Makkah live, but a sound card's own
+# output takes one at a time: on a Dell Wyse 3040's HDMI, Makkah live was turned away as busy and
+# played silently. So the sounds are mixed first (dmix), always at 48000 Hz, which every TV and
+# sound chip plays (Chromium sends Makkah live at 22050 Hz, which HDMI has no setting for), and plug
+# converts each sound to the format and rate the mix takes. A card that can't mix plays one sound
+# at a time, as before.
+write_sound() {
+    cat > "$HOME/.asoundrc" <<ASOUND
+# Written by AthanBox Client at each start: $3 (card $1, device $2).
+pcm.!default { type plug; slave.pcm "screen" }
+pcm.screen { type dmix; ipc_key 5978293; ipc_key_add_uid true; slave { pcm "hw:CARD=$1,DEV=$2"; rate 48000; channels 2; period_size 1024; buffer_size 4096 } }
+ctl.!default { type hw; card $1 }
+ASOUND
+    if timeout 10 aplay -q -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero 2>/dev/null; then
+        return
+    fi
+    cat > "$HOME/.asoundrc" <<ASOUND
+# Written by AthanBox Client at each start: $3 (card $1, device $2), one sound at a time.
+pcm.!default { type plug; slave { pcm "hw:CARD=$1,DEV=$2"; rate 48000 } }
+ctl.!default { type hw; card $1 }
+ASOUND
+    echo "Sound: card $1 can't mix sounds, so it plays one at a time"
+}
 # Before each start of the browser (at boot, and when a screen is plugged in or out): the sound
 # output, and the sound card itself at full volume (the volume is set on the screen, in Screen settings).
-# The sound always reaches the card at 48000 Hz, which every TV and sound chip plays. Chromium sends
-# each sound at its own rate (Makkah live at 22050 Hz, the azan at 48000 Hz), HDMI has no 22050 Hz,
-# and at the rate ALSA picks for it instead, a Dell Wyse 3040's HDMI played Makkah live silently.
 set_sound() {
     sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
     if [ -n "$sound" ]; then
         card=${sound%,*} dev=${sound#*,}
-        cat > "$HOME/.asoundrc" <<ASOUND
-# Written by AthanBox Client at each start: the sound goes to the TV (card $card, device $dev).
-pcm.!default { type plug; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000 } }
-ctl.!default { type hw; card $card }
-ASOUND
+        write_sound "$card" "$dev" "the sound goes to the TV"
         echo "Sound: the TV on card $card, device $dev"
     else
         # No TV: the computer's own speakers or sound output (a laptop's speakers, a Wyse's line out).
@@ -42,11 +59,7 @@ ASOUND
               | sed -n 's/^card [0-9]*: \([^ ]*\) .*, device \([0-9]*\):.*/\1,\2/p' | head -n 1)
         if [ -n "$own" ]; then
             card=${own%,*} dev=${own#*,}
-            cat > "$HOME/.asoundrc" <<ASOUND
-# Written by AthanBox Client at each start: no TV, so the computer's own sound (card $card, device $dev).
-pcm.!default { type plug; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000 } }
-ctl.!default { type hw; card $card }
-ASOUND
+            write_sound "$card" "$dev" "no TV, so the computer's own sound"
             # Some laptops' sound chips start with the built-in speaker off: their ALSA profile switches it on
             alsaucm -c "hw:$card" set _verb HiFi set _enadev Speaker >/dev/null 2>&1 || true
             echo "Sound: no TV found on HDMI or DisplayPort, so the computer's own speakers play the azan (card $card, device $dev)"
