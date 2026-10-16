@@ -186,6 +186,78 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .tvoff h1{margin:0 0 1.4vh;font-size:5vh}
 .tvoff p{margin:0 auto;max-width:40em;color:var(--t-muted);font-size:2.6vh}
 
+/* ---- Kids mode (TV screens marked as kids screens on the TV app page): its own colours, a picture for each
+   prayer, a countdown that fills up, the week's stars, and the wudu and "Did you pray?" screens */
+html.kids{--k-bg:#cde8ff;--k-card:#fff;--k-ink:#14304d;--k-soft:#46617f;--k-line:#a9cdee;--k-track:#e6f2fc;--k-accent:#ff6b4a;
+  --k-star:#ffc21a;--k-stardeep:#d99a00;--k-good:#22a06b;--k-bubble:#fff;--k-on:#14304d;--k-isha-on:#fff;
+  --k-fajr:#ff9ebe;--k-dhuhr:#ffd23f;--k-asr:#ff9a4d;--k-maghrib:#f46a5e;--k-isha:#6c63ff}
+html.kids.kp-garden{--k-bg:#ddf3d2;--k-ink:#1d3a26;--k-soft:#45614d;--k-line:#b5dda4;--k-track:#edf7e8;--k-accent:#1f9d63;--k-good:#1f9d63;--k-on:#1d3a26;
+  --k-fajr:#f7a6c9;--k-dhuhr:#ffd54a;--k-asr:#ffa552;--k-maghrib:#ee6a5b;--k-isha:#4f6fd8}
+html.kids.kp-space{--k-bg:#1a1d47;--k-card:#272c66;--k-ink:#fff;--k-soft:#c9ccf2;--k-line:#11133a;--k-track:#3a4088;--k-accent:#ffc93c;
+  --k-star:#ffc93c;--k-stardeep:#c99400;--k-good:#3ccb8a;--k-bubble:#3a4088;--k-on:#1a1d47;--k-isha-on:#1a1d47;
+  --k-fajr:#ff9ebe;--k-dhuhr:#ffd54a;--k-asr:#ffa552;--k-maghrib:#ff8070;--k-isha:#a39cff}
+html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
+.kids .pattern,.kids .lanterns,.kids .rstrip,.kids .daylabel,.kids .slist{display:none!important}
+.kids .place b{font-weight:800}
+.kids .place .date,.kids footer,.kids .status{color:var(--k-soft)}
+.kids .place svg circle{fill:var(--k-accent)}
+.kids #clock{background:var(--k-card);border-radius:99px;padding:.8vh 3vh;font-size:calc(6.4vh*var(--s)*var(--f,1))}
+.kids .stage{gap:2vw;margin-top:2.6vh;margin-bottom:2.6vh}
+.kids .hero{background:var(--k-card);border-radius:4vh;box-shadow:0 1vh 0 var(--k-line);padding:4vh 4vw;align-items:stretch;text-align:left;gap:3.4vh}
+.khero{display:flex;align-items:center;gap:3vw;min-width:0}
+.kbadge{width:calc(19vh*var(--f,1));height:calc(19vh*var(--f,1));flex:none}
+.kbadge svg{width:100%;height:100%}
+.ktext{min-width:0}
+.klbl{font-size:calc(3.2vh*var(--s)*var(--f,1));color:var(--k-soft)}
+.klbl b{color:var(--k-ink)}
+.kbig{font-size:calc(9.6vh*var(--s)*var(--f,1));font-weight:800;line-height:1.05;letter-spacing:-.1vh}
+.kbar{height:6vh;border-radius:99px;background:var(--k-track);overflow:hidden}
+.kbar i{display:block;height:100%;border-radius:99px;min-width:6vh;transition:width 1s linear}
+.kends{display:flex;justify-content:space-between;gap:2vw;font-size:calc(2.6vh*var(--s)*var(--f,1));color:var(--k-soft);margin-top:1.4vh}
+.kstars{display:none}
+.kids:not(.live) .kstars.on{display:flex;flex-direction:column;gap:1.4vh;width:29vw;flex:none;box-sizing:border-box;padding:3vh 2vw;border-radius:4vh;background:var(--k-card);box-shadow:0 1vh 0 var(--k-line)}
+.kstars h2{margin:0;font-size:calc(3.4vh*var(--s));font-weight:800}
+.kgrid{display:grid;grid-template-columns:minmax(0,2.3fr) repeat(7,minmax(0,1fr));gap:.6vh .3vw;align-items:center;font-size:calc(2.1vh*var(--s));font-weight:700}
+.kgrid .h{text-align:center;color:var(--k-soft)}
+.kgrid .h.today{color:var(--k-ink);text-decoration:underline;text-underline-offset:.5vh}
+.kgrid .p{display:flex;align-items:center;gap:.6vw;white-space:nowrap;overflow:hidden}
+.kgrid .p i{width:1.3vh;height:1.3vh;border-radius:50%;flex:none}
+.kgrid svg{width:3.2vh;height:3.2vh;display:block;margin:auto}
+.kcount{margin-top:auto;padding:1.2vh 1vw;border-radius:2vh;background:var(--k-track);text-align:center;font-size:calc(2.8vh*var(--s));font-weight:800}
+.kids .cards{gap:1.4vw}
+.kids .card{background:var(--k-card);border:.6vh solid transparent;border-radius:3.2vh;padding:1.6vh 1vw;display:flex;align-items:center;gap:.9vw;text-align:left;box-shadow:0 .8vh 0 var(--k-line)}
+.kids .card.past{opacity:1}
+.kids .card.next{background:var(--k-card);color:var(--k-ink);border-color:var(--c);box-shadow:0 .8vh 0 var(--k-line)}
+.kids .card .n{font-size:calc(3.2vh*var(--s)*var(--f,1));font-weight:800;line-height:1.1}
+.kids .card .ar,.kids .card.next .ar{font-size:calc(2.2vh*var(--s)*var(--f,1));color:var(--k-soft);line-height:1.35}
+.kids .card .tag{color:var(--k-soft)}
+.kic{width:calc(7vh*var(--f,1));height:calc(7vh*var(--f,1));border-radius:2.2vh;flex:none;display:flex;align-items:center;justify-content:center;background:var(--c);color:var(--ki)}
+.kic svg{width:62%;height:62%}
+.kt{display:flex;flex-direction:column;min-width:0;flex:1}
+.kt>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kdone{flex:none;width:4.2vh;height:4.2vh}
+.kids .sound{display:none}
+.kover{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:5vh 5vw;background:var(--k-bg);color:var(--k-ink)}
+.kpanel{position:relative;width:100%;height:100%;box-sizing:border-box;background:var(--k-card);border-radius:5vh;box-shadow:0 1vh 0 var(--k-line);padding:6vh 5vw;display:flex;align-items:center;justify-content:center;gap:4vw;overflow:hidden}
+.kpanel.col{flex-direction:column;text-align:center;gap:3vh}
+.kpanel .kart{width:34vh;height:40vh;flex:none}
+.kpanel .kart.star{width:26vh;height:26vh}
+.kpill{display:inline-block;align-self:flex-start;padding:.8vh 2.4vh;border-radius:99px;background:var(--c);color:var(--k-on);font-weight:700;font-size:2.8vh}
+.kpanel.col .kpill{align-self:center}
+.kh{font-size:calc(10.4vh*var(--s));font-weight:800;line-height:1;margin:1.6vh 0}
+.kp{font-size:3.2vh;color:var(--k-soft);line-height:1.4;margin:0 0 2.4vh}
+.ksteps{display:flex;flex-wrap:wrap;gap:1.2vh}
+.ksteps span{display:flex;align-items:center;gap:1vh;padding:1vh 2.2vh 1vh 1vh;border-radius:99px;font-weight:700;font-size:2.6vh;color:#14304d}
+.ksteps b{width:4vh;height:4vh;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:2.2vh}
+.kbtns{display:flex;flex-direction:column;align-items:center;gap:2.4vh}
+.kbtn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:2vh;padding:2.2vh 5vh 2.2vh 2.4vh;border-radius:99px;background:var(--k-star);color:#3a2600;font-size:4.6vh;font-weight:800;box-shadow:0 1vh 0 var(--k-stardeep)}
+.kbtn span{width:7vh;height:7vh;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center}
+.kbtn svg{width:4.6vh;height:4.6vh}
+.kbtn.plain{padding:2vh 6vh}
+.kbtn:focus-visible,.kbtn2:focus-visible{outline:.6vh solid var(--k-ink);outline-offset:.6vh}
+.kbtn2{all:unset;cursor:pointer;padding:1.4vh 3.4vh;border-radius:99px;border:.3vh solid var(--k-line);color:var(--k-soft);font-size:2.6vh;font-weight:700}
+.kconf{position:absolute;inset:0;pointer-events:none}
+
 /* splash while starting up */
 #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #splash svg.logo-big{width:18vh;height:18vh}
@@ -240,6 +312,13 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
   .dua .dar{font-size:calc(24px*var(--s)*var(--f,1))}.dua .den{font-size:calc(15px*var(--s)*var(--f,1))}.dua .dtr{font-size:calc(13px*var(--s)*var(--f,1))}
   .eidar{font-size:calc(48px*var(--s)*var(--f,1))}.tile{min-width:140px}.tile span{font-size:calc(24px*var(--s)*var(--f,1))}
   .tvtap{font-size:16px;padding:10px 18px}
+  .kids .hero{padding:24px 20px;gap:20px;border-radius:24px}.khero{gap:16px}.kbadge{width:84px;height:84px}
+  .klbl{font-size:16px}.kbig{font-size:calc(40px*var(--s)*var(--f,1))}.kbar{height:28px}.kbar i{min-width:28px}.kends{font-size:14px}
+  .kids:not(.live) .kstars.on{width:auto;padding:18px;border-radius:24px}.kstars h2{font-size:20px}.kgrid{font-size:13px}.kgrid svg{width:20px;height:20px}.kcount{font-size:16px}
+  .kids .stage{flex-direction:column;gap:16px}
+  .kids .card{padding:10px;gap:10px;border-radius:18px}.kids .card .n{font-size:18px}.kids .card .ar{font-size:13px}.kic{width:40px;height:40px;border-radius:12px}
+  .kpanel{flex-direction:column;text-align:center;padding:24px;border-radius:24px}.kpanel .kart{width:120px;height:140px}.kh{font-size:40px}.kp{font-size:17px}
+  .kpill{align-self:center;font-size:15px}.ksteps{justify-content:center}.ksteps span{font-size:14px}.kbtn{font-size:22px}.kbtn2{font-size:15px}
 }
 </style>
 </head>
@@ -272,6 +351,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
       <section class="hero" id="hero" aria-live="polite"></section>
       <div class="slist panel" id="slist"></div>
     </div>
+    <section class="kstars" id="kstars" aria-label="This week's stars"></section>
   </div>
   <div class="daylabel" id="daylabel" hidden></div>
   <section class="cards" id="cards"></section>
@@ -287,6 +367,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
   </footer>
   <button class="tvtap" id="tvtap" type="button" hidden></button>
 </div>
+<div class="kover" id="kover" role="dialog" aria-live="polite" hidden></div>
 <div class="tvoff" id="tvoff" role="alert" hidden><div><h1>TV screens are switched off</h1><p>This screen was disconnected in AthanBox. To use it again, switch on “Let TV screens connect” on the TV app page of the control panel. It reconnects by itself.</p></div></div>
 
 <div class="modal" id="lock" hidden>
@@ -312,6 +393,7 @@ Object.assign(TITLE, {sehri:"Sehri ends", iftar:"Iftar · Maghrib"});
 Object.assign(ARABIC, {sehri:"السحور", iftar:"الإفطار"});
 const store = {get(k){ if(PREVIEW) return null; try{ return localStorage.getItem(k); }catch(e){ return null; } },
                set(k, v){ if(PREVIEW) return; try{ localStorage.setItem(k, v); }catch(e){} }};
+let KIDS = null;   // kids mode for this TV screen (from /api/tv), or null
 let S = null, SESSION = {}, got = 0, failures = 0, firstLoad = true, LOOK = null, previewLook = null, lookKey = "";
 $("#logo").innerHTML = LOGO;
 $("#splashlogo").innerHTML = LOGO.replace("<svg", '<svg class="logo-big"');
@@ -363,7 +445,7 @@ function applyLook(L){
   if(S) render();
 }
 function layoutClasses(){  // the prayer times have their own layout next to Makkah live
-  const L = look(), list = (LV.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
+  const L = look(), list = !KIDS && (LV.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
   b.toggle("l-list", list); b.toggle("l-cards", !list);
 }
 let uiTimer = null;
@@ -380,6 +462,7 @@ function tick(){
   const t = new Date(2000, 0, 1, h, m, s + passed);
   $("#clock").textContent = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
   if(CD != null){ const u = $("#until"); if(u) u.textContent = untilText(CD - passed); }
+  if(KIDS) kidsTick(passed);
   // move on to the next prayer as soon as its time comes, without waiting for the next update
   if(CD != null && CD - passed <= 0 && passed > 2) load();
 }
@@ -424,7 +507,9 @@ function render(){
   $("#date").textContent = [date, R && R.hijri, L.title && town ? town : ""].filter(Boolean).join(" · ");
   renderStrip(R);
   CD = n ? n.seconds : null;
-  if(R && R.phase === "dua" && st.configured !== false){
+  if(KIDS && st.configured !== false){
+    kidsHero(st, n, R);
+  } else if(R && R.phase === "dua" && st.configured !== false){
     $("#hero").innerHTML = `<div class="lbl">Maghrib · ${esc(R.maghrib)}</div><div class="name sm">Iftar time</div>
       <div class="dua"><div class="dl">DUA FOR BREAKING THE FAST</div><div class="dar ar" lang="ar" dir="rtl">${DUA.ar}</div>
       <div class="dtr">${DUA.tr}</div><div class="den">${DUA.en}</div><div class="dsrc">${DUA.src}</div></div>`
@@ -461,6 +546,9 @@ function render(){
   $("#cards").innerHTML = rows.map(r => `<div class="card ${r.cls}"><div class="n">${esc(TITLE[r.name])}</div><div class="ar" lang="ar">${ARABIC[r.name]}</div><div class="t">${esc(r.time)}</div>${tag(r)}</div>`).join("");
   $("#slist").innerHTML = (tm ? `<div class="day">${esc(tm.label)}</div>` : "")
     + rows.map(r => `<div class="r ${r.cls}"><span class="n">${esc(TITLE[r.name])}</span>${r.off ? '<span class="tag">No azan</span>' : ""}<span class="ar" lang="ar">${ARABIC[r.name]}</span><span class="t">${esc(r.time)}</span></div>`).join("");
+  if(KIDS) kidsCards(rows);
+  kidsStars();
+  kidsOverlay(st, n);
   $("#status").innerHTML = statusLine(st) + (R && R.day ? " · Ramadan mode is on" : "");
   renderNotice(L.message || "");
   tick();
@@ -550,6 +638,201 @@ async function load(){
 }
 function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden = false; $("#screen").hidden = true; }
 
+// ---------------------------------------------------------------- Kids mode
+// A TV screen marked as a kids screen on the TV app page gets kids mode's settings with each /api/tv answer.
+// The prayer times are drawn bigger and brighter, with a picture for each prayer; "Time for wudu" shows before
+// each azan and "Did you pray?" after it, and the stars a child earns are kept by AthanBox.
+const KPRAY = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+const KSTEPS = ["Hands", "Mouth", "Nose", "Face", "Arms", "Head", "Feet"];
+const KSTEPC = ["#ff9ebe", "#ffd23f", "#ff9a4d", "#7fd7a8", "#8fd3ff", "#b8a9ff", "#ffb3a1"];
+const KSV = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+const KICON = {
+  fajr:`<svg ${KSV}><path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 4v4M5 10l1.5 1.5M19 10l-1.5 1.5"/></svg>`,
+  dhuhr:`<svg ${KSV}><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>`,
+  asr:`<svg ${KSV}><circle cx="12" cy="14" r="4"/><path d="M3 20h18M12 5v2M5 8.5l1.4 1.4M19 8.5l-1.4 1.4"/></svg>`,
+  maghrib:`<svg ${KSV}><path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 4v5M9.5 6.5L12 9l2.5-2.5"/></svg>`,
+  isha:`<svg ${KSV}><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>`};
+KICON.jumuah = KICON.dhuhr;
+const KSTAR = (fill, stroke) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+const KCHECK = '<svg class="kdone" viewBox="0 0 24 24" role="img" aria-label="Done"><circle cx="12" cy="12" r="11" fill="var(--k-good)"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const KSTARRED = `<span class="kdone" role="img" aria-label="Star earned">${KSTAR("var(--k-star)", "var(--k-star)")}</span>`;
+const kcol = p => `var(--k-${p === "jumuah" ? "dhuhr" : p})`;
+const kink = p => p === "isha" ? "var(--k-isha-on)" : "var(--k-on)";
+function kidsFace(p){   // a smiling sun (a smiling moon for Maghrib and Isha) in the prayer's colour
+  const c = kcol(p);
+  if (p === "isha" || p === "maghrib")
+    return `<svg viewBox="0 0 150 150" role="img" aria-label="A smiling moon"><path d="M118 92A50 50 0 1 1 62 28a42 42 0 0 0 56 64z" fill="${c}"/><circle cx="58" cy="78" r="6" fill="var(--k-on)"/><path d="M50 98q12 10 26 2" fill="none" stroke="var(--k-on)" stroke-width="6" stroke-linecap="round"/></svg>`;
+  return `<svg viewBox="0 0 150 150" role="img" aria-label="A smiling sun"><g stroke="${c}" stroke-width="9" stroke-linecap="round"><path d="M75 6v16M75 128v16M6 75h16M128 75h16M26 26l11 11M113 113l11 11M26 124l11-11M113 37l11-11"/></g><circle cx="75" cy="75" r="44" fill="${c}"/><circle cx="60" cy="68" r="6" fill="var(--k-on)"/><circle cx="90" cy="68" r="6" fill="var(--k-on)"/><path d="M57 86q18 18 36 0" fill="none" stroke="var(--k-on)" stroke-width="6" stroke-linecap="round"/></svg>`;
+}
+const KDROP = `<svg viewBox="0 0 250 300" role="img" aria-label="A smiling water drop"><path d="M125 12C125 12 222 120 222 190a97 97 0 0 1-194 0C28 120 125 12 125 12z" fill="#4fb3ff"/><path d="M78 150c-10 18-14 34-12 52" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".6"/><circle cx="100" cy="190" r="10" fill="#14304d"/><circle cx="150" cy="190" r="10" fill="#14304d"/><path d="M98 218q27 26 54 0" fill="none" stroke="#14304d" stroke-width="9" stroke-linecap="round"/></svg>`;
+const KBIGSTAR = `<svg viewBox="0 0 24 24" role="img" aria-label="A gold star"><path d="M12 2.5l2.8 5.7 6.3 1-4.6 4.4 1.1 6.2L12 16.9l-5.6 2.9 1.1-6.2L2.9 9.2l6.3-1z" fill="var(--k-star)" stroke="var(--k-stardeep)" stroke-width=".8" stroke-linejoin="round"/><circle cx="10.2" cy="11.2" r=".8" fill="#3a2600"/><circle cx="13.8" cy="11.2" r=".8" fill="#3a2600"/><path d="M10 13.4q2 1.8 4 0" fill="none" stroke="#3a2600" stroke-width=".7" stroke-linecap="round"/></svg>`;
+const KCONF = `<svg class="kconf" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true"><g><rect x="160" y="80" width="18" height="10" rx="3" fill="#ff9ebe" transform="rotate(25 169 85)"/><rect x="300" y="450" width="18" height="10" rx="3" fill="#4fb3ff" transform="rotate(-30 309 455)"/><rect x="980" y="110" width="18" height="10" rx="3" fill="#7fd7a8" transform="rotate(40 989 115)"/><rect x="880" y="480" width="18" height="10" rx="3" fill="#ff9a4d" transform="rotate(-15 889 485)"/><rect x="1060" y="300" width="18" height="10" rx="3" fill="#b8a9ff" transform="rotate(60 1069 305)"/><rect x="110" y="300" width="18" height="10" rx="3" fill="#ffd23f" transform="rotate(-50 119 305)"/><circle cx="240" cy="200" r="7" fill="#ffd23f"/><circle cx="940" cy="250" r="7" fill="#ff9ebe"/><circle cx="420" cy="90" r="6" fill="#7fd7a8"/><circle cx="760" cy="80" r="6" fill="#4fb3ff"/><circle cx="700" cy="520" r="7" fill="#b8a9ff"/></g></svg>`;
+const KO = {bar:null, shut:{}, chimed:"", key:"", thanks:null, sending:false};
+function setKids(k){
+  const before = JSON.stringify(KIDS);
+  KIDS = k || null;
+  if (JSON.stringify(KIDS) === before) return;
+  const c = document.documentElement.classList;
+  c.toggle("kids", !!KIDS);
+  for (const p of ["sky", "garden", "space"]) c.toggle("kp-" + p, !!KIDS && KIDS.palette === p);
+  if (KIDS && LV.on){ const v = $("#video"); v.muted = true; }
+  layoutClasses(); soundBtn();
+  if (S) render();
+}
+// "Asr is at 16:01" -> minutes since midnight, and the clock now (from the last update, ticking on)
+const kmin = t => { const [h, m] = String(t || "0:0").split(":").map(Number); return h * 60 + m; };
+function know(){ const [h, m, s] = (S.clock || "0:0:0").split(":").map(Number); return h * 60 + m + (s + (Date.now() - got) / 1000) / 60; }
+function kidsUntil(sec){
+  if (sec <= 60) return "Nearly time!";
+  const m = Math.ceil(sec / 60);
+  if (m < 60) return `${m} minute${m === 1 ? "" : "s"} to go!`;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return `${h} hour${h === 1 ? "" : "s"}${mm ? ` ${mm} min` : ""} to go!`;
+}
+function kidsAzanRows(st){ return (st.today || []).filter(r => KPRAY.includes(r.name)); }
+function kidsHero(st, n, R){
+  KO.bar = null;
+  if (st.playing){
+    const what = st.playing.replace(/ (azan|test)$/i, ""), p = KPRAY.find(x => what.toLowerCase().startsWith(x)) || "dhuhr";
+    $("#hero").innerHTML = `<div class="khero"><div class="kbadge">${kidsFace(p)}</div><div class="ktext"><div class="klbl">It's time!</div>
+      <div class="kbig">${esc(what)}</div><div class="klbl"><span class="mbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Listen to the azan</div></div></div>`;
+    return;
+  }
+  if (R && R.phase === "iftar"){
+    CD = R.seconds;
+    $("#hero").innerHTML = `<div class="khero"><div class="kbadge">${kidsFace("maghrib")}</div><div class="ktext"><div class="klbl">Iftar is at <b>${esc(R.maghrib)}</b></div>
+      <div class="kbig" id="kuntil">${esc(kidsUntil(R.seconds))}</div></div></div>`;
+    return;
+  }
+  if (!n){ $("#hero").innerHTML = `<div class="khero"><div class="ktext"><div class="kbig">No azan is switched on</div></div></div>`; return; }
+  const fri = n.prayer === "dhuhr" && n.day === "today" && (st.today || []).some(r => r.name === "dhuhr" && r.jumuah);
+  const name = fri ? "jumuah" : n.prayer, rows = kidsAzanRows(st), now = (st.clock || "").slice(0, 5);
+  // the bar fills from the last azan to the next one
+  const past = rows.filter(r => r.time <= now && n.day === "today"), last = past[past.length - 1];
+  const isha = rows.find(r => r.name === "isha"), fromName = last ? last.name : "isha", from = last ? last.time : isha && isha.time;
+  let span = from ? kmin(n.time) - kmin(from) : 0;
+  if (span <= 0) span += 1440;
+  KO.bar = {total: span * 60};
+  $("#hero").innerHTML = `<div class="khero"><div class="kbadge">${kidsFace(name)}</div><div class="ktext">
+      <div class="klbl">Next is <b>${esc(TITLE[name])}</b> · <span lang="ar">${ARABIC[name]}</span></div>
+      <div class="kbig" id="kuntil">${esc(kidsUntil(n.seconds))}</div></div></div>
+    <div><div class="kbar"><i id="kbar" style="background:${kcol(name)};width:0"></i></div>
+      <div class="kends"><span>${from ? `${esc(TITLE[fromName])} was at ${esc(from)}` : ""}</span><span>${esc(TITLE[name])} at ${esc(n.time)}${n.day === "today" ? "" : " " + esc(n.day)}</span></div></div>`;
+}
+function kidsTick(passed){
+  if (CD == null) return;
+  const left = Math.max(0, CD - passed), u = $("#kuntil"), b = $("#kbar");
+  if (u) u.textContent = kidsUntil(left);
+  if (b && KO.bar) b.style.width = Math.max(0, Math.min(100, 100 * (1 - left / KO.bar.total))).toFixed(1) + "%";
+}
+function kidsCards(rows){
+  const today = (KIDS.stars && KIDS.week && KIDS.week.today) || [], tm = !!S.tomorrow;
+  const list = rows.map(r => Object.assign({}, r, {name: r.name === "iftar" ? "maghrib" : r.name}))
+    .filter(r => KPRAY.includes(r.name) || r.name === "jumuah");
+  $("#cards").style.setProperty("--n", list.length || 5);
+  $("#cards").innerHTML = list.map(r => {
+    const key = r.name === "jumuah" ? "dhuhr" : r.name, past = /past/.test(r.cls);
+    const mark = tm ? "" : KIDS.stars ? (today.includes(key) ? KSTARRED : "") : past ? KCHECK : "";
+    return `<div class="card ${r.cls}" style="--c:${kcol(r.name)};--ki:${kink(r.name)}"><span class="kic">${KICON[r.name]}</span>
+      <span class="kt"><span class="n">${esc(TITLE[r.name])}</span><span class="ar"><span lang="ar">${ARABIC[r.name]}</span> · ${esc(r.time)}</span>${r.off ? '<span class="tag">No azan</span>' : ""}</span>${mark}</div>`;
+  }).join("");
+}
+function kidsStars(){
+  const el = $("#kstars"), on = !!(KIDS && KIDS.stars && KIDS.week);
+  el.classList.toggle("on", on);
+  if (!on){ el.innerHTML = ""; return; }
+  const w = KIDS.week, wd = (new Date().getDay() + 6) % 7, n = w.count || 0;
+  let g = `<span></span>` + ["M", "T", "W", "T", "F", "S", "S"].map((d, i) => `<span class="h${i === wd ? " today" : ""}">${d}</span>`).join("");
+  for (const p of KPRAY) g += `<span class="p"><i style="background:${kcol(p)}"></i>${TITLE[p]}</span>`
+    + w.days.map(d => d.includes(p) ? KSTAR("var(--k-star)", "var(--k-star)") : KSTAR("none", "var(--k-line)")).join("");
+  el.innerHTML = `<h2>My stars</h2><div class="kgrid">${g}</div><div class="kcount">${n} star${n === 1 ? "" : "s"} this week</div>`;
+}
+// what the big kids screens show now: "wudu" before an azan, "ask" after one, "thanks" after a star
+function kidsMoment(st, n){
+  if (!KIDS || PREVIEW || st.configured === false) return null;
+  if (KO.thanks && Date.now() < KO.thanks.until) return {kind:"thanks", key:"thanks"};
+  if (st.playing) return null;
+  if (KIDS.wudu_minutes && n && n.kind !== "reminder" && n.seconds - (Date.now() - got) / 1000 <= KIDS.wudu_minutes * 60){
+    const key = "wudu:" + n.prayer + n.time;
+    if (!KO.shut[key]) return {kind:"wudu", key, prayer:n.prayer, time:n.time};
+  }
+  if (KIDS.stars && KIDS.week){   // (st.today is still today after the last azan, when the cards show tomorrow)
+    const now = know(), done = KIDS.week.today || [];
+    const last = kidsAzanRows(st).filter(r => kmin(r.time) <= now && now - kmin(r.time) <= 20 && r.azan && r.enabled).pop();
+    if (last && !done.includes(last.name)){
+      const key = "ask:" + (st.date || "") + last.name, fri = last.name === "dhuhr" && last.jumuah;
+      if (!KO.shut[key]) return {kind:"ask", key, prayer:last.name, title: TITLE[fri ? "jumuah" : last.name]};
+    }
+  }
+  return null;
+}
+function kidsOverlay(st, n){
+  const m = kidsMoment(st, n), el = $("#kover");
+  if (!m){ if (!el.hidden){ el.hidden = true; el.innerHTML = ""; KO.key = ""; } return; }
+  if (m.key === KO.key) return;   // already showing: leave the buttons (and the remote's focus) alone
+  KO.key = m.key;
+  if (m.kind === "wudu"){
+    el.innerHTML = `<div class="kpanel"><div class="kart">${KDROP}</div><div>
+      <span class="kpill" style="--c:${kcol(m.prayer)};color:${kink(m.prayer)}">${esc(TITLE[m.prayer])} is at ${esc(m.time)}</span>
+      <div class="kh">Time for wudu!</div><p class="kp">Toys away, make wudu, then find your prayer mat.</p>
+      <div class="ksteps">${KSTEPS.map((s, i) => `<span style="background:${KSTEPC[i]}"><b>${i + 1}</b>${s}</span>`).join("")}</div>
+      <p style="margin:3vh 0 0"><button class="kbtn2" type="button" id="kok">I'm ready</button></p></div></div>`;
+    $("#kok").onclick = () => { KO.shut[m.key] = true; kidsOverlay(S, S.next_azan); };
+    if (KO.chimed !== m.key){ KO.chimed = m.key; if (kidsRule(m.prayer + " azan") !== "none") playChime(tvGain() * .6); }
+  } else if (m.kind === "ask"){
+    el.innerHTML = `<div class="kpanel col"><span class="kpill" style="--c:${kcol(m.prayer)};color:${kink(m.prayer)}">${esc(m.title)} is done</span>
+      <div class="kh">Did you pray ${esc(m.title)}?</div>
+      <div class="kbtns"><button class="kbtn" type="button" id="kyes"><span>${KSTAR("var(--k-star)", "var(--k-star)")}</span>Yes! Give me my star</button>
+      <button class="kbtn2" type="button" id="kno">Not yet</button></div>
+      <p class="kp" style="margin:0">Tap the screen, or press OK on the remote</p></div>`;
+    $("#kyes").onclick = () => kidsStar(m);
+    $("#kno").onclick = () => { KO.shut[m.key] = true; kidsOverlay(S, S.next_azan); };
+  } else {
+    const c = (KIDS.week && KIDS.week.count) || 0, nx = S.next_azan;
+    el.innerHTML = `<div class="kpanel col">${KCONF}<div class="kart star">${KBIGSTAR}</div><div class="kh">Masha'Allah, well done!</div>
+      <p class="kp">That's ${c} star${c === 1 ? "" : "s"} this week.${nx ? ` ${esc(TITLE[nx.prayer])} is next, at ${esc(nx.time)}.` : ""}</p></div>`;
+    setTimeout(() => { if (S) kidsOverlay(S, S.next_azan); }, KO.thanks.until - Date.now() + 50);
+  }
+  el.hidden = false;
+  const f = el.querySelector("#kyes, #kok");   // so OK on a TV remote presses it
+  if (f) setTimeout(() => { try{ f.focus(); }catch(e){} }, 50);
+}
+async function kidsStar(m){
+  if (KO.sending) return;
+  KO.sending = true;
+  try{
+    const res = await fetch("/api/tv/star", {method:"POST", headers:{"Content-Type":"application/json", "X-Azan-Panel":"1"},
+      body:JSON.stringify({id:tvId(), prayer:m.prayer})});
+    const r = await res.json();
+    if (!r.ok) throw new Error(r.error || "");
+    if (KIDS) KIDS.week = r.week;
+    KO.shut[m.key] = true;
+    KO.thanks = {until: Date.now() + 10000};
+  }catch(e){ KO.shut[m.key] = true; }
+  KO.sending = false;
+  KO.key = "";
+  render();
+}
+// The sound on a kids screen: the azan, a gentle chime or nothing; never at Fajr (or Suhoor) with "Keep Fajr quiet"
+function kidsRule(label){
+  if (!KIDS || /test/i.test(label || "")) return "azan";
+  if (KIDS.quiet_fajr && /^(fajr|suhoor|sehri)/i.test(label || "")) return "none";
+  return KIDS.sound || "azan";
+}
+const tvGain = () => TVA.vol * (KIDS ? (KIDS.volume ?? 100) / 100 : 1);
+function playChime(vol){   // the phones' chime, made here: four soft notes
+  if (!TV || !TVA.on || !audioOK() || vol <= 0) return null;
+  try{
+    const c = TVA.ctx, rate = c.sampleRate, seg = .6, notes = [659.25, 523.25, 587.33, 392.0];
+    const buf = c.createBuffer(1, Math.ceil(rate * (seg * notes.length + .6)), rate), d = buf.getChannelData(0);
+    notes.forEach((f, k) => { for (let i = 0; i < seg * rate; i++){ const t = i / rate;
+      d[k * Math.round(seg * rate) + i] = .4 * Math.exp(-3.5 * t) * Math.min(1, t / .004) * Math.sin(2 * Math.PI * f * t); } });
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf; src.connect(g); g.connect(c.destination); g.gain.value = vol; src.start();
+    return {src, gain:g};
+  }catch(e){ return null; }
+}
+
 // ---------------------------------------------------------------- Makkah live
 // The stream is relayed by AthanBox (/live/stream.m3u8) and played with hls.js, loaded only when needed.
 // With "Screens fetch the stream themselves" on, the screen plays the stream's own link instead, so AthanBox
@@ -575,7 +858,7 @@ function liveMsg(kind, title, text){
 }
 function soundBtn(){
   const v = $("#video"), b = $("#sound");
-  b.hidden = !LV.on || !$("#pmsg").hidden || PREVIEW;
+  b.hidden = !LV.on || !$("#pmsg").hidden || PREVIEW || !!KIDS;
   b.innerHTML = LV.azanMuted ? `${SPK.off}Muted for the azan` : v.muted ? `${SPK.off}Sound off` : `${SPK.on}Sound on`;
   b.setAttribute("aria-label", v.muted ? "Turn the Makkah live sound on" : "Turn the Makkah live sound off");
 }
@@ -600,7 +883,7 @@ function retryLive(title, text){
 }
 async function play(){
   const v = $("#video");
-  v.muted = !LV.want || LV.azanMuted;
+  v.muted = !LV.want || LV.azanMuted || !!KIDS;   // kids screens keep Makkah live quiet
   try{ await v.play(); }
   catch(e){ if(!v.muted){ v.muted = true; try{ await v.play(); }catch(e2){} } }  // the browser wants a tap before sound
   soundBtn();
@@ -683,7 +966,7 @@ function azanCheck(){  // our own azan is playing on the phones: keep the stream
   if(!LV.on || !S) return;
   const v = $("#video");
   if(S.playing && !LV.azanMuted && !v.muted){ LV.azanMuted = true; v.muted = true; soundBtn(); }
-  else if(!S.playing && LV.azanMuted){ LV.azanMuted = false; if(LV.want){ v.muted = false; v.play().catch(() => {}); } soundBtn(); }
+  else if(!S.playing && LV.azanMuted){ LV.azanMuted = false; if(LV.want && !KIDS){ v.muted = false; v.play().catch(() => {}); } soundBtn(); }
 }
 $("#livebtn").addEventListener("click", () => setLive(!LV.on, true));
 
@@ -717,6 +1000,7 @@ if(PREVIEW){
   addEventListener("message", e => {
     if(e.origin !== location.origin || !e.data || e.data.type !== "azan-look") return;
     previewLook = e.data.look; lookKey = "";
+    setKids(e.data.kids || null);
     setLive(!!e.data.live, false);
     applyLook(withRamadan(previewLook));
   });
@@ -791,7 +1075,7 @@ function unlock(){   // inside a tap: let this page make sound (and keep the scr
     s.buffer = b; s.connect(c.destination); s.start(0);
   }catch(e){}
   if (c.resume) c.resume().then(tvUI, tvUI);
-  if (LV.on && LV.want && !LV.azanMuted){ const v = $("#video"); v.muted = false; v.play().catch(() => {}); soundBtn(); }
+  if (LV.on && LV.want && !LV.azanMuted && !KIDS){ const v = $("#video"); v.muted = false; v.play().catch(() => {}); soundBtn(); }
   keepAwake();
   setTimeout(tvUI, 300);
 }
@@ -832,7 +1116,17 @@ function stopSound(markDone){
 }
 async function startSound(p){
   stopSound(false);
+  const rule = kidsRule(p.label);
+  if (rule === "none"){ TVA.cur = null; TVA.done = p.seq; return; }   // a kids screen that stays quiet for this one
   const cur = TVA.cur = {seq:p.seq, src:null, gain:null};
+  if (rule === "chime"){   // a kids screen: a gentle chime instead of the azan
+    if (!audioOK() || (serverNow() - p.started) / 1000 > 4){ TVA.cur = null; TVA.done = p.seq; return; }
+    const ch = playChime(tvGain());
+    if (!ch){ TVA.cur = null; TVA.done = p.seq; return; }
+    cur.src = ch.src; cur.gain = ch.gain;
+    ch.src.onended = () => { if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; } };
+    return;
+  }
   let e;
   try{ e = await getBuf(p.sound); TVA.error = ""; }
   catch(err){ if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; TVA.error = "Couldn't play the recording on this screen"; tvUI(); } return; }
@@ -846,8 +1140,8 @@ async function startSound(p){
   const src = c.createBufferSource(), g = c.createGain();
   src.buffer = buf; src.connect(g); g.connect(c.destination);
   const when = c.currentTime + Math.max(0, -into), off = Math.max(0, into);
-  if (off > 0){ g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(TVA.vol, when + .25); }   // joining part-way: fade in
-  else g.gain.setValueAtTime(TVA.vol, when);
+  if (off > 0){ g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(tvGain(), when + .25); }   // joining part-way: fade in
+  else g.gain.setValueAtTime(tvGain(), when);
   if (e.raw && s.repeat){ src.loop = true; src.loopStart = 0; src.loopEnd = body; src.start(when, off % body); src.stop(when + total - off); }
   else src.start(when, off, total - off);
   src.onended = () => { if (TVA.cur === cur){ TVA.cur = null; TVA.done = p.seq; } };
@@ -872,11 +1166,10 @@ function tvHandle(j){
   if (j.version) TVA.ver = j.version;
   // The volume on the TV app page is for AthanBox's own screen only (it opens the TV app on
   // 127.0.0.1); other screens keep their own volume
-  const vol = LOCAL_SCREEN && typeof j.volume === "number" ? j.volume : 1;
-  if (vol !== TVA.vol){
-    TVA.vol = vol;
-    if (TVA.cur && TVA.cur.gain){ try{ TVA.cur.gain.gain.setTargetAtTime(vol, TVA.ctx.currentTime, .1); }catch(e){} }
-  }
+  const vol = LOCAL_SCREEN && typeof j.volume === "number" ? j.volume : 1, before = tvGain();
+  TVA.vol = vol;
+  setKids(j.kids || null);
+  if (tvGain() !== before && TVA.cur && TVA.cur.gain){ try{ TVA.cur.gain.gain.setTargetAtTime(tvGain(), TVA.ctx.currentTime, .1); }catch(e){} }
   if (S){   // show "Playing now" straight away, without waiting for the next display update
     const label = p ? p.label : null;
     if (label && S.playing !== label){ S.playing = TVA.shown = label; render(); azanCheck(); }

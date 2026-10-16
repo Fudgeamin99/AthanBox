@@ -489,7 +489,7 @@ function onField(e){
   else { v = el.value; }
   setPath(root, p, v);
   if(root===CFG) dirty();
-  if(root===CFG && p.startsWith("display.")) postLook();
+  if(root===CFG && (p.startsWith("display.") || p.startsWith("kids."))) postLook();
   if(root===CFG && p.startsWith("panel.")){ applyPanelLook(CFG.panel); const pc=$("#pcolor"); if(pc) pc.hidden = CFG.panel.accent!=="custom"; }
   if(el.dataset.preview!==undefined) schedulePreview();
   if(el.dataset.rerender!==undefined && e.type==="change") render();
@@ -986,17 +986,23 @@ const TVSTATE = {ready:["ok","Ready · plays the azan"], playing:["ok","Playing 
 function agoText(s){ return s < 90 ? "just now" : s < 3600 ? `${Math.round(s/60)} min ago` : "over an hour ago"; }
 function tvListHTML(){
   const list = (S && S.screens && S.screens.list) || [], on = !!(S && S.screens && S.screens.on);
-  const ready = list.some(x => x.state === "ready" || x.state === "playing");
+  const ready = list.some(x => x.state === "ready" || x.state === "playing"), kidsOn = !!(CFG && CFG.kids && CFG.kids.enabled);
   const icon = ICON.screen;
   const rows = list.length ? list.map(x => { const st = TVSTATE[x.state] || ["", x.state];
       return `<div class="tvrow">${icon}<div style="flex:1;min-width:0"><div class="t">${esc(x.name)} <span class="muted mono" style="font-weight:400;font-size:13px">${esc(x.ip)}</span></div>
-        <div class="d">${x.state === "away" ? `Last seen ${agoText(x.seen)}` : "Connected"}</div></div><span class="pill ${st[0]}">${esc(st[1])}</span></div>`; }).join("")
+        <div class="d">${x.state === "away" ? `Last seen ${agoText(x.seen)}` : "Connected"}${kidsOn && x.kids ? " · Kids screen" : ""}</div></div><span class="pill ${st[0]}">${esc(st[1])}</span>
+        ${kidsOn ? `<label class="row" style="gap:8px;font-size:13px;font-weight:600;margin-left:6px">Kids<span class="switch"><input type="checkbox" ${x.kids?"checked":""} onchange="setKidsScreen('${esc(x.id)}',this.checked)" aria-label="Kids screen: ${esc(x.name)}"><span></span></span></label>` : ""}</div>`; }).join("")
     : `<p class="muted" style="margin:4px 0 0">${on ? "No TV screens yet. Open the TV app on the iPad: the steps are below." : "Switch on “Let TV screens connect” above first."}</p>`;
   return `<div class="row" style="justify-content:space-between;margin-bottom:6px"><h2 style="margin:0">TV screens</h2>
       <div class="row" style="gap:8px"><button class="btn small" ${ready ? "" : "disabled"} onclick="testTV('tone')">${ICON.play} Test chime</button>
         <button class="btn small" ${ready ? "" : "disabled"} onclick="testTV('azan')">${ICON.play} Test the azan</button></div></div>
     ${rows}
-    ${list.length ? `<p class="muted" style="margin:10px 0 0;font-size:13px">The tests play on the TV screens only. The azan plays on the screens and the phones together.</p>` : ""}`;
+    ${list.length ? `<p class="muted" style="margin:10px 0 0;font-size:13px">The tests play on the TV screens only. The azan plays on the screens and the phones together.
+      ${kidsOn ? "Switch on <b>Kids</b> for the screens in a child's room." : `For a child's room, switch on Kids mode on the <a href="#display" onclick="go('display');return false">Display</a> page.`}</p>` : ""}`;
+}
+async function setKidsScreen(id, on){
+  await act(async()=>{ const r = await api("/api/kids/screen", {id, on}); applySaved("kids.screens", r.screens); await poll(); render(); },
+    on ? "Kids screen on. It changes in a few seconds." : "Kids screen off");
 }
 async function testTV(what){
   await act(async()=>{ await api("/api/test", what === "tone" ? {source:"tone", label:"TV test chime", screens_only:true}
@@ -1319,7 +1325,16 @@ const DTHEMES = [["green","Masjid green","#0d4a3f","#f3e2b4"],["night","Night","
                  ["custom","Your colours",null,null]];
 const DPARTS = [["clock","Clock"],["date","Date"],["arabic","Arabic prayer names"],["countdown","Countdown to the azan"],
                 ["sunrise","Sunrise"],["status","Phone status line"],["pattern","Background pattern"]];
-const DP = {live:false};
+const DP = {live:false, kids:false};
+// Kids mode (the Kids mode card here, and a switch for each screen on the TV app page)
+const KDEF = {enabled:false, palette:"sky", wudu_minutes:10, stars:true, sound:"azan", volume:100, quiet_fajr:true, screens:[]};
+function dkids(){ return Object.assign({}, KDEF, CFG.kids || {}); }
+function kidsPreview(){   // what the preview shows for "Kids screen", with a few stars already earned
+  const K = dkids(); delete K.screens;
+  const d = [["fajr","dhuhr","asr","maghrib"],["dhuhr","asr","isha"],["fajr","dhuhr","asr"],["dhuhr"],[],[],[]];
+  K.week = {days:d, count:d.flat().length, today:["fajr","dhuhr"]};
+  return K;
+}
 function dlook(){
   const L = Object.assign({}, DDEF, CFG.display || {});
   L.hide = Array.isArray(L.hide) ? L.hide : []; L.scale = +L.scale || 100; L.live_width = +L.live_width || 75;
@@ -1327,7 +1342,7 @@ function dlook(){
 }
 function postLook(){
   const L = dlook(), f = $("#dprev");
-  if(f && f.contentWindow) f.contentWindow.postMessage({type:"azan-look", look:L, live:DP.live}, location.origin);
+  if(f && f.contentWindow) f.contentWindow.postMessage({type:"azan-look", look:L, live:DP.live, kids:DP.kids ? kidsPreview() : null}, location.origin);
   const cc = $("#custom-colors"); if(cc) cc.hidden = L.theme !== "custom";
   const cs = $("#sw-custom"); if(cs){ cs.style.background = L.background; cs.querySelectorAll("i").forEach(i => i.style.background = L.accent); }
   const a = $("#scale-v"); if(a) a.textContent = L.scale + "%";
@@ -1344,7 +1359,7 @@ function pageDisplay(){
   <div class="row" style="margin-bottom:16px"><button class="btn primary" onclick="openScreen('/display')">${icon(ICON.screen)} Open the prayer-times screen</button>
     <button class="btn" onclick="openScreen('/display?live=1')">${icon(ICON.broadcast)} Open with Makkah live</button></div>
   <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Preview</h2>
-      <div class="seg"><label><input type="radio" name="pv" ${DP.live?"":"checked"} onchange="DP.live=false;postLook()">Prayer times</label><label><input type="radio" name="pv" ${DP.live?"checked":""} onchange="DP.live=true;postLook()">With Makkah live</label></div></div>
+      <div class="seg"><label><input type="radio" name="pv" ${DP.live||DP.kids?"":"checked"} onchange="DP.live=false;DP.kids=false;postLook()">Prayer times</label><label><input type="radio" name="pv" ${DP.live&&!DP.kids?"checked":""} onchange="DP.live=true;DP.kids=false;postLook()">With Makkah live</label><label><input type="radio" name="pv" ${DP.kids?"checked":""} onchange="DP.live=false;DP.kids=true;postLook()">Kids screen</label></div></div>
     <div class="dprev"><iframe id="dprev" src="/display?preview=1" title="Preview of the prayer-times screen" tabindex="-1" aria-hidden="true"></iframe></div></div>
   <div class="card"><h2>Theme</h2>
     <div class="themes">${DTHEMES.map(([id,name,bg,ac]) => `<label><input type="radio" name="dtheme" data-path="display.theme" value="${id}" ${L.theme===id?"checked":""}>
@@ -1361,6 +1376,7 @@ function pageDisplay(){
   <div class="card"><h2>Show on the screen</h2>
     <div class="parts">${DPARTS.map(([id,name]) => `<div class="toggle-row"><div class="t">${name}</div><label class="switch"><input type="checkbox" data-path="display.hide" data-kind="hide" value="${id}" aria-label="Show ${name.toLowerCase()}" ${L.hide.includes(id)?"":"checked"}><span></span></label></div>`).join("")}</div>
     <div class="field" style="margin-top:14px"><label>Buttons (Makkah live, Full screen and Settings)</label><div class="seg">${r("dbtn","display.buttons","always",L.buttons,"Always")}${r("dbtn","display.buttons","auto",L.buttons,"When the mouse moves or the screen is tapped")}</div></div></div>
+  ${kidsCardHTML(r)}
   <div class="card" id="livecard"><h2>Makkah live</h2>
     <p class="muted" style="margin-top:0">Live from Masjid al-Haram on Saudi Quran TV, next to the prayer times. Press <b>Makkah live</b> on a screen to show it. The sound starts off, and goes quiet by itself while your azan is playing. Normally AthanBox relays the stream, so screens watching at the same time share one download.</p>
     <div class="field"><label>Prayer times with Makkah live</label><div class="seg">${r("dllayout","display.live_layout","list",L.live_layout,"List at the side (bigger picture)")}${r("dllayout","display.live_layout","cards",L.live_layout,"Cards along the bottom")}</div></div>
@@ -1376,6 +1392,20 @@ function pageDisplay(){
   fitPreview();
   if(previewObserver) previewObserver.disconnect();
   previewObserver = new ResizeObserver(fitPreview); previewObserver.observe($(".dprev"));
+}
+function kidsCardHTML(r){
+  const K = dkids(), n = (K.screens || []).length;
+  const tvlink = `<a href="#tv" onclick="go('tv');return false">TV app</a>`;
+  return `<div class="card" id="kidscard"><h2>Kids mode</h2>
+    <p class="muted" style="margin-top:0">A brighter screen for a child's room: a picture for each prayer, a countdown that fills up, “Time for wudu” before each azan and a star for each prayer prayed. Only the TV screens you choose on the ${tvlink} page change. Phones, speakers and other screens stay as they are.</p>
+    <div class="toggle-row"><div><div class="t">Kids mode</div><div class="d">${K.enabled ? (n ? `${n} kids screen${n === 1 ? "" : "s"}. Choose them on the ${tvlink} page.` : `No kids screens yet. Choose them on the ${tvlink} page.`) : "Switch it on, then choose the kids screens on the TV app page."}</div></div>${sw("kids.enabled", K.enabled, "data-rerender")}</div>
+    ${K.enabled ? `<div class="field" style="margin-top:12px"><label>Colours</label><div class="seg">${r("kpal","kids.palette","sky",K.palette,"Sky")}${r("kpal","kids.palette","garden",K.palette,"Garden")}${r("kpal","kids.palette","space",K.palette,"Space")}</div><div class="hint">Choose “Kids screen” above the preview to see it.</div></div>
+    <div class="field"><label for="k-wudu">“Time for wudu”</label><select id="k-wudu" data-path="kids.wudu_minutes" data-kind="num">${[0,5,10,15].map(m => opt(m, m ? `${m} minutes before each azan` : "Off", K.wudu_minutes)).join("")}</select></div>
+    <div class="toggle-row"><div><div class="t">“Did you pray?” and the star chart</div><div class="d">After each azan the screen asks, and a tap (or OK on the remote) earns a star. The chart starts again every Monday.</div></div>${sw("kids.stars", K.stars)}</div>
+    <div class="field" style="margin-top:12px"><label>At azan time, kids screens play</label><div class="seg">${r("ksnd","kids.sound","azan",K.sound,"The full azan")}${r("ksnd","kids.sound","chime",K.sound,"A gentle chime")}${r("ksnd","kids.sound","none",K.sound,"Nothing, just the screen")}</div></div>
+    <div class="field"><label for="k-vol">Loudest a kids screen plays: <span id="kvol">${Math.round(+K.volume)}%</span></label><input type="range" id="k-vol" min="0" max="100" step="5" data-path="kids.volume" data-kind="num" value="${Math.round(+K.volume)}" oninput="$('#kvol').textContent=this.value+'%'"><div class="hint">A share of the screen's own volume. Test chime on the TV app page plays at this volume too.</div></div>
+    <div class="toggle-row"><div><div class="t">Keep Fajr quiet</div><div class="d">No sound at Fajr or the Suhoor alert on kids screens, so nobody is woken. The screen still shows them.</div></div>${sw("kids.quiet_fajr", K.quiet_fajr)}</div>
+    <p class="muted" style="margin:10px 0 0;font-size:13px">Kids screens keep Makkah live's sound off. Press Save changes, and kids screens change within a few seconds.</p>` : ""}</div>`;
 }
 async function checkLive(){
   const b = $("#live-check"), out = $("#live-result"), url = ($("#live-url").value || "").trim();

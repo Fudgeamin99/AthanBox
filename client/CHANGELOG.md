@@ -6,6 +6,12 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.5.4 - Stars for kids mode
+
+- AthanBox 0.8.0's **kids mode** works on the Wyse: when a kids screen asks "Did you pray?", pressing **Yes** (a tap, or OK on the remote) now reaches AthanBox and earns the star. The client passes on only that, so the screen still can't change AthanBox's settings.
+- **Screens with 0.5.2 or newer** get it from **Update now** in Screen settings.
+- **Box and Docker:** kids mode itself is AthanBox 0.8.0.
+
 ## 0.5.3 - Shut down in Screen settings
 
 - **Shut down** in Screen settings turns the Wyse (or laptop) off, on the TV or from a phone or computer. It asks *Shut down now?* first, and *Yes, shut down* turns it off. The prayer times and the azan stop on that screen until it's switched back on with its power button.

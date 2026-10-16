@@ -118,7 +118,7 @@ def box_command(args) -> int:
     base = Path(args.config).resolve().parent
     auth = Auth(base / "auth")
     if args.cmd == "factory-reset":
-        for name in ("config.toml", "config.toml.bak", "config.tmp", "timetable.csv"):
+        for name in ("config.toml", "config.toml.bak", "config.tmp", "timetable.csv", "kids.json"):
             (base / name).unlink(missing_ok=True)
         if (base / "audio").is_dir():
             for f in (base / "audio").iterdir():
