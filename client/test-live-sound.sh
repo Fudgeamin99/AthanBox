@@ -1,21 +1,28 @@
 #!/bin/sh
 # CI check of Makkah live's sound on AthanBox Client, the way a Wyse plays it: the real package,
-# cage, Chromium and a real AthanBox relaying the real Makkah live stream, with a sound card that
-# takes one stream at a time like a TV's HDMI output (snd-aloop with one substream: the workflow
-# loads it and passes /dev/snd in). It records what the screen plays: Makkah live must stay quiet
-# while its sound is off, and be heard once it is switched on in Screen settings (as from a phone).
+# cage, Chromium and a real AthanBox relaying the real Makkah live stream. A container has no sound
+# card, so ALSA's default output is a stand-in that keeps time like one (PulseAudio's null sink,
+# reached only through ALSA, as Chromium reaches a Wyse's sound card). It records what the screen
+# plays: Makkah live must stay quiet while its sound is off, and be heard once it is switched on in
+# Screen settings (as from a phone).
 # Run as root in a throwaway Debian container; it leaves the recording and the logs in /tmp/live-sound.
 set -eu
 out=/tmp/live-sound
 mkdir -p "$out"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y tzdata grim curl
+apt-get install -y tzdata grim curl pulseaudio pulseaudio-utils libasound2-plugins
 sh client/build-deb.sh
 apt-get install -y ./client/dist/azan-sip-client.deb
 dpkg-query -W -f '${Package} ${Version}\n' cage chromium | tee "$out/versions.txt"
-aplay -l | tee "$out/aplay.txt"
-chmod a+rw /dev/snd/*   # (on a Wyse, the screen's login session gets the sound card)
+
+# The stand-in sound card. Chromium finds no PulseAudio of its own (none at its usual address, and
+# none started for it), so it plays through ALSA, whose default output is this one.
+mkdir -p /tmp/pa /etc/pulse/client.conf.d && chown azan-client /tmp/pa
+echo 'autospawn = no' > /etc/pulse/client.conf.d/no-autospawn.conf
+runuser -u azan-client -- env HOME=/tmp/pa XDG_RUNTIME_DIR=/tmp/pa pulseaudio -n --daemonize=yes --exit-idle-time=-1 \
+    -L "module-native-protocol-unix socket=/tmp/pa/native auth-anonymous=1" -L "module-null-sink sink_name=tv rate=48000 channels=2"
+printf 'pcm.!default { type pulse; server "unix:/tmp/pa/native"; device "tv" }\nctl.!default { type pulse; server "unix:/tmp/pa/native" }\n' > /etc/asound.conf
 
 # An AthanBox on this computer: TV screens allowed, and Makkah live on screens that haven't chosen
 mkdir -p /tmp/box
@@ -29,7 +36,7 @@ chown azan-client: /var/lib/azan-sip-client/client.json
 runuser -u azan-client -- azan-sip-client serve > "$out/client.log" 2>&1 &
 
 # Everything the screen plays, from the start: the loopback's other end
-arecord -D hw:Loopback,1,0 -f S16_LE -r 48000 -c 2 -d 120 "$out/heard.wav" > "$out/arecord.log" 2>&1 &
+timeout 120 parec --server=unix:/tmp/pa/native -d tv.monitor --rate=48000 --channels=2 --format=s16le --raw > "$out/heard.raw" 2> "$out/parec.log" &
 rec=$!
 start=$(date +%s)
 
@@ -43,25 +50,22 @@ wl() { runuser -u azan-client -- env XDG_RUNTIME_DIR=/tmp/xdg WAYLAND_DISPLAY=wa
 
 # Makkah live plays with its sound off, then its sound is switched on in Screen settings
 sleep 50
-wl grim "$out/sound-off.png" || true
+wl grim - > "$out/sound-off.png" || true
 curl -sS -H 'Content-Type: application/json' -d '{"live_sound": true}' http://127.0.0.1:8771/client/api/settings > "$out/settings.json"
 on=$(( $(date +%s) - start ))
 echo "Makkah live's sound switched on at ${on}s"
 sleep 45
-wl grim "$out/sound-on.png" || true
+wl grim - > "$out/sound-on.png" || true
 wait "$rec" || true
 
 grep -v 'Basic output test failed' "$out/cage.log" | grep -iE 'CONSOLE|alsa|audio|Sound:' | cut -c1-300 | tail -n 60 || true
-python3 - "$out/heard.wav" "$on" <<'PY'
-import array, math, sys, wave
-w = wave.open(sys.argv[1])
-on, rate = int(sys.argv[2]), w.getframerate()
+python3 - "$out/heard.raw" "$on" <<'PY'
+import array, math, sys
+on, raw = int(sys.argv[2]), open(sys.argv[1], "rb").read()
+second = 48000 * 2 * 2
 level = []   # how loud each second is
-while True:
-    f = w.readframes(rate)
-    if not f:
-        break
-    a = array.array("h", f)
+for i in range(0, len(raw) - second + 1, second):
+    a = array.array("h", raw[i:i + second])
     level.append(int(math.sqrt(sum(x * x for x in a) / len(a))))
 print("Level each second:", " ".join(f"{i}:{v}" for i, v in enumerate(level)))
 off = sum(1 for v in level[20:on - 2] if v > 30)

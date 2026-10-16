@@ -14,16 +14,10 @@ jobs:
         debian: [trixie]
     steps:
       - uses: actions/checkout@v4
-      - name: A sound card that takes one stream at a time, like a TV's HDMI output
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)" >/dev/null
-          sudo modprobe snd-aloop pcm_substreams=1
-          ls -l /dev/snd
       - name: Makkah live's sound on the Wyse client
         run: |
           mkdir -p live-sound
-          docker run --rm --device /dev/snd --shm-size=1g -v "$PWD:/src" -v "$PWD/live-sound:/tmp/live-sound" \
+          docker run --rm --shm-size=1g -v "$PWD:/src" -v "$PWD/live-sound:/tmp/live-sound" \
             -w /src debian:${{ matrix.debian }} sh client/test-live-sound.sh
       - uses: actions/upload-artifact@v4
         if: always()
