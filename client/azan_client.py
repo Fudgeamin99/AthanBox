@@ -49,7 +49,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -67,9 +67,12 @@ VOLUME_STEP = 10                # the volume buttons on the screen
 MAX_SCREENS = 8
 # Updates: the client has its own releases, tagged client-vX.Y.Z (AthanBox's are box-vX.Y.Z), so a
 # client-only change never makes a new Box or Docker version
-RELEASES = os.environ.get("AZAN_CLIENT_RELEASES", "https://api.github.com/repos/Fudgeamin99/azan-sip-box/releases?per_page=100")
+RELEASES = os.environ.get("AZAN_CLIENT_RELEASES", "https://api.github.com/repos/Fudgeamin99/AthanBox/releases?per_page=100")
 TAG_PREFIX = "client-v"
-OFFICIAL = "https://github.com/Fudgeamin99/azan-sip-box/releases/download/"
+# Where GitHub serves the packages from: under the repository's name, AthanBox, or the name it had
+# before (azan-sip-box), which GitHub used until the rename
+OFFICIAL = ("https://github.com/Fudgeamin99/AthanBox/releases/download/",
+            "https://github.com/Fudgeamin99/azan-sip-box/releases/download/")
 DEB_ASSET = re.compile(r"^azan-sip-client_(\d{1,4}(?:\.\d{1,4}){1,3})_all\.deb$")
 # Written by azan-sip-client-update.service (root), read by the client and Screen settings
 UPDATE_STATE = Path(os.environ.get("AZAN_CLIENT_UPDATE_STATE", "/var/lib/azan-sip-client-update/state.json"))

@@ -6,6 +6,12 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.5.2 - Update now works again
+
+- **Update now** (and `azan-sip-client update`) installs updates again. Since the repository was renamed AthanBox, GitHub serves the packages under the new name, and the screen refused them as not AthanBox's own: *The update isn't from AthanBox's own releases, so it wasn't installed.* Now it takes them under either name.
+- **Screens with 0.5.1 or older** have that check too, so they need this version installed by hand once, as root: `wget -O /tmp/azan-sip-client.deb https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.2/azan-sip-client.deb`, then `apt install /tmp/azan-sip-client.deb`. Updates come from the button again after that.
+- **Box and Docker:** nothing changes.
+
 ## 0.5.1 - Makkah live's sound on a Dell Wyse 3040's HDMI
 
 - **Makkah live's sound plays on the TV** of a Dell Wyse 3040 on HDMI: it was silent there, while the azan and the test chime played. Chromium sends Makkah live's sound at 22050 Hz, which HDMI has no setting for, and the rate it was changed to on the way played nothing. Now every sound reaches the TV at 48000 Hz, which every TV plays.

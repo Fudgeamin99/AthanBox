@@ -467,6 +467,15 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(json.loads(body)["update"]["step"], "installing")
         self.assertGreater(ac.vtuple("0.10.0"), ac.vtuple("0.9.9"))
 
+    def test_updates_come_from_athanbox_releases(self):
+        # GitHub serves the packages under the repository's new name; the old one is still accepted
+        for url in ("https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.2/azan-sip-client_0.5.2_all.deb",
+                    "https://github.com/Fudgeamin99/azan-sip-box/releases/download/client-v0.5.0/azan-sip-client_0.5.0_all.deb"):
+            self.assertTrue(url.startswith(ac.OFFICIAL), url)
+        for url in ("https://github.com/someone/AthanBox/releases/download/client-v9.9.9/azan-sip-client_9.9.9_all.deb",
+                    "https://example.com/Fudgeamin99/AthanBox/releases/download/client-v9.9.9/azan-sip-client_9.9.9_all.deb"):
+            self.assertFalse(url.startswith(ac.OFFICIAL), url)
+
     @unittest.skipUnless(shutil.which("dpkg-deb"), "needs dpkg-deb")
     def test_update_download_is_checked(self):
         pkg = Path(self.tmp.name) / "pkg"
