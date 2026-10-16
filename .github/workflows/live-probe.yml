@@ -1,0 +1,83 @@
+# Temporary: checks Makkah live's sound in Debian 13's own Chromium (removed again after).
+name: Makkah live probe
+on:
+  push:
+    branches: [claude/project-thread-dtkbi3]
+    paths: [.github/workflows/live-probe.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: The stream's playlists and a few segments
+        run: |
+          mkdir -p s
+          cp azan_sip/static/hls.min.js s/
+          python3 - <<'PY'
+          import re, urllib.request
+          from urllib.parse import urljoin
+          UA = {"User-Agent": "Mozilla/5.0"}
+          get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=20).read()
+          U = "https://cdn-globecast.akamaized.net/live/eds/saudi_quran/hls_roku/index.m3u8"
+          m = get(U).decode(); print("==== master", U); print(m)
+          lines = m.splitlines()
+          variants = [(int(re.search(r"BANDWIDTH=(\d+)", l).group(1)), urljoin(U, lines[i + 1])) for i, l in enumerate(lines) if l.startswith("#EXT-X-STREAM-INF")]
+          for l in lines:
+              if l.startswith("#EXT-X-MEDIA"): print("RENDITION", l)
+          for bw, v in variants:
+              t = get(v).decode(); print("==== variant", bw, v); print("\n".join(t.splitlines()[:14]))
+          top = max(variants)[1] if variants else U
+          t = get(top).decode().splitlines()
+          segs = [urljoin(top, l) for l in t if l and not l.startswith("#")][-3:]
+          out = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-TARGETDURATION:12", "#EXT-X-MEDIA-SEQUENCE:0"]
+          for i, s in enumerate(segs):
+              open(f"s/{i}.ts", "wb").write(get(s)); out += ["#EXTINF:10.0,", f"{i}.ts"]
+          open("s/index.m3u8", "w").write("\n".join(out + ["#EXT-X-ENDLIST", ""]))
+          print("saved", segs)
+          PY
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          for f in s/0.ts; do ffprobe -hide_banner "$f" 2>&1 | grep -E "Stream|Duration|Program"; done
+          # A control: a 440 Hz tone as a WAV file
+          ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=4" -ac 2 s/tone.wav
+          # The audio decoded by ffmpeg itself, to compare
+          ffmpeg -hide_banner -loglevel error -i s/0.ts -vn -ac 2 -t 4 -f s16le - | python3 -c 'import sys,array;a=array.array("h",sys.stdin.buffer.read());print("ffmpeg decode: samples",len(a),"peak",max(map(abs,a)) if a else 0)'
+      - name: Debian 13's Chromium plays them
+        run: |
+          cat > s/tone.html <<'H'
+          <!doctype html><title>tone</title><audio id="a" src="tone.wav" autoplay></audio>
+          <script>document.getElementById("a").play().then(()=>console.log("TONE playing"),e=>console.log("TONE "+e))</script>
+          H
+          cat > s/hls.html <<'H'
+          <!doctype html><title>hls</title><video id="v" autoplay playsinline></video><script src="hls.min.js"></script>
+          <script>
+          const v = document.getElementById("v");
+          console.log("SUPPORT h264+aac " + MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f,mp4a.40.2"') + " he-aac " + MediaSource.isTypeSupported('audio/mp4; codecs="mp4a.40.5"'));
+          const h = new Hls(); h.loadSource("index.m3u8"); h.attachMedia(v);
+          h.on(Hls.Events.ERROR, (e, d) => console.log("HLS ERROR " + d.type + " " + d.details + " fatal=" + d.fatal));
+          h.on(Hls.Events.BUFFER_CODECS, (e, d) => console.log("CODECS " + JSON.stringify(Object.fromEntries(Object.entries(d).map(([k, t]) => [k, t.codec || t.container])))));
+          h.on(Hls.Events.MANIFEST_PARSED, () => v.play().then(() => console.log("HLS playing muted=" + v.muted), e => console.log("HLS play " + e)));
+          setInterval(() => console.log("T " + v.currentTime.toFixed(1) + " audioTracks=" + (v.audioTracks ? v.audioTracks.length : "n/a") + " decodedAudio=" + (v.webkitAudioDecodedByteCount ?? "n/a") + " muted=" + v.muted + " vol=" + v.volume), 3000);
+          </script>
+          H
+          cat > s/run.sh <<'H'
+          set -e
+          apt-get update -qq && apt-get install -y -qq --no-install-recommends chromium python3 alsa-utils >/dev/null
+          chromium --version
+          cd /s && (python3 -m http.server 8000 >/dev/null 2>&1 &)
+          sleep 1
+          for page in tone hls; do
+            printf 'pcm.!default { type file; slave.pcm "null"; file "/tmp/%s.raw"; format "raw" }\n' "$page" > /root/.asoundrc
+            timeout 25 chromium --headless=new --no-sandbox --disable-gpu --autoplay-policy=no-user-gesture-required \
+              --enable-logging=stderr --v=0 --user-data-dir=/tmp/prof-$page "http://127.0.0.1:8000/$page.html" 2>&1 \
+              | grep -E "CONSOLE|ALSA|alsa|audio|Audio" | sed 's/^\[[^]]*\]//' | cut -c1-300 | head -40 || true
+            python3 - "$page" <<'PY'
+          import sys, array, os
+          p = f"/tmp/{sys.argv[1]}.raw"
+          b = open(p, "rb").read() if os.path.exists(p) else b""
+          a = array.array("h", b[: len(b) // 2 * 2])
+          print(f"CAPTURE {sys.argv[1]}: {len(b)} bytes, peak {max(map(abs, a)) if a else 0}, nonzero {sum(1 for x in a if x)}")
+          PY
+          done
+          H
+          docker run --rm -v "$PWD/s:/s" debian:trixie sh /s/run.sh
