@@ -3,8 +3,8 @@
 Settings are [kids] in config.toml (see settings()). Only the TV screens listed in
 kids.screens change; every other screen, the phones and the speakers are left as they are.
 
-Stars ("Did you pray Asr?") are kept per screen in kids.json next to config.toml, for the last
-few weeks only. The chart starts again every Monday.
+Stars ("Did you pray Asr?", and "Did you fast today?" in Ramadan) are kept per screen in kids.json next to config.toml, for the last
+few weeks only. The chart starts again every Monday; in Ramadan the screen shows the month's fasts.
 """
 from __future__ import annotations
 
@@ -15,9 +15,10 @@ from datetime import date, timedelta
 from pathlib import Path
 
 PRAYERS = ("fajr", "dhuhr", "asr", "maghrib", "isha")
+MARKS = PRAYERS + ("fast",)   # a star for each prayer, and one for each fast in Ramadan
 PALETTES = ("sky", "garden", "space")
 SOUNDS = ("azan", "chime", "none")
-KEEP_DAYS = 35
+KEEP_DAYS = 35   # (more than a month, for Ramadan's fasts)
 MAX_SCREENS = 100
 
 DEFAULTS = {
@@ -85,7 +86,7 @@ class Stars:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
-                self.data = {screen_id(s): {d: [p for p in v if p in PRAYERS] for d, v in days.items()
+                self.data = {screen_id(s): {d: [p for p in v if p in MARKS] for d, v in days.items()
                                             if isinstance(v, list)}
                              for s, days in raw.items() if isinstance(days, dict)}
         except (OSError, ValueError):
@@ -98,7 +99,7 @@ class Stars:
 
     def add(self, sid: str, day: date, prayer: str) -> bool:
         sid = screen_id(sid)
-        if not sid or prayer not in PRAYERS:
+        if not sid or prayer not in MARKS:
             return False
         with self.lock:
             days = self.data.setdefault(sid, {})
@@ -119,4 +120,10 @@ class Stars:
         with self.lock:
             days = self.data.get(screen_id(sid)) or {}
             out = [list(days.get((start + timedelta(days=i)).isoformat(), [])) for i in range(7)]
-        return {"days": out, "count": sum(len(d) for d in out), "today": out[day.weekday()]}
+        return {"days": out, "count": sum(len([p for p in d if p in PRAYERS]) for d in out), "today": out[day.weekday()]}
+
+    def fasts(self, sid: str, start: date, n: int) -> list[int]:
+        """The days of Ramadan (1 to n) this screen's child fasted, from Ramadan's first day."""
+        with self.lock:
+            days = self.data.get(screen_id(sid)) or {}
+            return [i + 1 for i in range(n) if "fast" in days.get((start + timedelta(days=i)).isoformat(), [])]
