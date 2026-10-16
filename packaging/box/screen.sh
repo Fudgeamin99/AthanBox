@@ -62,17 +62,29 @@ pick_sound() {
         fi
     done
 }
-# The sound always reaches the TV at 48000 Hz: Chromium sends each sound at its own rate (Makkah
-# live at 22050 Hz), HDMI has no 22050 Hz, and at the rate ALSA picks for it instead, a Dell Wyse
-# 3040's HDMI played Makkah live silently.
+# Chromium opens one sound for the TV app's azan as soon as it starts and another for Makkah live,
+# but the TV's HDMI output takes one at a time: on a Dell Wyse 3040, Makkah live was turned away as
+# busy and played silently. So the sounds are mixed first (dmix), always at 48000 Hz, which every TV
+# plays (Chromium sends Makkah live at 22050 Hz, which HDMI has no setting for), and plug converts
+# each sound to what the mix takes. An output that can't mix plays one sound at a time, as before.
 sound=${AZAN_SCREEN_SOUND:-$(pick_sound)}
 if [ -n "$sound" ]; then
     card=${sound%,*} dev=${sound#*,}
+    systemctl stop azan-sip-screen 2>/dev/null || true   # (it would keep the TV's sound busy for the check)
     cat > /var/lib/azan-screen/.asoundrc <<EOF
 # Written by packaging/box/screen.sh: the screen's sound goes to the TV (card $card, device $dev).
+pcm.!default { type plug; slave.pcm "screen" }
+pcm.screen { type dmix; ipc_key 5978293; ipc_key_add_uid true; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000; channels 2; period_size 1024; buffer_size 4096 } }
+ctl.!default { type hw; card $card }
+EOF
+    if ! runuser -u azan-screen -- env HOME=/var/lib/azan-screen timeout 10 aplay -q -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero 2>/dev/null; then
+        cat > /var/lib/azan-screen/.asoundrc <<EOF
+# Written by packaging/box/screen.sh: the screen's sound goes to the TV (card $card, device $dev), one sound at a time.
 pcm.!default { type plug; slave { pcm "hw:CARD=$card,DEV=$dev"; rate 48000 } }
 ctl.!default { type hw; card $card }
 EOF
+        echo "Note: the TV's sound output can't mix sounds, so it plays one at a time"
+    fi
     echo "Sound: the TV on card $card, device $dev"
 else
     rm -f /var/lib/azan-screen/.asoundrc

@@ -27,6 +27,8 @@ Environment=XDG_SESSION_TYPE=wayland LIBSEAT_BACKEND=seatd
 ExecStart=/usr/bin/cage -s -- /usr/lib/azan-sip-client/kiosk
 Restart=always
 RestartSec=5
+# The browser can take a minute and a half to stop by itself: nothing is lost by stopping it sooner
+TimeoutStopSec=15
 
 [Install]
 WantedBy=multi-user.target
