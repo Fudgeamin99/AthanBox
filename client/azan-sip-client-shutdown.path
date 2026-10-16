@@ -1,0 +1,10 @@
+[Unit]
+Description=AthanBox Client - turn the computer off when Screen settings asks for it
+
+[Path]
+# The client (an unprivileged user) writes this file when Shut down is pressed in Screen settings
+PathModified=/var/lib/azan-sip-client/shutdown-now
+Unit=azan-sip-client-shutdown.service
+
+[Install]
+WantedBy=multi-user.target

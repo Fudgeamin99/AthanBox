@@ -6,6 +6,13 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.5.3 - Shut down in Screen settings
+
+- **Shut down** in Screen settings turns the Wyse (or laptop) off, on the TV or from a phone or computer. It asks *Shut down now?* first, and *Yes, shut down* turns it off. The prayer times and the azan stop on that screen until it's switched back on with its power button.
+- It works like Update now: the client writes `/var/lib/azan-sip-client/shutdown-now`, and `azan-sip-client-shutdown.path` starts `azan-sip-client-shutdown.service`, which runs `systemctl poweroff` as root. It only turns the computer off if the button was pressed in the last two minutes.
+- **Screens with 0.5.2** get it from Update now. Older screens need 0.5.2 installed by hand first (see 0.5.2 below).
+- **Box and Docker:** nothing changes.
+
 ## 0.5.2 - Makkah live's sound on a Wyse's HDMI, and Update now works again
 
 - **Makkah live's sound plays on the TV** of a Dell Wyse 3040 on HDMI. 0.5.1 didn't fix it: Chromium's own log showed the TV's sound was busy. The TV app keeps a sound open for the azan from the moment it starts, Makkah live opens another, and an HDMI output takes one sound at a time, so Makkah live was turned away and played silently. Now the screen mixes its sounds before they reach the TV (ALSA's dmix, at 48000 Hz), so Makkah live, the azan and the test chime all play. A sound output that can't mix plays one sound at a time, as before.

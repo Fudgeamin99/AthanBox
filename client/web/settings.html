@@ -82,6 +82,17 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
     <div class="msg" id="umsg"></div>
   </section>
 
+  <section>
+    <h2>Shut down</h2>
+    <p>Turns <span class="tv-only">this computer</span><span class="remote-only">the TV screen's computer</span> off. The prayer times and the azan stop on <span class="tv-only">this</span><span class="remote-only">that</span> screen until it's switched back on with its power button.</p>
+    <div class="row">
+      <button id="off">Shut down</button>
+      <button class="main" id="offyes" hidden>Yes, shut down</button>
+      <button id="offno" hidden>Cancel</button>
+    </div>
+    <div class="msg" id="omsg"></div>
+  </section>
+
   <section class="tv-only">
     <h2>Phones and computers</h2>
     <label class="switch"><input type="checkbox" id="ron"> Let phones and computers change these settings</label>
@@ -260,6 +271,29 @@ $("#update").onclick = async () => {
 };
 $("#recheck").onclick = () => { umsg(""); $("#upd").textContent = "Checking for updates…"; updates(true); };
 updates();
+// Shut down: the computer turns itself off (azan-sip-client-shutdown.path, as root), asked twice
+function omsg(text, kind){ const m = $("#omsg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+function offAsk(on){
+  $("#off").hidden = on; $("#offyes").hidden = $("#offno").hidden = !on;
+  $("#offyes").disabled = $("#offno").disabled = false;
+  omsg(on ? "Shut down now? Nothing plays on " + (ST.remote ? "the TV" : "this screen") + " until it's switched back on." : "", on ? "warn" : "");
+}
+$("#off").onclick = () => offAsk(true);
+$("#offno").onclick = () => offAsk(false);
+$("#offyes").onclick = async () => {
+  $("#offyes").disabled = $("#offno").disabled = true;
+  try{
+    if (!(await api("/client/api/shutdown", {})).ok) throw 0;
+  }catch(e){ offAsk(false); return omsg("This screen's own program isn't answering. Restart the computer.", "bad"); }
+  $("#offyes").hidden = $("#offno").hidden = true;
+  omsg(ST.remote ? "The TV screen's computer is shutting down. Switch it back on with its power button."
+                 : "Shutting down. Switch the computer back on with its power button.", "ok");
+  // Still answering a minute later: it didn't turn off
+  setTimeout(async () => {
+    try{ await api("/client/api/status"); }catch(e){ return; }
+    offAsk(false); omsg("It didn't shut down. Try again, or use the computer's power button.", "bad");
+  }, 60000);
+};
 // Left open on the TV: go back to the prayer times after a few minutes without a touch
 let idle;
 const still = () => { clearTimeout(idle); idle = setTimeout(() => { if (ST.box && ST.state === "ok" && !asked && !ST.remote) location.assign("/"); else still(); }, 180000); };

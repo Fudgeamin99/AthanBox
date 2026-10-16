@@ -4,7 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.7.8, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.2](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.2). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.7.8, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.3](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.3). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
@@ -99,7 +99,7 @@ A spare Dell Wyse, an old laptop or any small PC can be a TV screen for an Athan
 
 ```sh
 sudo apt update && sudo apt install -y wget
-wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.2/azan-sip-client.deb
+wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.3/azan-sip-client.deb
 sudo apt install -y ./azan-sip-client.deb
 ```
 
@@ -111,9 +111,11 @@ If it says `sudo: command not found` (Debian leaves sudo out when you set a root
 
 The Wyse shows on AthanBox's **TV app** page under its name, where *Test chime* checks the sound. **Volume:** move the mouse and use the volume buttons at the top of the screen, or press **+** and **−** (or a keyboard's volume keys), or run `azan-sip-client volume 60` over SSH. It sets Makkah live's volume as well as the azan's. To change AthanBox or the name later, press **Screen settings** next to them (or **S** on a keyboard). The Wyse can only show the prayer times: it can't change AthanBox's settings. More in [`client/README.md`](client/README.md).
 
-**From a phone or computer:** Screen settings also opens in a browser on the same network, at the address shown under **Phones and computers** in Screen settings on the TV, such as `http://192.168.1.31:8772`. The first time, type the code that shows on the TV; the browser then stays signed in. From there you can choose AthanBox, rename the screen, set the volume, switch Makkah live's sound on or off, play a test chime on the TV and update. A change to the volume or Makkah live's sound shows on the TV for a moment. It can be switched off, or everyone signed out, in Screen settings on the TV.
+**From a phone or computer:** Screen settings also opens in a browser on the same network, at the address shown under **Phones and computers** in Screen settings on the TV, such as `http://192.168.1.31:8772`. The first time, type the code that shows on the TV; the browser then stays signed in. From there you can choose AthanBox, rename the screen, set the volume, switch Makkah live's sound on or off, play a test chime on the TV, update, and shut the Wyse down. A change to the volume or Makkah live's sound shows on the TV for a moment. It can be switched off, or everyone signed out, in Screen settings on the TV.
 
 **Updates:** open **Screen settings** and press **Update now** when it says a new version is available. The Wyse downloads it from the client's own releases on this repository (tagged `client-v...`, apart from AthanBox's, so a client update never changes AthanBox or its Docker image), installs it and restarts the screen by itself. Over SSH, `azan-sip-client update` as root does the same. A Wyse with a client older than 0.5.2 needs the three commands above once more: the Update button arrived in 0.3.0, and up to 0.5.1 it refuses updates since the repository was renamed AthanBox. What's new in each version is in [`client/CHANGELOG.md`](client/CHANGELOG.md).
+
+**Shut down:** press **Shut down** in Screen settings, on the TV or from a phone or computer, then **Yes, shut down**. The Wyse turns off, and its power button turns it back on.
 
 ## First-time setup
 
