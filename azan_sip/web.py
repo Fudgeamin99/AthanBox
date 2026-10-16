@@ -494,6 +494,11 @@ class Service:
         del k["screens"]
         if k["stars"]:
             k["week"] = self.stars.week(sid, self.today())
+            app = self.app
+            if app is not None and app.ramadan.mode != "off" and app.ramadan.fasting(self.today()):
+                start, n, _ = app.ramadan.period(self.today())
+                k["fasts"] = {"day": app.ramadan.day_number(self.today()), "days": n,
+                              "done": self.stars.fasts(sid, start, n)}
         return k
 
     def set_kids_screen(self, sid: str, on: bool):
@@ -507,19 +512,25 @@ class Service:
         log.info("Kids mode %s on a TV screen", "switched on" if on else "switched off")
 
     def add_star(self, sid: str, prayer: str) -> dict:
-        """A child pressed "Yes, give me my star" on a kids screen, after that prayer's time."""
+        """A child pressed "Yes, give me my star" on a kids screen, after that prayer's time
+        (or "Yes, I fasted!" at Iftar in Ramadan). Gives back the screen's chart: week, and fasts in Ramadan."""
         k = self.kids_screen(sid)
         if not k or not k["stars"]:
             raise ValueError("Stars aren't switched on for this screen")
         app = self.app
-        if app is None or prayer not in kids.PRAYERS:
+        if app is None or prayer not in kids.MARKS:
             raise ValueError("That isn't one of today's prayers")
         now = app.now()
-        row = next((r for r in self.rows_for(app, now.date(), now, None) if r["name"] == prayer), None)
-        if row is None or row["time"] > f"{now:%H:%M}":
-            raise ValueError("It isn't time for that prayer yet")
+        if prayer == "fast":
+            if "fasts" not in k or now < app.day_times(now.date())["maghrib"]:
+                raise ValueError("It isn't Iftar time yet")
+        else:
+            row = next((r for r in self.rows_for(app, now.date(), now, None) if r["name"] == prayer), None)
+            if row is None or row["time"] > f"{now:%H:%M}":
+                raise ValueError("It isn't time for that prayer yet")
         self.stars.add(sid, now.date(), prayer)
-        return self.stars.week(sid, now.date())
+        k = self.kids_screen(sid)
+        return {"week": k.get("week"), "fasts": k.get("fasts")}
 
     def tv_state(self, sid: str = "") -> dict:
         """What TV screens ask about twice a second: what's playing (and since when, so they join in at
@@ -1204,8 +1215,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._tv_allowed(p):
                     return self._send(403, b"Forbidden", "text/plain")
                 req = json.loads(self._body(2_000) or b"{}")
-                week = svc.add_star(str(req.get("id") or ""), str(req.get("prayer") or ""))
-                return self._json({"ok": True, "week": week})
+                chart = svc.add_star(str(req.get("id") or ""), str(req.get("prayer") or ""))
+                return self._json({"ok": True, **chart})
             if p == "/api/logout":
                 svc.auth.logout(self._token())
                 return self._send(200, json.dumps({"ok": True}).encode(), extra={"Set-Cookie": (

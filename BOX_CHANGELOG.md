@@ -6,6 +6,20 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.8.1 - Kids mode in Ramadan
+
+- **Kids screens follow Ramadan mode** now, in their own colours:
+  - **Countdowns** to Iftar through the day and to the end of Suhoor at night, with a bar that fills up.
+  - **"Iftar time!"** with the dua for breaking the fast, for 15 minutes after Maghrib.
+  - **"Did you fast today?"** comes up at Iftar, until Isha. **Yes, I fasted!** or **Half a fast** earns a star (half fasts count too), and the side of the screen shows **My fasts**: a star for each day of the month, the day of Ramadan and how many days to Eid.
+  - **Eid Mubarak!** on Eid, with the Eid prayer times.
+  - The Maghrib card says Iftar.
+- The Kids mode card on the **Display** page has a **Preview** of a kids screen in Ramadan.
+- Ramadan's settings on the **Ramadan** page (countdowns, dua, Eid) apply to kids screens too.
+- **Debian:** update as usual in Settings → Updates. The fasts are kept in `kids.json` with the stars. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. The fasts are kept in `/data`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update (the Wyse needs 0.5.4 from AthanBox 0.8.0 for stars).
+
 ## 0.8.0 - Kids mode
 
 - **Kids mode** gives a TV screen in a child's room a brighter prayer-times screen, in Sky, Garden or Space colours: a picture for each prayer, a big "2 hours 10 min to go!" countdown with a bar that fills up, and the five prayers as cards.
