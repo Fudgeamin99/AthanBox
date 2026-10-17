@@ -1332,7 +1332,7 @@ function dkids(){ return Object.assign({}, KDEF, CFG.kids || {}); }
 function kidsPreview(){   // what the preview shows for "Kids screen", with a few stars already earned
   const K = dkids(); delete K.screens;
   const d = [["fajr","dhuhr","asr","maghrib"],["dhuhr","asr","isha"],["fajr","dhuhr","asr"],["dhuhr"],[],[],[]];
-  K.week = {days:d, count:d.flat().length, today:["fajr","dhuhr"]};
+  K.week = {days:d, count:d.flat().length, today:["fajr","dhuhr"], last_week:14};
   return K;
 }
 function dlook(){

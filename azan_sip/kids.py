@@ -115,12 +115,15 @@ class Stars:
         return True
 
     def week(self, sid: str, day: date) -> dict:
-        """This week's chart, Monday first: {"days": [["fajr", ...], ...7], "count": n, "today": [...]}."""
+        """This week's chart, Monday first: {"days": [["fajr", ...], ...7], "count": n, "today": [...],
+        "last_week": n} (last week's stars, shown under the chart)."""
         start = week_start(day)
+        stars = lambda d: len([p for p in d if p in PRAYERS])   # noqa: E731
         with self.lock:
             days = self.data.get(screen_id(sid)) or {}
             out = [list(days.get((start + timedelta(days=i)).isoformat(), [])) for i in range(7)]
-        return {"days": out, "count": sum(len([p for p in d if p in PRAYERS]) for d in out), "today": out[day.weekday()]}
+            last = sum(stars(days.get((start - timedelta(days=i)).isoformat(), [])) for i in range(1, 8))
+        return {"days": out, "count": sum(stars(d) for d in out), "today": out[day.weekday()], "last_week": last}
 
     def fasts(self, sid: str, start: date, n: int) -> list[int]:
         """The days of Ramadan (1 to n) this screen's child fasted, from Ramadan's first day."""

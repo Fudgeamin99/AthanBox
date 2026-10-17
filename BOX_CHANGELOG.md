@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.8.2 - Kids mode: tap a missed star, and last week's stars
+
+- **Missed the "Did you pray?" screen?** On a kids screen, today's prayers that have passed without a star now have a glowing gold star on the **My stars** chart. Tapping it asks "Did you pray Asr?", and **Yes! Give me my star** fills it in. Only today's stars can be tapped, so earlier days stay as they were.
+- **Last week's stars** show under the chart, under this week's count.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update.
+
 ## 0.8.1 - Kids mode in Ramadan
 
 - **Kids screens follow Ramadan mode** now, in their own colours:
