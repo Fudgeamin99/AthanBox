@@ -223,6 +223,12 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
 .kgrid .p{display:flex;align-items:center;gap:.6vw;white-space:nowrap;overflow:hidden}
 .kgrid .p i{width:1.3vh;height:1.3vh;border-radius:50%;flex:none}
 .kgrid svg{width:3.2vh;height:3.2vh;display:block;margin:auto}
+.kclaim{all:unset;cursor:pointer;display:block;border-radius:1vh;animation:kpulse 1.6s ease-in-out infinite}
+.kclaim:focus-visible{outline:.4vh solid var(--k-ink)}
+@keyframes kpulse{50%{transform:scale(1.18)}}
+@media (prefers-reduced-motion:reduce){.kclaim{animation:none}}
+.khint{font-size:calc(1.9vh*var(--s));color:var(--k-soft);text-align:center}
+.klast{text-align:center;font-size:calc(2.2vh*var(--s));color:var(--k-soft);font-weight:700;margin-top:-.4vh}
 .kcount{margin-top:auto;padding:1.2vh 1vw;border-radius:2vh;background:var(--k-track);text-align:center;font-size:calc(2.8vh*var(--s));font-weight:800}
 .kids .cards{gap:1.4vw}
 .kids .card{background:var(--k-card);border:.6vh solid transparent;border-radius:3.2vh;padding:1.6vh 1vw;display:flex;align-items:center;gap:.9vw;text-align:left;box-shadow:0 .8vh 0 var(--k-line)}
@@ -780,7 +786,7 @@ function kidsCards(rows){
 function kidsStars(){
   const el = $("#kstars"), on = !!(KIDS && KIDS.stars && KIDS.week);
   el.classList.toggle("on", on);
-  if (!on){ el.innerHTML = ""; return; }
+  if (!on){ el.innerHTML = ""; KO.chart = ""; return; }
   if (KIDS.fasts){   // Ramadan: a star for each day fasted
     const F = KIDS.fasts, nf = F.done.length, R = S && S.ramadan_screen;
     let c = "";
@@ -788,18 +794,33 @@ function kidsStars(){
     const eid = R && R.eid_in ? (R.eid_in === 1 ? "Eid is tomorrow!" : `Eid in ${R.eid_in} days`) : "";
     el.innerHTML = `<h2>My fasts</h2><div class="ksub">Ramadan day ${F.day} of ${F.days}${F.day >= 21 ? " · Last ten nights" : eid ? " · " + eid : ""}</div>
       <div class="kfast">${c}</div><div class="kcount">${nf} fast${nf === 1 ? "" : "s"} so far</div>`;
-    return;
+    KO.chart = ""; return;
   }
-  const w = KIDS.week, wd = (new Date().getDay() + 6) % 7, n = w.count || 0;
+  const w = KIDS.week, wd = (new Date().getDay() + 6) % 7, n = w.count || 0, lw = w.last_week || 0;
+  // today's prayers that have passed without a star: tap one to get it (if the "Did you pray?" screen was missed)
+  const now = S ? know() : 0, passed = p => (S.today || []).some(r => r.name === p && kmin(r.time) <= now);
   let g = `<span></span>` + ["M", "T", "W", "T", "F", "S", "S"].map((d, i) => `<span class="h${i === wd ? " today" : ""}">${d}</span>`).join("");
   for (const p of KPRAY) g += `<span class="p"><i style="background:${kcol(p)}"></i>${TITLE[p]}</span>`
-    + w.days.map(d => d.includes(p) ? KSTAR("var(--k-star)", "var(--k-star)") : KSTAR("none", "var(--k-line)")).join("");
-  el.innerHTML = `<h2>My stars</h2><div class="kgrid">${g}</div><div class="kcount">${n} star${n === 1 ? "" : "s"} this week</div>`;
+    + w.days.map((d, i) => d.includes(p) ? KSTAR("var(--k-star)", "var(--k-star)")
+      : i === wd && !PREVIEW && passed(p) ? `<button class="kclaim" type="button" data-p="${p}" aria-label="Get my star for ${TITLE[p]}">${KSTAR("none", "var(--k-star)")}</button>`
+      : KSTAR("none", "var(--k-line)")).join("");
+  const any = g.includes("kclaim");
+  const html = `<h2>My stars</h2><div class="kgrid">${g}</div>${any ? `<div class="khint">Missed one? Tap its star</div>` : ""}
+    <div class="kcount">${n} star${n === 1 ? "" : "s"} this week</div><div class="klast">Last week: ${lw} star${lw === 1 ? "" : "s"}</div>`;
+  if (html === KO.chart) return;   // unchanged: keep the buttons as they are, so a tap isn't lost
+  KO.chart = html; el.innerHTML = html;
+  el.querySelectorAll(".kclaim").forEach(b => b.onclick = () => {
+    const p = b.dataset.p, fri = p === "dhuhr" && (S.today || []).some(r => r.name === "dhuhr" && r.jumuah);
+    KO.claim = {kind:"ask", key:"claim:" + p + ":" + Date.now(), prayer:p, title:TITLE[fri ? "jumuah" : p]};
+    kidsOverlay(S, S.next_azan);
+  });
 }
 // what the big kids screens show now: "wudu" before an azan, "ask" after one, "thanks" after a star
 function kidsMoment(st, n){
   if (!KIDS || PREVIEW || KDEMO || st.configured === false) return null;
   if (KO.thanks && Date.now() < KO.thanks.until) return {kind:"thanks", key:"thanks"};
+  if (KO.claim && !KO.shut[KO.claim.key]) return KO.claim;   // a star tapped on the chart
+  KO.claim = null;
   if (st.playing) return null;
   if (KIDS.wudu_minutes && n && n.kind !== "reminder" && n.seconds - (Date.now() - got) / 1000 <= KIDS.wudu_minutes * 60){
     const key = "wudu:" + n.prayer + n.time;
