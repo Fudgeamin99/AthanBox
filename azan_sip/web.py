@@ -897,6 +897,16 @@ class Service:
         elif req.get("target") is not None:  # test one phone entry (possibly unsaved)
             t = dict(req["target"], enabled=True)
             targets = build_targets({"network": self.cfg.get("network", {}), "targets": [t]})
+            user = str(req.get("account") or "").strip().lower()
+            if user:   # the Test button on one desk phone or SIP trunk account: ring only its sign-ins
+                server = sipserver.MANAGER.server
+                acct = server.accounts.get(user) if server else None
+                if not (acct and server.active().get(user)):
+                    raise RuntimeError(f"{(acct and acct.name) or user} isn't signed in to AthanBox"
+                                       + ("" if acct else " yet - press Save changes first"))
+                for x in targets:
+                    if isinstance(x, sipserver.ServerTarget):
+                        x.only = user
         if app.now_playing:
             raise RuntimeError(f"Already playing: {app.now_playing}")
         if req.get("wait"):  # play it now and say whether it worked (setup wizard)

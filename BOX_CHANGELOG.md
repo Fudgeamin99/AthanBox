@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.8.3 - Test one desk phone at a time
+
+- **Test button on each account:** under **Desk phones sign in to AthanBox** and **Register to AthanBox (SIP trunk)**, each signed-in account now has its own **Test** button. It rings only the phones signed in with that account, instead of every phone. **Test now** at the bottom still rings them all.
+
 ## 0.8.2 - Kids mode: tap a missed star, and last week's stars
 
 - **Missed the "Did you pray?" screen?** On a kids screen, today's prayers that have passed without a star now have a glowing gold star on the **My stars** chart. Tapping it asks "Did you pray Asr?", and **Yes! Give me my star** fills it in. Only today's stars can be tapped, so earlier days stay as they were.
