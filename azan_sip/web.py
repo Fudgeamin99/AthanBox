@@ -874,7 +874,10 @@ class Service:
         src = req.get("source", "tone")
         if req.get("seconds") == "default":  # Test buttons: use the length chosen in Settings (0 = whole recording)
             req["seconds"] = clamp(g.get("test_azan_seconds"), 0, 3600, 20) or None
-        if src == "tone":
+        chime = str(g.get("test_chime_sound") or "")   # "" = the built-in chime, else "audio/<recording>"
+        if src == "tone" and chime.startswith("audio/") and (app.base / "audio" / Path(chime).name).is_file():
+            clip = Clip("audio/" + Path(chime).name, app.base, chime_db, lead, chime_s)
+        elif src == "tone":
             clip = Clip("tone", app.base, chime_db, lead, tone_seconds=chime_s)
         elif src in ADHAN_PRAYERS:
             clip = app.clip_for(src)
