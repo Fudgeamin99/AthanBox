@@ -6,6 +6,15 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.8.3 - Yealink cordless handsets picking up the azan
+
+- **Yealink cordless phones (W52P, W56P, W60B with W52H, W56H and other handsets)** have their own entry in the **Phone setup guide** on the **Phones** page. A handset only picks up the azan by itself when **Auto Intercom** is on for that handset and the line the azan comes in on rings only that handset. When one line rings several handsets, they all just ring. The guide shows how to give each handset its own line, signed in to AthanBox.
+- The **Things to check** list in first-time setup mentions it too, when the test chime rings but isn't answered.
+- AthanBox already sends the auto-answer headers Yealink looks for, so calls aren't changed.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update.
+
 ## 0.8.2 - Kids mode: tap a missed star, and last week's stars
 
 - **Missed the "Did you pray?" screen?** On a kids screen, today's prayers that have passed without a star now have a glowing gold star on the **My stars** chart. Tapping it asks "Did you pray Asr?", and **Yes! Give me my star** fills it in. Only today's stars can be tapped, so earlier days stay as they were.

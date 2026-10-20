@@ -856,8 +856,10 @@ function trouble(t){
     : t && t.mode === "pbx" ? [
       `Check the phones are members of paging group <b>${esc(W.phone.group)}</b> on the ${esc(PBX[W.phone.kind] && PBX[W.phone.kind].short || "phone system")}.`,
       "Phones on a call or on Do Not Disturb may not play paging.",
-      "Some phones need intercom or paging allowed in their settings."]
-    : ["Check the phones answer calls automatically (auto-answer or intercom).", "Check the addresses are right."];
+      "Some phones need intercom or paging allowed in their settings.",
+      "Yealink cordless handsets pick up by themselves only with Auto Intercom on and their own line. See <b>Yealink cordless</b> in the phone setup guide on the Phones page."]
+    : ["Check the phones answer calls automatically (auto-answer or intercom).", "Check the addresses are right.",
+      "Yealink cordless handsets pick up by themselves only with Auto Intercom on and their own line. See <b>Yealink cordless</b> in the phone setup guide on the Phones page."];
   return `<div class="trouble"><b>Things to check</b><ul>${tips.map(x => `<li>${x}</li>`).join("")}</ul>
     <div class="acts"><button class="btn small" onclick="otherCodec()">Try ${other}</button><button class="btn small" onclick="playAgain()">Play again</button><button class="btn small" onclick="go(5)">Change the details</button></div></div>`;
 }

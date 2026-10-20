@@ -149,7 +149,7 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 | Call each phone directly | Poly/Polycom, or when multicast isn't possible. Needs direct IP calls and auto-answer on the phones. |
 | IP speaker (RTP) | Paging speakers that listen on a fixed IP address and port. |
 | Register to AthanBox (SIP trunk) | A phone system that adds AthanBox as a register SIP trunk (no extension needed). AthanBox listens on UDP port 5060. |
-| Desk phones sign in to AthanBox | Desk phones with no phone system, or as a second line next to it. Each phone gets its own extension on AthanBox, and AthanBox rings them with auto-answer so they pick up by themselves. Same UDP port 5060. |
+| Desk phones sign in to AthanBox | Desk phones with no phone system, or as a second line next to it. Each phone gets its own extension on AthanBox, and AthanBox rings them with auto-answer so they pick up by themselves. Same UDP port 5060. For Yealink cordless (DECT) handsets, give each handset its own account and turn on Auto Intercom on each handset. |
 
 ## Password
 
