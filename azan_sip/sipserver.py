@@ -523,6 +523,7 @@ class ServerTarget:
     ring_timeout: float = 20.0
     local_ip: str | None = None
     kind: str = "trunk"
+    only: str | None = None   # a Test button on one account: call only that username's sign-ins
 
     def play(self, clip, stop: threading.Event) -> bool:
         server = MANAGER.server
@@ -533,7 +534,7 @@ class ServerTarget:
         jobs = []
         for u, bs in server.active().items():
             acct = server.accounts.get(u)
-            if acct and acct.enabled and acct.kind == self.kind:
+            if acct and acct.enabled and acct.kind == self.kind and self.only in (None, u):
                 jobs += [(acct, b) for b in bs]   # every device / phone system signed in with the account
         if not jobs:
             log.warning("[%s] no %s is signed in to AthanBox", self.name,

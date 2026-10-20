@@ -893,7 +893,7 @@ function editorHTML(){
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
       <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on AthanBox. Desk phones signing in to AthanBox use the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">SIP trunk accounts</div>
-      ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
+      ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('accounts',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid5"><div class="field"><label for="ac${i}n">Name</label><input type="text" id="ac${i}n" data-path="edit.accounts.${i}.name" placeholder="Office UCM" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="ac${i}u">Username</label><input type="text" id="ac${i}u" data-path="edit.accounts.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="ac${i}p">Password</label><input type="text" id="ac${i}p" data-path="edit.accounts.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
@@ -915,7 +915,7 @@ function editorHTML(){
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
       <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. A SIP trunk to AthanBox uses the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">Desk phones</div>
-      ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
+      ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('desk',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid4"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
@@ -950,6 +950,10 @@ function newDeskPhone(){
 function finishEdit(){ try{ const t=fromEdit(editing); if(editing.index<0) CFG.targets.push(t); else CFG.targets[editing.index]=t; editing=null; dirty(); render(); toast("Press Save changes to start using it."); }catch(e){ toast(e.message,"bad"); } }
 function removeTarget(){ if(!confirm("Remove these phones?")) return; CFG.targets.splice(editing.index,1); editing=null; dirty(); render(); }
 async function testEditing(){ let t; try{ t=fromEdit(editing); }catch(e){ return toast(e.message,"bad"); } await test({source:"tone", target:t, label:"Test chime - "+(t.name)}); }
+// The Test button on one SIP trunk or desk phone account: rings only the phones signed in with it
+function signedIn(u){ const info=S&&S.sipserver, a=info&&info.status==="running"&&(info.accounts||[]).find(x=>x.username.toLowerCase()===String(u).toLowerCase()); return !!(a&&(a.signins||[]).length); }
+async function testAccount(list, i){ let t; try{ t=fromEdit(editing); }catch(e){ return toast(e.message,"bad"); }
+  const a=editing[list][i]; await test({source:"tone", target:t, account:a.username, label:"Test chime - "+(a.name||a.username)}); }
 async function testTarget(i){ await test({source:"tone", target:CFG.targets[i], label:"Test chime - "+(CFG.targets[i].name||"")}); }
 function guideHTML(){
   const mc = CFG.targets.find(t=>t.type==="multicast"); const addr = mc ? mc.address : "224.5.6.20:10008"; const [ip,port]=addr.split(":");
