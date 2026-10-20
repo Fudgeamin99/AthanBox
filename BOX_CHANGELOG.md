@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.8.4 - Choose the test chime sound
+
+- **Test chime sound:** in **Settings → Testing and calls**, choose what the **Test chime** buttons play: the built-in chime or any of your recordings. A recording plays for the **Test chime length**, at the **Test chime volume**. If the chosen recording is removed, the built-in chime plays instead.
+
 ## 0.8.3 - Test one desk phone at a time
 
 - **Test button on each account:** under **Desk phones sign in to AthanBox** and **Register to AthanBox (SIP trunk)**, each signed-in account now has its own **Test** button. It rings only the phones signed in with that account, instead of every phone. **Test now** at the bottom still rings them all.

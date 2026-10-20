@@ -1289,6 +1289,8 @@ function pageSettings(){
       <div class="hint">How much of the azan the Test buttons play.</div></div>
     <div class="field"><label>Ring time (seconds)</label><input type="number" min="5" max="120" data-path="network.ring_seconds" data-kind="num" placeholder="20" value="${val("network.ring_seconds")}">
       <div class="hint">How long a call rings before AthanBox gives up. Raise it if the phones have to be answered or the phone system is slow to connect.</div></div>
+    <div class="field"><label>Test chime sound</label><select data-path="general.test_chime_sound">${audioOptions(CFG.general.test_chime_sound||"", [["","Built-in chime"]])}</select>
+      <div class="hint">What the Test chime buttons play. A recording plays for the Test chime length. Add recordings on the <b>Azan sound</b> page.</div></div>
     <div class="field"><label>Test chime length (seconds)</label><input type="number" min="2" max="120" data-path="general.test_chime_seconds" data-kind="num" placeholder="6" value="${val("general.test_chime_seconds")}"></div>
     <div class="field"><label>Test chime volume: <span id="chv">${(+CFG.general.test_chime_volume_db||0)>0?"+":""}${+CFG.general.test_chime_volume_db||0} dB</span></label>
       <input type="range" min="-12" max="12" step="1" data-path="general.test_chime_volume_db" data-kind="num" value="${+CFG.general.test_chime_volume_db||0}" oninput="$('#chv').textContent=(this.value>0?'+':'')+this.value+' dB'"></div>
