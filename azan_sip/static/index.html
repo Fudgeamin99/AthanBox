@@ -775,7 +775,7 @@ function toEdit(t){
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
   e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)})):[];
-  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1)})):[];
+  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):""})):[];
   return e;
 }
 function fromEdit(e){
@@ -800,7 +800,11 @@ function fromEdit(e){
   }
   if(e.kind==="phones"){
     const port=parseInt(e.port,10); if(!(port>=1&&port<=65535)) throw new Error("The SIP port must be a number, usually 5060");
-    const accts=(e.desk||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:parseInt(a.max_signins,10)||1}));
+    const accts=(e.desk||[]).map(a=>{ const x={name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:parseInt(a.max_signins,10)||1};
+      const mac=String(a.mac||"").replace(/[\s:.\-]/g,"").toLowerCase(), line=String(a.line||"").trim();
+      if(mac){ if(!/^[0-9a-f]{12}$/.test(mac)) throw new Error(`${a.mac} isn't a MAC address. It looks like 80:5E:C0:12:34:56, on a sticker under the phone or base`); x.mac=mac.match(/../g).join(":").toUpperCase(); }
+      if(line){ const n=parseInt(line,10); if(!(n>=1&&n<=16)) throw new Error(`The line for ${x.username} must be between 1 and 16`); x.line=n; }
+      return x; });
     if(!accts.length) throw new Error("Add at least one desk phone");
     const seen=new Set();
     for(const a of accts){
@@ -835,10 +839,49 @@ function pagePhones(){
         <button class="btn small" onclick="testTarget(${i})">${ICON.play} Test</button><button class="btn small" onclick="editTarget(${i})">Edit</button>
         <label class="switch" title="On/off"><input type="checkbox" data-path="targets.${i}.enabled" data-kind="bool" ${t.enabled!==false?"checked":""}><span></span></label></div>`).join("")
       :'<div class="empty">No phones yet. Click <b>Add phones</b> to start.</div>'}
-      </div>${guideHTML()}`;
+      </div>${SESSION.box?'<div class="card" id="prov"><h2>Remote provisioning</h2><p class="muted">Loading…</p></div>':""}${guideHTML()}`;
   }
   $("#main").innerHTML = html;
+  if(SESSION.box && !editing) provLoad();
 }
+// ---- Remote provisioning: desk phones download their AthanBox line from a link (on the network or from anywhere)
+let PROV = null;
+async function provLoad(){ try{ PROV = await api("/api/provisioning"); }catch(e){ PROV = {error:e.message}; } provFill(); }
+function provFill(){
+  const el=$("#prov"); if(!el||page!=="phones") return;
+  const P=PROV||{};
+  if(P.error && P.enabled===undefined){ el.innerHTML=`<h2>Remote provisioning</h2><div class="banner bad">${ICON.warn}<div>${esc(P.error)}</div></div>`; return; }
+  const desk=(CFG.targets.find(t=>t.type==="phones")||{}).accounts||[], withMac=desk.filter(a=>a.mac);
+  const ago=s=>s<90?"just now":s<3600?`${Math.round(s/60)} min ago`:s<86400?`${Math.round(s/3600)} h ago`:`${Math.round(s/86400)} days ago`;
+  el.innerHTML = `<div class="toggle-row" style="padding-top:0"><div><div class="t">Remote provisioning ${P.enabled?(P.running?'<span class="pill ok">On</span>':'<span class="pill bad">Not running</span>'):'<span class="pill">Off</span>'}</div>
+      <div class="d">Desk phones download their AthanBox line, with auto-answer on, from a link, so nobody types SIP details on the phone. Works for phones on this network and, with a port forwarded on the router, for phones anywhere. Yealink desk phones and DECT bases (W60B with W52H/W56H handsets).</div></div>
+    <label class="switch"><input type="checkbox" ${P.enabled?"checked":""} onchange="provSet({enabled:this.checked})" aria-label="Remote provisioning"><span></span></label></div>
+    ${P.error?`<div class="banner bad">${ICON.warn}<div>${esc(P.error)}</div></div>`:""}
+    ${P.enabled&&P.links&&P.links.length?`<div class="lbl" style="margin:10px 0 6px">Provisioning link (Yealink)</div>
+      ${P.links.map(l=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t">${esc(l.label)}</div><div class="d mono" style="word-break:break-all">${esc(l.url)}</div></div><button class="btn small" onclick="provCopy('${esc(l.url)}')">Copy</button></div>`).join("")}
+      <div class="row" style="margin-top:8px"><button class="btn small danger" onclick="provNewLink()">New link</button><span class="muted" style="font-size:13px">Makes a new link. Phones with the old one stop getting their settings until they have the new one.</span></div>`:""}
+    ${P.enabled?`<div class="grid3" style="margin-top:14px">
+      <div class="field"><label for="prov-host">Public address</label><input type="text" id="prov-host" value="${esc(P.host||"")}" placeholder="azan.example.com or 203.0.113.7" spellcheck="false" onchange="provSet({host:this.value})"><div class="hint">The address phones outside this network use to reach AthanBox: your router's public IP or a dynamic DNS name. Leave it empty if every phone is on this network.</div></div>
+      <div class="field"><label for="prov-port">Provisioning port</label><input type="number" min="1024" max="65535" id="prov-port" value="${esc(P.port||8766)}" onchange="provSet({port:+this.value})"><div class="hint">Only the provisioning links answer on this port, not the control panel.</div></div>
+      <div class="field"><label for="prov-allow">Allowed addresses (optional)</label><input type="text" id="prov-allow" value="${esc((P.allow||[]).join(", "))}" placeholder="Anyone with the link" spellcheck="false" onchange="provSet({allow:this.value})"><div class="hint">Only these addresses or ranges may download, such as the remote office's public IP. Separate them with commas.</div></div></div>
+    <details style="margin-top:6px"><summary>Set it up</summary><p>
+      <b>1. Desk phones:</b> on each desk phone under <b>Desk phones sign in to AthanBox</b>, fill in the phone's <b>MAC address</b> (and the <b>Line on the phone</b> if line 1 is your phone system's), then <b>Save changes</b>. Several extensions with the same MAC become lines 1, 2, 3 on that phone, which is how a DECT base gets one line per handset.<br>
+      <b>2. The phone:</b> on its web page go to <b>Settings → Auto Provision</b>, paste the link into <b>Server URL</b>, leave the user name and password empty, and press <b>Confirm</b> then <b>Auto Provision Now</b>. On a network with your own DHCP server, DHCP option 66 can hand out the link instead.<br>
+      <b>3. Phones outside this network:</b> on AthanBox's router, forward <b>TCP port ${esc(P.port||8766)}</b> (provisioning) and <b>UDP port ${esc(sipPort())}</b> (SIP) to <span class="mono">${esc(P.ip||"AthanBox")}</span>, fill in the <b>Public address</b>, and give the phone the <b>From anywhere</b> link. The control panel stays private: only the links answer on port ${esc(P.port||8766)}.<br>
+      <span class="muted">The phones get <b>auto-answer</b> on AthanBox's line, intercom answering with the microphone off, Auto Intercom on DECT handsets, and a daily check for changes. The link is plain http, so anyone who can see the traffic between the phone and AthanBox could read the SIP password: use the allowed addresses to keep it to your own sites. A wrong link is logged, and fail2ban's <b>Control panel</b> jail bans an address that keeps guessing.</span></p></details>
+    <div class="lbl" style="margin:12px 0 6px">Phones that asked recently</div>
+    ${(P.recent||[]).length?(P.recent||[]).map(x=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(x.mac)}</span> <span class="muted" style="font-weight:400;font-size:13px">${esc(x.brand)} · ${esc(x.ip)} · ${ago(x.ago)}</span></div>
+      <div class="d">${x.lines.length?`Got ${x.lines.map(esc).join(", ")}`:"No desk phone has this MAC address yet: type it on the desk phone it belongs to"}</div></div>
+      <span class="pill ${x.lines.length?"ok":"warn"}">${x.lines.length?"Provisioned":"Not matched"}</span></div>`).join("")
+      :`<p class="muted" style="margin:4px 0 0">${withMac.length?"None yet.":"None yet. Add the phone's MAC address to a desk phone first."}</p>`}`:""}`;
+}
+function provCopy(u){ (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Copied")).catch(()=>prompt("Copy the link:", u)); }
+async function provSet(change){
+  await act(async()=>{ const r=await api("/api/provisioning", change); PROV=r;
+    if(r.config){ CFG.provisioning=r.config.provisioning; const sv=JSON.parse(SAVED); sv.provisioning=r.config.provisioning; SAVED=JSON.stringify(sv); dirty(); }
+    provFill(); }, "Saved");
+}
+async function provNewLink(){ if(!confirm("Make a new provisioning link? Phones with the old link stop getting their settings until they have the new one.")) return; await provSet({new_key:true}); }
 function regFor(t){
   if(kindOf(t)!=="pbx" || !t.username || t.register===false || t.enabled===false) return null;
   const host=(/@([^;>]+)/.exec(t.uri||"")||[])[1]||"";
@@ -919,7 +962,9 @@ function editorHTML(){
         <div class="grid4"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
-          <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div></div>`).join("")}
+          <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div>
+        <div class="grid4"><div class="field"><label for="dp${i}a">MAC address (for provisioning)</label><input type="text" id="dp${i}a" data-path="edit.desk.${i}.mac" placeholder="80:5E:C0:12:34:56" value="${esc(a.mac||"")}" spellcheck="false"><div class="hint">Optional. On a sticker under the phone (or the DECT base). The phone then gets this line from the provisioning link by itself.</div></div>
+          <div class="field"><label for="dp${i}l">Line on the phone</label><input type="number" min="1" max="16" id="dp${i}l" data-path="edit.desk.${i}.line" placeholder="Next free" value="${esc(a.line||"")}"><div class="hint">Which account on the phone it fills. Pick 2 if line 1 is your phone system's. On a DECT base, a line rings the handsets whose Incoming Lines include it.</div></div></div></div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
       <div class="hint">For the azan, AthanBox rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into AthanBox are always refused, and repeated wrong passwords are blocked.</div>`;
   }
@@ -975,7 +1020,8 @@ function guideHTML(){
     <b>Grandstream:</b> Account 2 → General Settings. Then Account 2 → Call Settings → <b>Allow Auto Answer by Call-Info/Alert-Info</b> = Yes.<br>
     <b>Fanvil / Snom:</b> add the line, and turn on auto-answer (intercom) for it, with the microphone muted.<br>
     <b>Poly / Polycom:</b> add the line, then set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>.<br>
-    <span class="muted">The phone shows the line as registered, and the phone shows "Signed in" here. Press <b>Test</b> next to the entry: the phones should pick up by themselves and play the chime.</span></p></details>
+    <span class="muted">The phone shows the line as registered, and the phone shows "Signed in" here. Press <b>Test</b> next to the entry: the phones should pick up by themselves and play the chime.</span><br>
+    <b>Or let the phone set itself up:</b> fill in the phone's MAC address on the desk phone here and use <b>Remote provisioning</b> above. Yealink phones then get the line and auto-answer from the link, on this network or from anywhere.</p></details>
   <details><summary>Grandstream UCM as a SIP trunk to AthanBox</summary><p>1. <b>Extension/Trunk → VoIP Trunks → Add SIP Trunk</b>: Type <b>Register SIP Trunk</b>, Provider name "AthanBox", Host name = AthanBox's IP address and port (e.g. <span class="kbd">192.168.1.20:5060</span>), Username and Password = the SIP trunk account here.<br>
     2. <b>Extension/Trunk → Inbound Routes</b>: add a route for that trunk with the pattern = the account's <b>Number to call</b> (e.g. <span class="kbd">7000</span>), destination = your Paging/Intercom group.<br>
     3. The trunk shows as registered on the UCM and "Signed in" here. No extension is needed for AthanBox.</p></details>
@@ -1068,7 +1114,7 @@ function pageTV(){
 let SEC = null, secTick = 0, secAllBans = false;
 const SEC_BANS_SHOWN = 5;   // more than this: the rest behind "Show all"
 const SEC_JAILS = [["sshd","SSH sign-ins","Someone signing in to AthanBox itself over SSH, with the wrong password."],
-  ["panel","Control panel","Wrong passwords on this page (http://azan.local)."],
+  ["panel","Control panel","Wrong passwords on this page (http://azan.local), and wrong remote provisioning links."],
   ["sip","SIP sign-ins","Desk phones or phone systems signing in to AthanBox with the wrong password."]];
 function secSpan(s){
   s = +s; if(s < 0) return "Until it's unbanned";
