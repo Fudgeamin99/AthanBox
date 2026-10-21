@@ -10,7 +10,8 @@ services:
     build: .
     container_name: azan-sip
     network_mode: host        # multicast paging and SIP need the computer's own network, so no
-                              # "ports:" section: the panel is on port 8765 of this computer
+                              # "ports:" section: the panel is on port 8765 of this computer, and
+                              # remote provisioning (Phones page) on port 8766 while it is on
     restart: unless-stopped
     environment:
       AZAN_PASSWORD: ""       # the password for changing settings, at least 8 characters

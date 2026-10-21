@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, hostvol, kids, live, look, ramadan, rtp, screens, security, sipserver, tomlw, updater
+from . import __version__, hostvol, kids, live, look, provision, ramadan, rtp, screens, security, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import app_dir
 from .sipreg import Registration, RegistrationManager
@@ -320,6 +320,8 @@ class Service:
         self.stars = kids.Stars(self.base / "kids.json")   # kids mode: "Did you pray?" stars, per screen
         self._tv_next = (0.0, None, None)
         self.security: security.Security | None = None   # the Security page (box mode only)
+        self.provision_server: ThreadingHTTPServer | None = None   # remote provisioning's own port (box mode)
+        self.provision_error = ""
         self.load()
 
     # -- config
@@ -353,6 +355,7 @@ class Service:
         kids.check(cfg)
         ramadan.check(cfg.get("ramadan"))
         sipserver.check_targets(cfg.get("targets", []))
+        provision.check(cfg)
         with self.lock:
             app = AzanApp(self.config_path, cfg, require_targets=False, shared=self.shared)  # raises if invalid
             if save:
@@ -366,6 +369,69 @@ class Service:
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
                 self.thread.start()
+            if self.box:
+                self._sync_provision_server()
+
+    # -- remote provisioning (provision.py): desk phones download their AthanBox line
+    def _sync_provision_server(self):
+        """Remote provisioning's own port, open while it is on, so a router can forward just that port."""
+        s = provision.settings(self.cfg)
+        old = self.provision_server
+        want = s["port"] if s["enabled"] else None
+        if old and old.server_address[1] == want:
+            return
+        if old:
+            old.shutdown()
+            old.server_close()
+            self.provision_server = None
+        self.provision_error = ""
+        if want is None:
+            return
+        try:
+            srv = PanelServer(("0.0.0.0", want), ProvisionHandler)
+        except OSError as exc:
+            self.provision_error = f"Port {want} is used by another program, so choose another provisioning port ({exc.strerror or exc})"
+            log.warning("Remote provisioning: %s", self.provision_error)
+            return
+        self.provision_server = srv
+        threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.5}, name=f"provision-{want}",
+                         daemon=True).start()
+        log.info("Remote provisioning: phones can download their settings on port %d", want)
+
+    def provisioning(self, page_host: str = "") -> dict:
+        """The Phones page's remote provisioning card."""
+        s = provision.settings(self.cfg)
+        links = []
+        if s["key"]:
+            path = f"{provision.PREFIX}{s['key']}/yealink/"
+            if s["host"]:
+                links.append({"label": "From anywhere", "url": f"http://{s['host']}:{s['port']}{path}"})
+            ip = box_ip()
+            links.append({"label": "On AthanBox's network", "url": f"http://{ip}:{s['port']}{path}"})
+        return {**s, "links": links, "running": bool(self.provision_server), "error": self.provision_error,
+                "recent": provision.PROVISIONER.recent(), "ip": box_ip()}
+
+    def set_provisioning(self, req: dict) -> dict:
+        cfg = copy.deepcopy(self.cfg)
+        p = cfg.setdefault("provisioning", {})
+        for k in ("enabled",):
+            if k in req:
+                p[k] = bool(req[k])
+        if "host" in req:
+            p["host"] = re.sub(r"^https?://", "", str(req.get("host") or "").strip()).rstrip("/")
+        if "port" in req:
+            p["port"] = req.get("port")
+        if "allow" in req:
+            raw = req.get("allow")
+            items = raw if isinstance(raw, list) else re.split(r"[\s,]+", str(raw or ""))
+            p["allow"] = [security.fmt(security.parse(x)) for x in items if str(x).strip()]
+        if req.get("new_key") or (p.get("enabled") and not p.get("key")):
+            p["key"] = provision.new_key()
+            if req.get("new_key"):
+                log.info("Remote provisioning: new link made, the old one stops working")
+        self.apply(cfg, save=True)
+        log.info("Remote provisioning %s", "on" if p.get("enabled") else "off")
+        return self.provisioning()
 
     def _host_volume(self, value):
         """The volume slider on the TV app page: set the computer's own volume (in the background)."""
@@ -410,6 +476,8 @@ class Service:
         """Box mode: until first-time setup is done, a one-time code (QR on the screen) lets a phone in."""
         self.box = True
         self.security = security.Security(self.base, docker=updater.DOCKER)
+        with self.lock:
+            self._sync_provision_server()
         if not self.configured():
             self.auth.new_setup_code()
         if not self.auth.has_password():
@@ -449,6 +517,9 @@ class Service:
         self.thread = None
 
     def shutdown(self):
+        if self.provision_server:
+            self.provision_server.shutdown()
+            self.provision_server.server_close()
         self._stop_scheduler()
         self.regs.stop_all()
         sipserver.MANAGER.stop()
@@ -1085,9 +1156,23 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Upload too large")
         return self.rfile.read(n) if n else b""
 
+    def _provision(self, p: str):
+        """Remote provisioning: any Host name (a phone outside the network may use a public name), as the
+        link's own key is what lets a phone in."""
+        svc = self.service
+        try:
+            code, body, ctype = provision.PROVISIONER.handle(svc.cfg, p, self.client_address[0],
+                                                             self.headers.get("Host") or "", box_ip())
+        except Exception:
+            log.exception("provisioning error")
+            code, body, ctype = 500, b"Error", "text/plain"
+        return self._send(code, body, ctype)
+
     def do_GET(self):
         if security.FILTER.blocked(self.client_address[0]):   # on the blacklist (Security page)
             return self._send(403, b"Forbidden", "text/plain")
+        if self.service.box and self.path.startswith(provision.PREFIX):
+            return self._provision(urlparse(self.path).path)
         if not self._host_ok():
             return self._send(403, b"Forbidden", "text/plain")
         svc = self.service
@@ -1193,6 +1278,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(svc.update_status())
             if p == "/api/tv-links":   # the TV app page: addresses and QR codes for TV screens
                 return self._json(svc.tv_links(self._page_host()))
+            if p == "/api/provisioning":   # the Phones page: remote provisioning
+                if not svc.box:
+                    return self._json({"ok": False, "error": "Remote provisioning is only on AthanBox"}, 404)
+                return self._json(svc.provisioning())
             if p == "/api/security":   # the Security page: fail2ban, whitelist and blacklist
                 if not svc.security:
                     return self._json({"ok": False, "error": "Security settings are only on AthanBox"}, 404)
@@ -1315,6 +1404,10 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/screens":
                 svc.set_screens(bool(req.get("on")))
                 return self._json({"ok": True, **svc.tv_links(self._page_host())})
+            if p == "/api/provisioning":
+                if not svc.box:
+                    raise ValueError("Remote provisioning is only on AthanBox")
+                return self._json({"ok": True, **svc.set_provisioning(req), "config": svc.cfg})
             if p.startswith("/api/security/") and not svc.security:
                 raise ValueError("Security settings are only on AthanBox")
             if p == "/api/security/fail2ban":
@@ -1395,6 +1488,23 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(exc, (ValueError, KeyError, RuntimeError, FileNotFoundError)):
                 log.exception("panel error")
             return self._json({"ok": False, "error": str(exc) or exc.__class__.__name__}, 400)
+
+    do_HEAD = do_GET
+
+
+class ProvisionHandler(Handler):
+    """Remote provisioning's own port: only the provisioning links, nothing of the control panel."""
+
+    def do_GET(self):
+        if security.FILTER.blocked(self.client_address[0]):
+            return self._send(403, b"Forbidden", "text/plain")
+        p = urlparse(self.path).path
+        if p.startswith(provision.PREFIX):
+            return self._provision(p)
+        return self._send(404, b"Not found", "text/plain")
+
+    def do_POST(self):
+        return self._send(404, b"Not found", "text/plain")
 
     do_HEAD = do_GET
 

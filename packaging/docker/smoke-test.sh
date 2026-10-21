@@ -62,3 +62,14 @@ code=$(curl -s -o /dev/null -w '%{http_code}' "$url/apk")
 case "$code" in 200|302) ;; *) echo "FAIL: /apk answered $code"; exit 1;; esac
 curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"on": false}' "$url/api/screens" >/dev/null
 echo "ok: TV screens connect only when allowed (the Android app: $([ "$code" = 200 ] && echo "in the image" || echo "from GitHub"))"
+
+# Remote provisioning: a phone downloads its settings from the link; a wrong link gets nothing
+link=$(curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"enabled": true}' \
+            "$url/api/provisioning" | python3 -c 'import json, sys; print(json.load(sys.stdin)["links"][-1]["url"])')
+path=/${link#http://*/}
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url${path}y000000000077.cfg")
+[ "$code" = 200 ] || { echo "FAIL: the provisioning link answered $code"; exit 1; }
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/provision/not-the-right-key-at-all-0000/yealink/y000000000077.cfg")
+[ "$code" = 404 ] || { echo "FAIL: a wrong provisioning link answered $code (expected 404)"; exit 1; }
+curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"enabled": false}' "$url/api/provisioning" >/dev/null
+echo "ok: remote provisioning answers its link only"

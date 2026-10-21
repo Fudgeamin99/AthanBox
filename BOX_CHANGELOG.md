@@ -6,6 +6,17 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.0 - Remote provisioning for desk phones
+
+- **Remote provisioning:** on the **Phones** page, switch on **Remote provisioning** to get a provisioning link. Paste it into a Yealink phone's **Settings → Auto Provision → Server URL** and the phone downloads its AthanBox line by itself, with **auto-answer** on, intercom answering with the microphone off, Auto Intercom on DECT handsets, and a daily check for changes. No more typing SIP details on each phone.
+  - Each extension under **Desk phones sign in to AthanBox** has a new **MAC address** field, and a **Line on the phone** for when line 1 is your phone system's. Extensions with the same MAC become lines 1, 2, 3 on that phone, so a Yealink DECT base (W60B with W52H/W56H handsets) gets one line per handset.
+  - **Phones outside the network:** forward TCP port **8766** and UDP port **5060** on AthanBox's router and fill in the **Public address**. The phone then signs in to that address too. Only the provisioning links answer on port 8766, not the control panel.
+  - The link carries a long random key, and **New link** replaces it. A wrong key is logged and counts for fail2ban's **Control panel** jail. **Allowed addresses** can limit who may download. **Phones that asked recently** shows which phones fetched their settings, and the MAC of any phone that isn't matched yet.
+  - Yealink for now. The link names the brand, so other brands can follow.
+- **Debian:** update as usual in Settings → Updates. AthanBox sets up the new fail2ban rule by itself after the update. Port 8766 opens only while remote provisioning is on. No new packages or services.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. With host networking, port 8766 needs nothing in `compose.yaml`; the `security` container picks up the new fail2ban rule with the update.
+- The Android app and the Wyse client need no update.
+
 ## 0.8.4 - Choose the test chime sound
 
 - **Test chime sound:** in **Settings → Testing and calls**, choose what the **Test chime** buttons play: the built-in chime or any of your recordings. A recording plays for the **Test chime length**, at the **Test chime volume**. If the chosen recording is removed, the built-in chime plays instead.
