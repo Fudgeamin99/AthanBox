@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.1 - Add and update provisioned phones from the Phones page
+
+- **Add a phone** on the Remote provisioning card: type the phone's MAC address, a name and how many lines (one per handset on a DECT base), and AthanBox makes the extensions with their passwords and saves them. **From line** keeps line 1 free for your phone system. A phone that already asked for its settings has an **Add this phone** button under **Phones that asked recently**, with its MAC filled in.
+- **Provisioned phones** lists each phone with its lines, which are signed in, and when it last fetched its settings.
+- **Update now** (one phone) and **Update all phones** ask signed-in phones to download their settings again straight away (SIP NOTIFY check-sync), instead of waiting for the daily check. Phones provisioned by 0.9.1 are told not to restart for it. A phone that isn't signed in yet still needs **Auto Provision Now** pressed once on it.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.9.0 - Remote provisioning for desk phones
 
 - **Remote provisioning:** on the **Phones** page, switch on **Remote provisioning** to get a provisioning link. Paste it into a Yealink phone's **Settings → Auto Provision → Server URL** and the phone downloads its AthanBox line by itself, with **auto-answer** on, intercom answering with the microphone off, Auto Intercom on DECT handsets, and a daily check for changes. No more typing SIP details on each phone.
