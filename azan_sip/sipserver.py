@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import __version__, rtp, security
-from .sip import SipCall, SipMessage, SipTarget, _rand
+from .sip import SipCall, SipMessage, SipTarget, _digest, _rand
 
 log = logging.getLogger("azan-sip")
 
@@ -388,6 +388,60 @@ class SipServer(threading.Thread):
             self._save()
         self._reply(req, addr, "200 OK", [f"Contact: <{contact}>;expires={expires}", f"Expires: {expires}",
                                           f"Date: {time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime())}"])
+
+    # ------------------------------------------------------------ remote provisioning: "Update now"
+    def check_sync(self, usernames: set[str], timeout: float = 4.0) -> list[dict]:
+        """Ask every phone signed in with these accounts to download its settings again (NOTIFY with
+        Event: check-sync, which Yealink, Grandstream, Snom and others understand). One result per sign-in."""
+        jobs = [(self.accounts[u], b) for u, bs in self.active().items() if u in usernames and u in self.accounts
+                for b in bs]
+
+        def one(job) -> dict:
+            acct, b = job
+            _, host, port = _contact_hostport(b.contact)
+            lip = self.local_ip_cfg or rtp.local_ip_for(b.addr[0])
+            cid, tag, q = f"{_rand(16)}@{lip}", _rand(8), queue.Queue()
+            self.calls[cid] = q
+            auth, status = None, 0
+            try:
+                for cseq in (1, 2):
+                    lines = [f"NOTIFY {b.contact} SIP/2.0",
+                             f"Via: SIP/2.0/UDP {lip}:{self.port};branch=z9hG4bK{_rand(12)};rport",
+                             "Max-Forwards: 70", f"From: <sip:azan@{lip}:{self.port}>;tag={tag}", f"To: <{b.contact}>",
+                             f"Call-ID: {cid}", f"CSeq: {cseq} NOTIFY", f"Contact: <sip:azan@{lip}:{self.port}>",
+                             "Event: check-sync;reboot=false", "Subscription-State: terminated",
+                             f"User-Agent: azan-sip/{__version__}"] + ([auth] if auth else []) + ["Content-Length: 0"]
+                    self.send(("\r\n".join(lines) + "\r\n\r\n").encode(), b.addr)
+                    deadline = time.monotonic() + timeout
+                    status, resp = 0, None
+                    while time.monotonic() < deadline:
+                        try:
+                            msg, _ = q.get(timeout=max(0.05, deadline - time.monotonic()))
+                        except queue.Empty:
+                            break
+                        if msg.method or msg.status < 200:
+                            continue
+                        status, resp = msg.status, msg
+                        break
+                    if status in (401, 407) and cseq == 1:   # the phone checks it's really its own server
+                        hdr = "www-authenticate" if status == 401 else "proxy-authenticate"
+                        auth = (f"{'Authorization' if status == 401 else 'Proxy-Authorization'}: "
+                                + _digest(resp.get(hdr), "NOTIFY", b.contact, acct.username, acct.password))
+                        continue
+                    break
+            finally:
+                self.calls.pop(cid, None)
+            ok = 200 <= status < 300
+            log.info("Remote provisioning: asked %s (%s, %s) to fetch its settings again: %s", acct.name or acct.username,
+                     b.addr[0], b.user_agent or "phone", "accepted" if ok else f"answered {status}" if status else "no answer")
+            return {"username": acct.username, "from": f"{b.addr[0]}:{b.addr[1]}", "device": b.user_agent,
+                    "ok": ok, "status": status}
+
+        if not jobs:
+            return []
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(16, len(jobs))) as ex:
+            return list(ex.map(one, jobs))
 
     # ------------------------------------------------------------ for the UI and calls
     def active(self) -> dict[str, list[Binding]]:

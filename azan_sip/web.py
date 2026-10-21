@@ -408,8 +408,51 @@ class Service:
                 links.append({"label": "From anywhere", "url": f"http://{s['host']}:{s['port']}{path}"})
             ip = box_ip()
             links.append({"label": "On AthanBox's network", "url": f"http://{ip}:{s['port']}{path}"})
+        signed = {}
+        info = sipserver.MANAGER.info()
+        for acct in (info or {}).get("accounts", []):
+            signed[acct["username"].lower()] = acct.get("signins", [])
+        seen = {x["key"]: x for x in provision.PROVISIONER.recent(200)}
+        phones = []
+        for m, accts in provision.phones(self.cfg).items():
+            lines = {a.get("username"): n for n, a, _ in provision.lines_for(self.cfg, m)}
+            phones.append({"mac": provision.pretty(m), "key": m, "fetched": seen.get(m, {}).get("ago"),
+                           "lines": [{"username": a.get("username"), "name": a.get("name", ""),
+                                      "line": lines.get(a.get("username")),
+                                      "signed_in": bool(signed.get(str(a.get("username", "")).lower()))}
+                                     for a in sorted(accts, key=lambda a: lines.get(a.get("username")) or 99)]})
         return {**s, "links": links, "running": bool(self.provision_server), "error": self.provision_error,
-                "recent": provision.PROVISIONER.recent(), "ip": box_ip()}
+                "recent": provision.PROVISIONER.recent(), "ip": box_ip(), "phones": phones}
+
+    def add_provision_phone(self, req: dict) -> dict:
+        """Remote provisioning: add a phone in one step (its MAC address, a name and how many lines)."""
+        cfg = copy.deepcopy(self.cfg)
+        try:
+            n, first = int(req.get("lines") or 1), int(req.get("line") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("Lines must be a number") from None
+        added = provision.add_phone(cfg, str(req.get("mac") or ""), str(req.get("name") or ""), n, first)
+        self.apply(cfg, save=True)
+        log.info("Remote provisioning: added phone %s with extension%s %s", added[0]["mac"], "s" if len(added) > 1 else "",
+                 ", ".join(f"{a['username']} (line {a['line']})" for a in added))
+        return {**self.provisioning(), "added": added}
+
+    def provision_now(self, req: dict) -> dict:
+        """"Update now": ask signed-in phones to download their settings again (one phone, or all of them)."""
+        server = sipserver.MANAGER.server
+        want = str(req.get("mac") or "")
+        chosen = {m: accts for m, accts in provision.phones(self.cfg).items() if not want or m == provision.mac(want)}
+        if not chosen:
+            raise ValueError("No desk phone has a MAC address yet")
+        active = server.active() if server and server.status == "running" else {}
+        # one line per phone is enough: a phone (or DECT base) with three lines updates all of them at once
+        users = {next(u for u in (str(a.get("username", "")).lower() for a in accts) if u in active)
+                 for accts in chosen.values() if any(str(a.get("username", "")).lower() in active for a in accts)}
+        results = server.check_sync(users) if users else []
+        if not results:
+            raise ValueError("That phone isn't signed in to AthanBox, so it can't be asked. On the phone, press "
+                             "Auto Provision Now (Settings → Auto Provision), or wait for its daily check")
+        return {**self.provisioning(), "results": results}
 
     def set_provisioning(self, req: dict) -> dict:
         cfg = copy.deepcopy(self.cfg)
@@ -1408,6 +1451,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not svc.box:
                     raise ValueError("Remote provisioning is only on AthanBox")
                 return self._json({"ok": True, **svc.set_provisioning(req), "config": svc.cfg})
+            if p == "/api/provisioning/add":
+                return self._json({"ok": True, **svc.add_provision_phone(req), "config": svc.cfg})
+            if p == "/api/provisioning/update":
+                return self._json({"ok": True, **svc.provision_now(req)})
             if p.startswith("/api/security/") and not svc.security:
                 raise ValueError("Security settings are only on AthanBox")
             if p == "/api/security/fail2ban":

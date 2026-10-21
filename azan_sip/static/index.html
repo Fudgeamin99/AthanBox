@@ -141,6 +141,8 @@ tr:last-child td{border-bottom:0}
 .acct .grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .acct .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 @media (max-width:900px){ .acct .grid4{grid-template-columns:1fr 1fr} }
+.provadd{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:10px}
+@media (max-width:900px){ .provadd{grid-template-columns:1fr 1fr} }
 .acct .field{margin:0}
 .server-box{display:flex;flex-wrap:wrap;gap:8px 28px;padding:12px 16px;border-radius:12px;background:var(--accent-soft);margin-bottom:14px;font-size:14px}
 .server-box b{font-family:Consolas,ui-monospace,monospace;font-size:15px}
@@ -864,16 +866,48 @@ function provFill(){
       <div class="field"><label for="prov-host">Public address</label><input type="text" id="prov-host" value="${esc(P.host||"")}" placeholder="azan.example.com or 203.0.113.7" spellcheck="false" onchange="provSet({host:this.value})"><div class="hint">The address phones outside this network use to reach AthanBox: your router's public IP or a dynamic DNS name. Leave it empty if every phone is on this network.</div></div>
       <div class="field"><label for="prov-port">Provisioning port</label><input type="number" min="1024" max="65535" id="prov-port" value="${esc(P.port||8766)}" onchange="provSet({port:+this.value})"><div class="hint">Only the provisioning links answer on this port, not the control panel.</div></div>
       <div class="field"><label for="prov-allow">Allowed addresses (optional)</label><input type="text" id="prov-allow" value="${esc((P.allow||[]).join(", "))}" placeholder="Anyone with the link" spellcheck="false" onchange="provSet({allow:this.value})"><div class="hint">Only these addresses or ranges may download, such as the remote office's public IP. Separate them with commas.</div></div></div>
-    <details style="margin-top:6px"><summary>Set it up</summary><p>
-      <b>1. Desk phones:</b> on each desk phone under <b>Desk phones sign in to AthanBox</b>, fill in the phone's <b>MAC address</b> (and the <b>Line on the phone</b> if line 1 is your phone system's), then <b>Save changes</b>. Several extensions with the same MAC become lines 1, 2, 3 on that phone, which is how a DECT base gets one line per handset.<br>
+    <div class="lbl" style="margin:16px 0 6px">Add a phone</div>
+    <div class="provadd" style="align-items:end">
+      <div class="field" style="margin:0"><label for="prov-mac">MAC address</label><input type="text" id="prov-mac" placeholder="80:5E:C0:12:34:56" spellcheck="false" autocomplete="off"></div>
+      <div class="field" style="margin:0"><label for="prov-name">Name</label><input type="text" id="prov-name" maxlength="40" placeholder="Main hall" autocomplete="off"></div>
+      <div class="field" style="margin:0"><label for="prov-lines">Lines</label><input type="number" id="prov-lines" min="1" max="8" value="1"></div>
+      <div class="field" style="margin:0"><label for="prov-first">From line</label><input type="number" id="prov-first" min="1" max="16" placeholder="Next free"></div></div>
+    <div class="row" style="margin-top:8px"><button class="btn primary" onclick="provAdd()">Add phone</button><span class="muted" style="font-size:13px">Makes the extensions (with passwords) and saves them. For a DECT base, choose one line per handset. Then give the phone the link once.</span></div>
+    ${provPhonesHTML(P)}
+    <details style="margin-top:12px"><summary>Set it up</summary><p>
+      <b>1. Add the phone:</b> use <b>Add a phone</b> above with its MAC address (or press <b>Add this phone</b> on a phone that already asked). Pick <b>From line</b> 2 if line 1 is your phone system's. On a DECT base, add one line per handset. You can also type a MAC address on an extension under <b>Desk phones sign in to AthanBox</b>.<br>
       <b>2. The phone:</b> on its web page go to <b>Settings → Auto Provision</b>, paste the link into <b>Server URL</b>, leave the user name and password empty, and press <b>Confirm</b> then <b>Auto Provision Now</b>. On a network with your own DHCP server, DHCP option 66 can hand out the link instead.<br>
       <b>3. Phones outside this network:</b> on AthanBox's router, forward <b>TCP port ${esc(P.port||8766)}</b> (provisioning) and <b>UDP port ${esc(sipPort())}</b> (SIP) to <span class="mono">${esc(P.ip||"AthanBox")}</span>, fill in the <b>Public address</b>, and give the phone the <b>From anywhere</b> link. The control panel stays private: only the links answer on port ${esc(P.port||8766)}.<br>
       <span class="muted">The phones get <b>auto-answer</b> on AthanBox's line, intercom answering with the microphone off, Auto Intercom on DECT handsets, and a daily check for changes. The link is plain http, so anyone who can see the traffic between the phone and AthanBox could read the SIP password: use the allowed addresses to keep it to your own sites. A wrong link is logged, and fail2ban's <b>Control panel</b> jail bans an address that keeps guessing.</span></p></details>
     <div class="lbl" style="margin:12px 0 6px">Phones that asked recently</div>
     ${(P.recent||[]).length?(P.recent||[]).map(x=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(x.mac)}</span> <span class="muted" style="font-weight:400;font-size:13px">${esc(x.brand)} · ${esc(x.ip)} · ${ago(x.ago)}</span></div>
-      <div class="d">${x.lines.length?`Got ${x.lines.map(esc).join(", ")}`:"No desk phone has this MAC address yet: type it on the desk phone it belongs to"}</div></div>
-      <span class="pill ${x.lines.length?"ok":"warn"}">${x.lines.length?"Provisioned":"Not matched"}</span></div>`).join("")
+      <div class="d">${x.lines.length?`Got ${x.lines.map(esc).join(", ")}`:"Not added yet"}</div></div>
+      ${x.lines.length?'<span class="pill ok">Provisioned</span>':`<button class="btn small primary" onclick="provPick('${esc(x.mac)}')">Add this phone</button>`}</div>`).join("")
       :`<p class="muted" style="margin:4px 0 0">${withMac.length?"None yet.":"None yet. Add the phone's MAC address to a desk phone first."}</p>`}`:""}`;
+}
+function provPhonesHTML(P){
+  const list=P.phones||[]; if(!list.length) return "";
+  const ago=s=>s==null?"hasn't fetched its settings yet":s<90?"fetched just now":s<3600?`fetched ${Math.round(s/60)} min ago`:s<86400?`fetched ${Math.round(s/3600)} h ago`:`fetched ${Math.round(s/86400)} days ago`;
+  const any=list.some(ph=>ph.lines.some(l=>l.signed_in));
+  return `<div class="row" style="justify-content:space-between;margin:16px 0 6px"><div class="lbl" style="margin:0">Provisioned phones</div>${any&&list.length>1?`<button class="btn small" onclick="provUpdate('')">Update all phones</button>`:""}</div>
+    ${list.map(ph=>{ const on=ph.lines.some(l=>l.signed_in);
+      return `<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(ph.mac)}</span> <span class="muted" style="font-weight:400;font-size:13px">${esc(ago(ph.fetched))}</span></div>
+        <div class="d">${ph.lines.map(l=>`Line ${l.line}: ${esc(l.name||"")} (${esc(l.username)})${l.signed_in?" · signed in":""}`).join(" · ")}</div></div>
+        <button class="btn small" ${on?"":"disabled title=\"Not signed in yet: press Auto Provision Now on the phone the first time\""} onclick="provUpdate('${esc(ph.mac)}')">Update now</button></div>`; }).join("")}
+    <div class="hint" style="margin-top:6px"><b>Update now</b> asks a signed-in phone to download its settings again straight away, after you change its lines or passwords, instead of waiting for its daily check.</div>`;
+}
+function provPick(m){ const el=$("#prov-mac"); if(!el) return; el.value=m; $("#prov-name").focus(); el.scrollIntoView({block:"center"}); }
+function provApplyConfig(r){ if(!r.config) return; CFG=r.config; normalize(CFG); SAVED=JSON.stringify(CFG); dirty(); }
+async function provAdd(){
+  if(isDirty()) return toast("Save or discard your other changes first, then add the phone.","bad");
+  const req={mac:$("#prov-mac").value, name:$("#prov-name").value, lines:+$("#prov-lines").value||1, line:+$("#prov-first").value||0};
+  await act(async()=>{ const r=await api("/api/provisioning/add", req); PROV=r; provApplyConfig(r); render();
+    toast(`Added ${r.added.map(a=>`${a.username} on line ${a.line}`).join(", ")}. Now give the phone the link.`); });
+}
+async function provUpdate(m){
+  await act(async()=>{ const r=await api("/api/provisioning/update", {mac:m}); PROV=r; provFill();
+    const ok=r.results.filter(x=>x.ok).length;
+    toast(ok===r.results.length?`Asked ${ok} phone${ok===1?"":"s"} to update. It takes a few seconds.`:`${ok} of ${r.results.length} phones accepted. The others didn't answer: press Auto Provision Now on them.`, ok?"ok":"bad"); });
 }
 function provCopy(u){ (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Copied")).catch(()=>prompt("Copy the link:", u)); }
 async function provSet(change){

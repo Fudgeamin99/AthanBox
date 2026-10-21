@@ -110,6 +110,64 @@ def check(cfg: dict) -> None:
                     seen[(m, line)] = str(a.get("username"))
 
 
+def phones(cfg: dict) -> dict[str, list[dict]]:
+    """MAC address -> the desk phone accounts provisioned to that phone (the Phones page's list)."""
+    out: dict[str, list[dict]] = {}
+    for t in cfg.get("targets", []):
+        if t.get("type") != "phones":
+            continue
+        for a in t.get("accounts", []):
+            try:
+                m = mac(a.get("mac"))
+            except ValueError:
+                continue
+            if m:
+                out.setdefault(m, []).append(a)
+    return out
+
+
+def pretty(m: str) -> str:
+    return ":".join(m[i:i + 2] for i in range(0, 12, 2)).upper()
+
+
+def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_line: int = 0) -> list[dict]:
+    """Add a phone in one step: `lines` new desk phone extensions with its MAC address, on its next free lines
+    (from `first_line` if given), each with its own new extension number and password. Changes cfg in place."""
+    m = mac(phone_mac)
+    if not m:
+        raise ValueError("Type the phone's MAC address. It looks like 80:5E:C0:12:34:56, on a sticker under the phone or base")
+    if not 1 <= lines <= 8:
+        raise ValueError("Choose 1 to 8 lines")
+    targets = cfg.setdefault("targets", [])
+    t = next((x for x in targets if x.get("type") == "phones"), None)
+    if t is None:
+        port = next((x.get("port") for x in targets if x.get("type") == "server"), None) or 5060
+        t = {"name": "Desk phones sign in to AthanBox", "type": "phones", "port": port, "codec": "PCMU",
+             "enabled": True, "accounts": []}
+        targets.append(t)
+    used = {str(a.get("username", "")).lower() for x in targets if x.get("type") in ("server", "phones")
+            for a in x.get("accounts", [])}
+    taken = {n for n, _, _ in lines_for(cfg, m)}
+    name = _v(name)[:40] or f"Phone {pretty(m)[-5:]}"
+    added, ext, line = [], 101, max(1, first_line)
+    chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    for i in range(lines):
+        while str(ext) in used:
+            ext += 1
+        while line in taken:
+            line += 1
+        if line > MAX_LINES:
+            raise ValueError(f"That phone has no free line left (up to {MAX_LINES})")
+        a = {"name": name if lines == 1 else f"{name} {i + 1}", "username": str(ext),
+             "password": "".join(secrets.choice(chars) for _ in range(14)), "kind": "phone", "max_signins": 1,
+             "mac": pretty(m), "line": line}
+        t.setdefault("accounts", []).append(a)
+        used.add(str(ext))
+        taken.add(line)
+        added.append(a)
+    return added
+
+
 def lines_for(cfg: dict, phone_mac: str) -> list[tuple[int, dict, dict]]:
     """(line on the phone, account, its desk phones entry) for each desk phone account with this MAC address.
     Accounts without a line take the lowest free ones, in the order they're listed."""
@@ -160,6 +218,8 @@ class Yealink:
             "features.intercom.tone = 1",
             "# DECT handsets: Auto Intercom on",
             "custom.handset.auto_intercom = 1",
+            "# \"Update now\" on AthanBox's Phones page (SIP NOTIFY check-sync): download the settings again, without a restart",
+            "sip.notify_reboot_enable = 0",
             "# Check for changes once a day, so a new password reaches the phone by itself",
             "auto_provision.repeat.enable = 1",
             "auto_provision.repeat.minutes = 1440",
@@ -255,19 +315,18 @@ class Provisioner:
             return 404, b"Not found", plain   # the other files phones ask for (contacts, -local.cfg, ...)
         phone = m.group(1)
         lines = lines_for(cfg, phone)
-        pretty = ":".join(phone[i:i + 2] for i in range(0, 12, 2)).upper()
         with self.lock:
-            self.seen[phone] = {"mac": pretty, "ip": ip, "brand": brand.name, "at": time.time(),
+            self.seen[phone] = {"mac": pretty(phone), "key": phone, "ip": ip, "brand": brand.name, "at": time.time(),
                                 "lines": [a.get("username") for _, a, _ in lines]}
             if len(self.seen) > 200:
                 del self.seen[min(self.seen, key=lambda k: self.seen[k]["at"])]
         if not lines:
             log.info("Provisioning: %s phone %s (%s) asked for its settings, but no desk phone has that MAC "
-                     "address on the Phones page", brand.name, pretty, ip)
+                     "address on the Phones page", brand.name, pretty(phone), ip)
             return 404, b"Not found", plain
         host = s["host"] or _host_from(host_header) or box_ip
         sip_port = int(lines[0][2].get("port", 5060) or 5060)
-        log.info("Provisioning: sent %s phone %s (%s) its AthanBox line%s: %s", brand.name, pretty, ip,
+        log.info("Provisioning: sent %s phone %s (%s) its AthanBox line%s: %s", brand.name, pretty(phone), ip,
                  "s" if len(lines) > 1 else "", ", ".join(f"{a.get('username')} on line {n}" for n, a, _ in lines))
         return 200, brand.phone_file(lines, host, sip_port).encode(), plain
 
