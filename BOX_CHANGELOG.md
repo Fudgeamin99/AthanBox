@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.5 - Phones set their clock from the provisioning link
+
+- **Provisioned phones show the right time.** The provisioning link now also sets each Yealink phone's (and cordless base's) clock: AthanBox's time zone from the **Prayer times** page, this year's daylight-saving dates worked out from it, and internet time servers (pool.ntp.org and time.google.com). A time server handed out by your network's DHCP still comes first.
+- Phones pick it up at their daily check. Press **Update all phones** on **Phones › Remote provisioning** to send it straight away.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update.
+
 ## 0.9.4 - Test one phone from Remote provisioning
 
 - **Test** on each signed-in phone under **Phones › Remote provisioning**, in the list and on the phone's own page. It plays the test chime on that phone only (every line or handset it has on AthanBox), so you can check a phone without ringing the others. A phone that isn't signed in yet says so.

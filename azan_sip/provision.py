@@ -24,6 +24,7 @@ import re
 import secrets
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 
 from . import security
 
@@ -390,6 +391,55 @@ def _v(text) -> str:
     return re.sub(r"[\x00-\x1f\x7f]", "", str(text or "")).strip()
 
 
+NTP_SERVERS = ("pool.ntp.org", "time.google.com")
+
+
+def _offset(seconds: float) -> str:
+    """A UTC offset as Yealink writes it: +0, -5, +5:30."""
+    sign = "-" if seconds < 0 else "+"
+    m = int(abs(seconds)) // 60
+    return f"{sign}{m // 60}" + (f":{m % 60:02d}" if m % 60 else "")
+
+
+def clock(cfg: dict, now: datetime | None = None) -> dict:
+    """The phones' clock from AthanBox's own time zone (Prayer times page): the standard UTC offset and this
+    year's daylight-saving start and end, as wall-clock times, so the phones show the same time as AthanBox."""
+    from .praytimes import get_zone
+    zone = get_zone((cfg.get("location") or {}).get("timezone"))
+    now = now or datetime.now(timezone.utc)
+
+    def off(t: datetime) -> timedelta:
+        return t.astimezone(zone).utcoffset() if zone else t.astimezone().utcoffset()
+
+    year = now.astimezone(zone).year if zone else now.astimezone().year
+    t = datetime(year, 1, 1, tzinfo=timezone.utc) - timedelta(days=1)
+    end = datetime(year + 1, 1, 1, tzinfo=timezone.utc) + timedelta(days=1)
+    changes, prev = [], off(t)
+    while t < end:   # each hour of the year: where the offset changes
+        nxt = t + timedelta(hours=1)
+        cur = off(nxt)
+        if cur != prev:
+            lo, hi = t, nxt   # to the minute (a few zones change on the half hour)
+            while hi - lo > timedelta(minutes=1):
+                mid = lo + (hi - lo) / 2
+                lo, hi = (mid, hi) if off(mid) == prev else (lo, mid)
+            changes.append((hi, prev, cur))
+            prev = cur
+        t = nxt
+    changes = [c for c in changes if (c[0] + c[1]).year == year]
+    offsets = [off(datetime(year, m, 1, tzinfo=timezone.utc)) for m in range(1, 13)] + [off(now)]
+    std = min(offsets)
+    out = {"offset": _offset(std.total_seconds()), "dst": None}
+    starts = [c for c in changes if c[2] > c[1]]
+    ends = [c for c in changes if c[2] < c[1]]
+    if starts and ends:
+        wall = lambda c: c[0] + c[1]   # the wall clock just before the change
+        a, b = wall(starts[0]), wall(ends[0])
+        out["dst"] = {"start": f"{a.month}/{a.day}/{a.hour}", "end": f"{b.month}/{b.day}/{b.hour}",
+                      "minutes": int((max(offsets) - std).total_seconds() // 60)}
+    return out
+
+
 # ------------------------------------------------------------------ brands
 class Yealink:
     """Yealink desk phones and DECT bases (such as the W60B with W52H/W56H handsets). The phone asks for
@@ -399,7 +449,7 @@ class Yealink:
     own = re.compile(r"^([0-9a-f]{12})\.cfg$")
 
     @staticmethod
-    def common_file() -> str:
+    def common_file(clk: dict | None = None) -> str:
         return "\n".join([
             "#!version:1.0.0.1",
             "## From AthanBox: settings for every phone that uses this provisioning link.",
@@ -414,7 +464,24 @@ class Yealink:
             "# Check for changes once a day, so a new password reaches the phone by itself",
             "auto_provision.repeat.enable = 1",
             "auto_provision.repeat.minutes = 1440",
+            *(Yealink.clock_lines(clk) if clk else []),
             ""])
+
+    @staticmethod
+    def clock_lines(clk: dict) -> list[str]:
+        out = ["# The clock: AthanBox's time zone, daylight saving and internet time (a time server from DHCP still comes first)",
+               f"local_time.time_zone = {clk['offset']}",
+               f"local_time.ntp_server1 = {NTP_SERVERS[0]}",
+               f"local_time.ntp_server2 = {NTP_SERVERS[1]}",
+               "local_time.interval = 3600"]
+        d = clk.get("dst")
+        if d:
+            out += ["local_time.summer_time = 1", "local_time.dst_time_type = 0",
+                    f"local_time.start_time = {d['start']}", f"local_time.end_time = {d['end']}",
+                    f"local_time.offset_time = {d['minutes']}"]
+        else:
+            out.append("local_time.summer_time = 0")
+        return out
 
     @staticmethod
     def phone_file(lines: list[tuple[int, dict, dict]], host: str, port: int) -> str:
@@ -509,7 +576,12 @@ class Provisioner:
         if brand is None or not name:
             return 404, b"Not found", plain
         if brand.common.match(name):
-            return 200, brand.common_file().encode(), plain
+            try:
+                clk = clock(cfg)
+            except Exception:   # never keep a phone from its lines over the clock
+                log.exception("Provisioning: couldn't work out the phones' clock")
+                clk = None
+            return 200, brand.common_file(clk).encode(), plain
         m = brand.own.match(name)
         if not m:
             return 404, b"Not found", plain   # the other files phones ask for (contacts, -local.cfg, ...)
