@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.8 - A dua for provision on the Crypto view
+
+- **Dua:** the bottom left of the Crypto view now shows the dua for provision from at-Tirmidhi 3563, in Arabic with the English underneath. The last refreshed time stays on the right.
+
 ## 0.9.7 - When the crypto prices last refreshed
 
 - **Last refreshed:** under the coins on the Crypto view, a line now says when the prices last refreshed, to the second on AthanBox's clock, and that they come from CoinGecko every minute. If a refresh fails, it says so there.
