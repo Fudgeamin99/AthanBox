@@ -32,6 +32,38 @@ nav button:hover{background:var(--panel-2);color:var(--ink)}
 nav button.active{background:var(--brand);color:var(--brand-ink)}
 nav button svg{width:18px;height:18px;flex:none}
 nav .spacer{flex:1}
+.subnav{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px}
+.subnav button{padding:7px 12px 7px 40px;font-size:14px;border-radius:8px}
+nav .subnav button.active{background:var(--panel-2);color:var(--ink);font-weight:600;box-shadow:inset 3px 0 0 var(--brand)}
+.crumb{font-size:13px;color:var(--muted);margin-bottom:2px}
+.chip{all:unset;cursor:pointer;padding:6px 12px;border-radius:99px;border:1px solid var(--line);font-size:13.5px;color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--bg);font-weight:600}
+.chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.provsearch{flex:1 1 300px;position:relative}
+.provsearch svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none}
+.provsearch input[type=search]{padding-left:36px}
+.linkbtn{all:unset;cursor:pointer;color:var(--brand);font-weight:600}
+.linkbtn:hover{text-decoration:underline}
+.linkbtn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.provtable tbody tr{cursor:pointer}
+.provtable tbody tr:hover td{background:var(--panel-2)}
+.provtable tr.hl td{background:var(--warn-bg)}
+.provtable td{vertical-align:middle}
+.extchip{display:inline-block;padding:2px 8px;border-radius:6px;background:var(--panel-2);font-size:12.5px;margin:2px 4px 2px 0;white-space:nowrap}
+.provsplit{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}
+.provsplit aside{display:flex;flex-direction:column;gap:4px}
+.provsplit aside .provsearch{flex:none;margin-bottom:6px}
+.provitem{all:unset;cursor:pointer;display:block;padding:10px 12px;border-radius:10px;border:1px solid transparent;font-size:14px}
+.provitem:hover{background:var(--panel-2)}
+.provitem.on{background:var(--panel-2);border-color:var(--brand)}
+.provitem:focus-visible{outline:2px solid var(--brand)}
+.provitem small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+#provdetail{border-left:1px solid var(--line);padding-left:20px;min-width:0}
+.provline{display:grid;grid-template-columns:130px minmax(0,1fr) 110px 40px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.provline>button{justify-self:end}
+.provline.head{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600;border-top:0;padding-bottom:2px}
+.provmodal{max-width:640px!important;width:100%;text-align:left!important;padding:24px 26px!important;max-height:92vh;overflow:auto}
+@media (max-width:900px){ .provsplit{grid-template-columns:1fr} #provdetail{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px} .provline{grid-template-columns:1fr 1.6fr} .provline.head{display:none} }
 .status-mini{padding:12px;border-radius:10px;background:var(--panel-2);font-size:13px;color:var(--muted)}
 .status-mini b{color:var(--ink);display:block;font-size:14px}
 main{padding:28px 34px 110px;max-width:1080px;width:100%}
@@ -223,6 +255,7 @@ ol.steps .muted{font-size:13px}
 @media (max-width:900px){
   .layout{grid-template-columns:1fr} nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}
   nav .spacer,.status-mini{display:none} .logo{padding:6px 10px}
+  .subnav{flex-direction:row;flex-basis:100%;flex-wrap:wrap} .subnav button{padding:7px 12px}
   main{padding:20px 16px 110px} .prayers{grid-template-columns:repeat(3,1fr)} .grid2,.grid3,.choice{grid-template-columns:1fr}
 }
 </style>
@@ -237,7 +270,11 @@ ol.steps .muted{font-size:13px}
     <button data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Today</button>
     <button data-page="times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prayer times</button>
     <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
-    <button data-page="phones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
+    <button data-page="phones" id="phonesbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M12 18h.01"/></svg>Phones</button>
+    <div class="subnav" id="phonesub" hidden>
+      <button data-page="phones">Your phones</button>
+      <button data-page="provisioning">Remote provisioning</button>
+    </div>
     <button data-page="ramadan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Ramadan</button>
     <button data-page="display" title="Theme and layout of the prayer-times screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>Display</button>
     <button data-page="tv" title="Show the prayer times on a TV and play the azan through it, from an iPad, an Android device or a smart TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M7 21h10M9.5 9.5v5l4-2.5z"/></svg>TV app</button>
@@ -419,7 +456,7 @@ applyPanelLook(PANEL_LOOK);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyPanelLook(PANEL_LOOK));
 
 // ---------------------------------------------------------------- state
-let S = null, stateAt = 0, CFG = null, SAVED = "", META = null, page = location.hash.slice(1) || "overview";
+let provTick = 0, S = null, stateAt = 0, CFG = null, SAVED = "", META = null, page = location.hash.slice(1) || "overview";
 let editing = null, previewTimer = null, previewData = null, logSeen = 0, offline = false, restartingUI = false;
 
 async function loadConfig(){
@@ -460,6 +497,7 @@ async function poll(){
   if(page==="overview") renderOverviewLive();
   if(page==="settings") renderLog();
   if(page==="phones" && CFG) refreshRegPills();
+  if(page==="provisioning" && CFG && PROV && !PROV.error && ++provTick % 5 === 0) api("/api/provisioning").then(r=>{ PROV=r; provListOnly(); }).catch(()=>{});
   if(page==="tv"){ const el=$("#tvlist"); if(el) el.innerHTML = tvListHTML(); }
   if(page==="security" && SEC && ++secTick % 3 === 0) loadSecurity().then(secLive);
   }catch(e){ console.error(e); }
@@ -503,11 +541,14 @@ function sw(path, checked, extra=""){ return `<label class="switch"><input type=
 
 // ---------------------------------------------------------------- pages
 document.querySelectorAll("nav button[data-page]").forEach(b=>b.onclick=()=>go(b.dataset.page));
-function go(p){ page=p; location.hash=p; editing=null; if(p==="security") SEC=null; render(); window.scrollTo(0,0); if(p==="times") schedulePreview(0); }
+function go(p){ if(p!=="provisioning"){ PV.sel=""; PV.draft=null; PV.modal=false; } page=p; location.hash=p; editing=null; if(p==="security") SEC=null; render(); window.scrollTo(0,0); if(p==="times") schedulePreview(0); }
 function render(){
   document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
+  const inPhones = page==="phones"||page==="provisioning";
+  $("#phonesbtn").classList.toggle("active", inPhones); $("#phonesbtn").setAttribute("aria-expanded", String(inPhones && SESSION.box));
+  $("#phonesub").hidden = !(inPhones && SESSION.box);
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
-  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, security:pageSecurity, settings:pageSettings}[page]||pageOverview)();
+  ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, provisioning:pageProvisioning, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, security:pageSecurity, settings:pageSettings}[page]||pageOverview)();
 }
 function stoppedHTML(){ return `<div class="stopped card"><h1>AthanBox is not running</h1><p class="sub">The azan will not play until it is started again.</p><p>Double-click <b>Azan SIP</b> in the azan-sip folder to start it. This page will reconnect by itself.</p></div>`; }
 
@@ -777,7 +818,7 @@ function toEdit(t){
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
   e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)})):[];
-  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):"", handset:a.handset?String(a.handset):"", keep_lines:(a.keep_lines||[]).join(", ")})):[];
+  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):"", handset:a.handset?String(a.handset):"", keep_lines:(a.keep_lines||[]).join(", "), phone:a.phone||""})):[];
   return e;
 }
 function fromEdit(e){
@@ -811,6 +852,7 @@ function fromEdit(e){
       const keep=String(a.keep_lines||"").split(/[\s,]+/).filter(Boolean).map(v=>parseInt(v,10));
       if(keep.some(n=>!(n>=1&&n<=16))) throw new Error(`Other lines on the base are line numbers from 1 to 16, such as 1 or 1, 2`);
       if(hs&&keep.length) x.keep_lines=[...new Set(keep)].sort((p,q)=>p-q);
+      if(x.mac&&String(a.phone||"").trim()) x.phone=String(a.phone).trim();
       return x; });
     if(!accts.length) throw new Error("Add at least one desk phone");
     const seen=new Set();
@@ -838,7 +880,7 @@ function sipOthers(e, accts, port){
 }
 function pagePhones(){
   const ts=CFG.targets;
-  let html = `<h1>Phones</h1><p class="sub">Where the azan is played. You can use more than one method at the same time.</p>`;
+  let html = `${SESSION.box?'<div class="crumb">Phones › Your phones</div>':""}<h1>${SESSION.box?"Your phones":"Phones"}</h1><p class="sub">Where the azan is played. You can use more than one method at the same time.</p>`;
   if(editing){ html += editorHTML(); }
   else {
     html += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your phones</h2><button class="btn primary" onclick="editTarget(-1)">+ Add phones</button></div>
@@ -846,77 +888,188 @@ function pagePhones(){
         <button class="btn small" onclick="testTarget(${i})">${ICON.play} Test</button><button class="btn small" onclick="editTarget(${i})">Edit</button>
         <label class="switch" title="On/off"><input type="checkbox" data-path="targets.${i}.enabled" data-kind="bool" ${t.enabled!==false?"checked":""}><span></span></label></div>`).join("")
       :'<div class="empty">No phones yet. Click <b>Add phones</b> to start.</div>'}
-      </div>${SESSION.box?'<div class="card" id="prov"><h2>Remote provisioning</h2><p class="muted">Loading…</p></div>':""}${guideHTML()}`;
+      </div>${guideHTML()}`;
   }
   $("#main").innerHTML = html;
-  if(SESSION.box && !editing) provLoad();
+  if(SESSION.box && !editing && !PROV) provLoad();
 }
-// ---- Remote provisioning: desk phones download their AthanBox line from a link (on the network or from anywhere)
+// ---- Remote provisioning (Phones › Remote provisioning): desk phones download their AthanBox line from a link,
+// on the network or from anywhere. One list of phones by MAC address; open one to choose its extensions.
 let PROV = null;
+const PV = {q:"", filter:"all", sel:"", draft:null, modal:false, linkset:false};   // the page's own state
 async function provLoad(){ try{ PROV = await api("/api/provisioning"); }catch(e){ PROV = {error:e.message}; } provFill(); }
+const provAgo = s=>s<90?"just now":s<3600?`${Math.round(s/60)} min ago`:s<86400?`${Math.round(s/3600)} h ago`:`${Math.round(s/86400)} days ago`;
+function provDesk(){ return (CFG.targets.find(t=>t.type==="phones")||{}).accounts||[]; }
+// Every phone on the page: the ones with extensions, then any that asked for their settings but aren't added yet
+function provRows(){
+  const P=PROV||{}, rows=(P.phones||[]).map(ph=>{ const on=ph.lines.some(l=>l.signed_in);
+    return {...ph, state:on?"on":ph.fetched==null?"never":"off"}; });
+  const have=new Set(rows.map(r=>r.key));
+  for(const x of (P.recent||[])) if(!x.lines.length && !have.has(x.key)){ have.add(x.key); rows.push({mac:x.mac, key:x.key, name:"", model:x.model||"", ip:x.ip, fetched:x.ago, lines:[], state:"new"}); }
+  return rows;
+}
+function provMatch(r){
+  const q=PV.q.trim().toLowerCase(), flat=q.replace(/[\s:.\-]/g,"");
+  if(PV.filter==="on"&&r.state!=="on" || PV.filter==="new"&&r.state!=="new" || PV.filter==="never"&&r.state!=="never") return false;
+  if(!q) return true;
+  return (flat && r.key.includes(flat)) || (r.name||"").toLowerCase().includes(q) || (r.model||"").toLowerCase().includes(q)
+    || (r.label||"").toLowerCase().includes(q) || r.lines.some(l=>String(l.username).toLowerCase().includes(q) || (l.name||"").toLowerCase().includes(q));
+}
+function provStatus(r){
+  if(r.state==="new") return `<span class="pill warn">Asked ${provAgo(r.fetched)} · ${esc(r.ip)}</span>`;
+  if(r.state==="never") return `<span class="pill">Never fetched</span>`;
+  return `<span class="pill ${r.state==="on"?"ok":""}"><span class="dot"></span>${r.state==="on"?"Signed in":"Not signed in"} · ${provAgo(r.fetched)}</span>`;
+}
+const provModel = r=>r.model?`Yealink ${esc(r.model)}`:r.cordless?"Yealink cordless base":"";
+const provExts = r=>r.lines.length?r.lines.map(l=>`<span class="extchip">${r.cordless&&l.handset?"H"+esc(l.handset):"L"+esc(l.line)} · ${esc(l.username)}${l.name?" "+esc(l.name):""}</span>`).join(""):`<span style="color:var(--warn);font-size:13px">No number yet</span>`;
+function pageProvisioning(){
+  if(!SESSION.box){ page="phones"; return pagePhones(); }
+  $("#main").innerHTML = `<div class="crumb">Phones › Remote provisioning</div><div id="prov"><h1>Remote provisioning</h1><p class="muted">Loading…</p></div>`;
+  if(PROV) provFill();
+  provLoad();
+}
 function provFill(){
-  const el=$("#prov"); if(!el||page!=="phones") return;
+  const el=$("#prov"); if(!el||page!=="provisioning") return;
   const P=PROV||{};
-  if(P.error && P.enabled===undefined){ el.innerHTML=`<h2>Remote provisioning</h2><div class="banner bad">${ICON.warn}<div>${esc(P.error)}</div></div>`; return; }
-  const desk=(CFG.targets.find(t=>t.type==="phones")||{}).accounts||[], withMac=desk.filter(a=>a.mac);
-  const ago=s=>s<90?"just now":s<3600?`${Math.round(s/60)} min ago`:s<86400?`${Math.round(s/3600)} h ago`:`${Math.round(s/86400)} days ago`;
-  el.innerHTML = `<div class="toggle-row" style="padding-top:0"><div><div class="t">Remote provisioning ${P.enabled?(P.running?'<span class="pill ok">On</span>':'<span class="pill bad">Not running</span>'):'<span class="pill">Off</span>'}</div>
-      <div class="d">Desk phones download their AthanBox line, with auto-answer on, from a link, so nobody types SIP details on the phone. Works for phones on this network and, with a port forwarded on the router, for phones anywhere. Yealink desk phones and DECT bases (W60B with W52H/W56H handsets).</div></div>
-    <label class="switch"><input type="checkbox" ${P.enabled?"checked":""} onchange="provSet({enabled:this.checked})" aria-label="Remote provisioning"><span></span></label></div>
+  if(P.error && P.enabled===undefined){ el.innerHTML=`<h1>Remote provisioning</h1><div class="banner bad">${ICON.warn}<div>${esc(P.error)}</div></div>`; return; }
+  el.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:18px">
+      <div style="flex:1;min-width:260px"><h1>Remote provisioning ${P.enabled?(P.running?'<span class="pill ok">On</span>':'<span class="pill bad">Not running</span>'):'<span class="pill">Off</span>'}</h1>
+      <p class="sub" style="margin:0">Desk phones download their AthanBox line, with auto-answer on, from one link, so nobody types SIP details on the phone. Yealink desk phones and cordless bases.</p></div>
+      <label class="row" style="gap:10px;font-size:14px;color:var(--muted)">Provisioning <span class="switch"><input type="checkbox" ${P.enabled?"checked":""} onchange="provSet({enabled:this.checked})" aria-label="Remote provisioning"><span></span></span></label></div>
     ${P.error?`<div class="banner bad">${ICON.warn}<div>${esc(P.error)}</div></div>`:""}
-    ${P.enabled&&P.links&&P.links.length?`<div class="lbl" style="margin:10px 0 6px">Provisioning link (Yealink)</div>
-      ${P.links.map(l=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t">${esc(l.label)}</div><div class="d mono" style="word-break:break-all">${esc(l.url)}</div></div><button class="btn small" onclick="provCopy('${esc(l.url)}')">Copy</button></div>`).join("")}
-      <div class="row" style="margin-top:8px"><button class="btn small danger" onclick="provNewLink()">New link</button><span class="muted" style="font-size:13px">Makes a new link. Phones with the old one stop getting their settings until they have the new one.</span></div>`:""}
-    ${P.enabled?`<div class="grid3" style="margin-top:14px">
+    ${P.enabled?provLinkHTML(P)+`<div class="card" id="provphones"></div>`+provHowHTML(P)
+      :`<div class="card empty">Switch on <b>Provisioning</b> to get the link for your desk phones.</div>`}
+    ${PV.modal?provModalHTML():""}`;
+  provList();
+}
+function provLinkHTML(P){
+  return `<div class="card" style="padding:14px 18px">${(P.links||[]).map(l=>`<div class="row" style="gap:14px;padding:4px 0">
+      <div style="flex:1;min-width:240px"><div class="lbl">${esc(l.label)} · paste into the phone's Settings → Auto Provision → Server URL</div>
+      <div class="mono" style="font-size:13.5px;word-break:break-all;margin-top:2px">${esc(l.url)}</div></div>
+      <button class="btn small" onclick="provCopy('${esc(l.url)}')">Copy</button></div>`).join("")}
+    <div class="row" style="margin-top:8px"><button class="btn small" aria-expanded="${PV.linkset}" onclick="PV.linkset=!PV.linkset;provFill()">${ICON.gear||""} Link settings</button>
+      ${P.host?"":'<span class="muted" style="font-size:13px">Phones outside this network: fill in the public address under Link settings.</span>'}</div>
+    ${PV.linkset?`<div class="grid3" style="margin-top:14px">
       <div class="field"><label for="prov-host">Public address</label><input type="text" id="prov-host" value="${esc(P.host||"")}" placeholder="azan.example.com or 203.0.113.7" spellcheck="false" onchange="provSet({host:this.value})"><div class="hint">The address phones outside this network use to reach AthanBox: your router's public IP or a dynamic DNS name. Leave it empty if every phone is on this network.</div></div>
       <div class="field"><label for="prov-port">Provisioning port</label><input type="number" min="1024" max="65535" id="prov-port" value="${esc(P.port||8766)}" onchange="provSet({port:+this.value})"><div class="hint">Only the provisioning links answer on this port, not the control panel.</div></div>
       <div class="field"><label for="prov-allow">Allowed addresses (optional)</label><input type="text" id="prov-allow" value="${esc((P.allow||[]).join(", "))}" placeholder="Anyone with the link" spellcheck="false" onchange="provSet({allow:this.value})"><div class="hint">Only these addresses or ranges may download, such as the remote office's public IP. Separate them with commas.</div></div></div>
-    <div class="lbl" style="margin:16px 0 6px">Add a phone</div>
-    <div class="provadd" style="align-items:end">
-      <div class="field" style="margin:0"><label for="prov-mac">MAC address</label><input type="text" id="prov-mac" placeholder="80:5E:C0:12:34:56" spellcheck="false" autocomplete="off"></div>
-      <div class="field" style="margin:0"><label for="prov-name">Name</label><input type="text" id="prov-name" maxlength="40" placeholder="Main hall" autocomplete="off"></div>
-      <div class="field" style="margin:0"><label for="prov-lines">Lines</label><input type="number" id="prov-lines" min="1" max="8" value="1"></div>
-      <div class="field" style="margin:0"><label for="prov-first">From line</label><input type="number" id="prov-first" min="1" max="16" placeholder="Next free"></div></div>
-    <label class="row" style="gap:8px;margin-top:10px;font-size:14px"><input type="checkbox" id="prov-cordless" onchange="provCordless()"> <span><b>Yealink cordless base</b> (W60B, W52P, W56P and others): one line per handset, so each handset picks up by itself</span></label>
-    <div class="field" id="prov-keep-f" style="margin:8px 0 0;max-width:340px;display:none"><label for="prov-keep">The base's other lines</label><input type="text" id="prov-keep" placeholder="e.g. 1" autocomplete="off"><div class="hint">Lines already on the base, such as your phone system's line 1. They keep ringing every handset. Leave empty if AthanBox is the base's only line.</div></div>
-    <div class="row" style="margin-top:8px"><button class="btn primary" onclick="provAdd()">Add phone</button><span class="muted" style="font-size:13px" id="prov-add-hint">Makes the extensions (with passwords) and saves them. For a DECT base, tick Yealink cordless base. Then give the phone the link once.</span></div>
-    ${provPhonesHTML(P)}
-    <details style="margin-top:12px"><summary>Set it up</summary><p>
-      <b>1. Add the phone:</b> use <b>Add a phone</b> above with its MAC address (or press <b>Add this phone</b> on a phone that already asked). Pick <b>From line</b> 2 if line 1 is your phone system's. On a DECT base, add one line per handset. You can also type a MAC address on an extension under <b>Desk phones sign in to AthanBox</b>.<br>
+      <div class="row"><button class="btn small danger" onclick="provNewLink()">New link</button><span class="muted" style="font-size:13px">Makes a new link. Phones with the old one stop getting their settings until they have the new one.</span></div>`:""}</div>`;
+}
+function provHowHTML(P){
+  return `<div class="card"><details style="border:0;padding:0;margin:0"><summary style="margin:0">How to connect a phone</summary><p style="margin:10px 0 0">
+      <b>1. Add the phone:</b> press <b>+ Add MAC address</b>, or <b>Assign numbers</b> on a phone that already asked, and choose an extension for each line (or each handset on a cordless base). Leave line 1 as <b>Not AthanBox</b> if it's your phone system's.<br>
       <b>2. The phone:</b> on its web page go to <b>Settings → Auto Provision</b>, paste the link into <b>Server URL</b>, leave the user name and password empty, and press <b>Confirm</b> then <b>Auto Provision Now</b>. On a network with your own DHCP server, DHCP option 66 can hand out the link instead.<br>
-      <b>3. Phones outside this network:</b> on AthanBox's router, forward <b>TCP port ${esc(P.port||8766)}</b> (provisioning) and <b>UDP port ${esc(sipPort())}</b> (SIP) to <span class="mono">${esc(P.ip||"AthanBox")}</span>, fill in the <b>Public address</b>, and give the phone the <b>From anywhere</b> link. The control panel stays private: only the links answer on port ${esc(P.port||8766)}.<br>
-      <span class="muted">The phones get <b>auto-answer</b> on AthanBox's line, intercom answering with the microphone off, Auto Intercom on DECT handsets, and a daily check for changes. The link is plain http, so anyone who can see the traffic between the phone and AthanBox could read the SIP password: use the allowed addresses to keep it to your own sites. A wrong link is logged, and fail2ban's <b>Control panel</b> jail bans an address that keeps guessing.</span></p></details>
-    <div class="lbl" style="margin:12px 0 6px">Phones that asked recently</div>
-    ${(P.recent||[]).length?(P.recent||[]).map(x=>`<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(x.mac)}</span> <span class="muted" style="font-weight:400;font-size:13px">${esc(x.brand)} · ${esc(x.ip)} · ${ago(x.ago)}</span></div>
-      <div class="d">${x.lines.length?`Got ${x.lines.map(esc).join(", ")}`:"Not added yet"}</div></div>
-      ${x.lines.length?'<span class="pill ok">Provisioned</span>':`<button class="btn small primary" onclick="provPick('${esc(x.mac)}')">Add this phone</button>`}</div>`).join("")
-      :`<p class="muted" style="margin:4px 0 0">${withMac.length?"None yet.":"None yet. Add the phone's MAC address to a desk phone first."}</p>`}`:""}`;
+      <b>3. Phones outside this network:</b> on AthanBox's router, forward <b>TCP port ${esc(P.port||8766)}</b> (provisioning) and <b>UDP port ${esc(sipPort())}</b> (SIP) to <span class="mono">${esc(P.ip||"AthanBox")}</span>, fill in the <b>Public address</b> under <b>Link settings</b>, and give the phone the <b>From anywhere</b> link. The control panel stays private: only the links answer on port ${esc(P.port||8766)}.<br>
+      <span class="muted">The phones get <b>auto-answer</b> on AthanBox's line, intercom answering with the microphone off, Auto Intercom on cordless handsets, and a daily check for changes. <b>Update now</b> on a phone asks it to download its settings again straight away. The link is plain http, so anyone who can see the traffic between the phone and AthanBox could read the SIP password: use the allowed addresses to keep it to your own sites. A wrong link is logged, and fail2ban's <b>Control panel</b> jail bans an address that keeps guessing.</span></p></details></div>`;
 }
-function provPhonesHTML(P){
-  const list=P.phones||[]; if(!list.length) return "";
-  const ago=s=>s==null?"hasn't fetched its settings yet":s<90?"fetched just now":s<3600?`fetched ${Math.round(s/60)} min ago`:s<86400?`fetched ${Math.round(s/3600)} h ago`:`fetched ${Math.round(s/86400)} days ago`;
-  const any=list.some(ph=>ph.lines.some(l=>l.signed_in));
-  return `<div class="row" style="justify-content:space-between;margin:16px 0 6px"><div class="lbl" style="margin:0">Provisioned phones</div>${any&&list.length>1?`<button class="btn small" onclick="provUpdate('')">Update all phones</button>`:""}</div>
-    ${list.map(ph=>{ const on=ph.lines.some(l=>l.signed_in);
-      return `<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(ph.mac)}</span> <span class="muted" style="font-weight:400;font-size:13px">${esc(ago(ph.fetched))}</span></div>
-        <div class="d">${ph.lines.map(l=>`Line ${l.line}${l.handset?` → handset ${esc(l.handset)}`:""}: ${esc(l.name||"")} (${esc(l.username)})${l.signed_in?" · signed in":""}`).join(" · ")}</div></div>
-        <button class="btn small" ${on?"":"disabled title=\"Not signed in yet: press Auto Provision Now on the phone the first time\""} onclick="provUpdate('${esc(ph.mac)}')">Update now</button></div>`; }).join("")}
-    <div class="hint" style="margin-top:6px"><b>Update now</b> asks a signed-in phone to download its settings again straight away, after you change its lines or passwords, instead of waiting for its daily check.</div>`;
+// The list (or, with a phone open, the list beside that phone). Redrawn alone while typing in the search box.
+function provList(){
+  const el=$("#provphones"); if(!el) return;
+  const all=provRows(), rows=all.filter(provMatch), n=k=>all.filter(r=>k==="all"||r.state===k).length;
+  const sel=PV.sel&&all.find(r=>r.key===PV.sel);
+  if(PV.sel && !sel){ PV.sel=""; PV.draft=null; }
+  const chips=[["all","All"],["on","Signed in"],["new","Needs numbers"],["never","Never fetched"]].map(([k,t])=>`<button class="chip ${PV.filter===k?"on":""}" aria-pressed="${PV.filter===k}" onclick="PV.filter='${k}';provList()">${t} ${n(k)}</button>`).join("");
+  const anyOn=all.some(r=>r.state==="on");
+  const search=`<div class="provsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input type="search" id="prov-q" placeholder="Search MAC, name or extension" aria-label="Search phones" value="${esc(PV.q)}" oninput="PV.q=this.value;provListOnly()"></div>`;
+  const head=`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Phones <span class="muted" style="font-weight:500">· ${all.length}</span></h2>
+    <div class="row" style="gap:8px">${anyOn&&all.length>1?`<button class="btn small" onclick="provUpdate('')">Update all phones</button>`:""}<button class="btn small primary" onclick="provOpenNew('')">+ Add MAC address</button></div></div>`;
+  if(sel){
+    el.innerHTML = `${head}<div class="provsplit"><aside>${search}<div id="provitems">${provItemsHTML(rows)}</div></aside><section id="provdetail">${provDetailHTML(sel)}</section></div>`;
+    return;
+  }
+  el.innerHTML = `${head}<div class="row" style="gap:8px;margin-bottom:10px">${search}${chips}</div><div id="provitems">${provTableHTML(rows, all.length)}</div>`;
 }
-function provCordless(){ const on=$("#prov-cordless").checked; $("#prov-keep-f").style.display=on?"":"none";
-  $("label[for=prov-lines]").textContent=on?"Handsets":"Lines";
-  $("#prov-add-hint").textContent=on?"Makes one extension per handset and saves them. The base then rings each AthanBox line on its own handset. Give the base the link once.":"Makes the extensions (with passwords) and saves them. For a DECT base, tick Yealink cordless base. Then give the phone the link once."; }
-function provPick(m){ const el=$("#prov-mac"); if(!el) return; el.value=m; $("#prov-name").focus(); el.scrollIntoView({block:"center"}); }
+function provListOnly(){ const el=$("#provitems"); if(!el) return; const rows=provRows().filter(provMatch); el.innerHTML = PV.sel?provItemsHTML(rows):provTableHTML(rows, provRows().length); }
+function provTableHTML(rows, total){
+  if(!total) return `<div class="empty">No phones yet. Press <b>+ Add MAC address</b>, or give a phone the link: it shows up here when it asks.</div>`;
+  if(!rows.length) return `<div class="empty">No phone matches.</div>`;
+  return `<div style="overflow-x:auto"><table class="provtable"><thead><tr><th>MAC address</th><th>Name</th><th>Model</th><th>Numbers on this phone</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(r=>`<tr class="${r.state==="new"?"hl":""}" onclick="provOpen('${esc(r.key)}')"><td class="mono">${esc(r.mac)}</td><td>${r.label?esc(r.label):'<span class="muted">Not named</span>'}</td><td>${provModel(r)}</td><td>${provExts(r)}</td><td>${provStatus(r)}</td>
+      <td style="text-align:right">${r.state==="new"?`<button class="btn small primary" onclick="event.stopPropagation();provOpenNew('${esc(r.mac)}')">Assign numbers</button>`:`<button class="btn small" onclick="event.stopPropagation();provOpen('${esc(r.key)}')">Open ›</button>`}</td></tr>`).join("")}
+    </tbody></table></div><div class="hint" style="margin-top:10px">A phone that fetches the link but isn't added yet shows up here by itself, highlighted. Press a row to choose its numbers.</div>`;
+}
+function provItemsHTML(rows){
+  return rows.map(r=>`<button class="provitem ${r.key===PV.sel?"on":""}" ${r.key===PV.sel?'aria-current="true"':""} onclick="${r.state==="new"?`provOpenNew('${esc(r.mac)}')`:`provOpen('${esc(r.key)}')`}"><span class="mono">${esc(r.mac)}</span>
+    <small ${r.lines.length?"":'style="color:var(--warn)"'}>${r.lines.length?`${esc(r.label||"Not named")} · ${r.lines.map(l=>esc(l.username)).join(", ")}`:"No number yet"}</small></button>`).join("")||'<p class="muted">No phone matches.</p>';
+}
+// A phone's draft: its MAC, name, kind and one row per line (desk phone) or handset (cordless base)
+function provDraftFrom(r){
+  const cordless=!!r.cordless;
+  return {key:r.key, mac:r.mac, old:r.key, name:r.name||"", label:r.label||"", cordless, keep:(r.keep||[]).join(", "),
+    rows:r.lines.map(l=>({n:String(cordless?(l.handset||""):l.line), username:l.username}))};
+}
+function provOpen(k){ const r=provRows().find(x=>x.key===k); if(!r) return; PV.sel=k; PV.draft=provDraftFrom(r); PV.modal=false; provFill(); window.scrollTo(0,0); }
+function provOpenNew(m){ PV.draft={key:"", mac:m||"", old:"", name:"", cordless:false, keep:"", rows:[{n:"1", username:""},{n:"2", username:"new"}]}; if(!m) PV.draft.rows=[{n:"1", username:"new"}]; PV.modal=true; provFill(); setTimeout(()=>{ const el=$(m?"#pd-name":"#pd-mac"); if(el) el.focus(); }, 0); }
+function provClose(){ PV.modal=false; PV.draft=PV.sel?PV.draft:null; provFill(); }
+function provBack(){ PV.sel=""; PV.draft=null; provFill(); }
+function provExtOptions(cur){
+  const d=PV.draft, mine=new Set(d.rows.map(x=>String(x.username).toLowerCase()));
+  const where={}; for(const r of provRows()) for(const l of r.lines) where[String(l.username).toLowerCase()]=r;
+  const desk=provDesk().filter(a=>a.username);
+  return `<option value="" ${cur===""?"selected":""}>${d.cordless?"No AthanBox number":"Not AthanBox (left as it is)"}</option>
+    <option value="new" ${cur==="new"?"selected":""}>+ New extension</option>
+    ${desk.map(a=>{ const u=String(a.username), on=where[u.toLowerCase()], other=on&&on.key!==d.old;
+      if(mine.has(u.toLowerCase())&&u.toLowerCase()!==String(cur).toLowerCase()) return "";
+      return `<option value="${esc(u)}" ${u.toLowerCase()===String(cur).toLowerCase()?"selected":""}>${esc(u)}${a.name?" · "+esc(a.name):""}${other?` (on ${esc(on.label||on.mac)}, moves here)`:""}</option>`; }).join("")}`;
+}
+function provDraftHTML(){
+  const d=PV.draft, slot=d.cordless?"Handset":"Line", lines={};
+  const r=d.key&&provRows().find(x=>x.key===d.key);
+  if(r) for(const l of r.lines) lines[String(l.username).toLowerCase()]=l;
+  return `<div class="grid2"><div class="field"><label for="pd-mac">MAC address</label><input type="text" id="pd-mac" class="mono" value="${esc(d.mac)}" placeholder="80:5E:C0:12:34:56" spellcheck="false" autocomplete="off" oninput="PV.draft.mac=this.value"><div class="hint">On a sticker under the phone or the base.</div></div>
+      <div class="field"><label for="pd-name">Name</label><input type="text" id="pd-name" maxlength="40" value="${esc(d.name)}" placeholder="${esc(d.label||"Main hall")}" autocomplete="off" oninput="PV.draft.name=this.value"></div></div>
+    <div class="field"><span class="lbl">What is it?</span><div class="seg" role="radiogroup" aria-label="What is it?">
+      <label><input type="radio" name="pd-kind" ${d.cordless?"":"checked"} onchange="provKind(false)">Desk phone</label>
+      <label><input type="radio" name="pd-kind" ${d.cordless?"checked":""} onchange="provKind(true)">Yealink cordless base</label></div>
+      ${d.cordless?'<div class="hint" style="margin-top:4px">W60B, W52P, W56P and others. Each AthanBox number rings its own handset only, so that handset picks up the azan by itself.</div>':""}</div>
+    <div class="row" style="justify-content:space-between;margin:4px 0 2px"><h3 style="margin:0;font-size:15px">Numbers on this phone</h3><button class="btn small" onclick="provAddRow()">+ Add ${slot.toLowerCase()}</button></div>
+    <div class="hint" style="margin:0 0 6px">Pick an extension for each ${slot.toLowerCase()}. <b>+ New extension</b> makes one with its own number and password.</div>
+    <div class="provline head"><span>${slot}</span><span>AthanBox number (extension)</span><span>Status</span><span></span></div>
+    ${d.rows.map((x,i)=>{ const l=lines[String(x.username).toLowerCase()];
+      return `<div class="provline"><select aria-label="${slot}" onchange="PV.draft.rows[${i}].n=this.value">${Array.from({length:d.cordless?8:16},(_,j)=>`<option value="${j+1}" ${String(x.n)===String(j+1)?"selected":""}>${slot} ${j+1}</option>`).join("")}</select>
+        <select aria-label="Number for ${slot.toLowerCase()} ${esc(x.n)}" onchange="PV.draft.rows[${i}].username=this.value;provRedraw()">${provExtOptions(x.username)}</select>
+        <span>${l?(l.signed_in?'<span class="pill ok">Signed in</span>':'<span class="pill">Not yet</span>'):x.username==="new"?'<span class="pill">New</span>':""}</span>
+        <button class="btn small" aria-label="Remove this ${slot.toLowerCase()}" onclick="PV.draft.rows.splice(${i},1);provRedraw()">✕</button></div>`; }).join("")||`<p class="muted" style="margin:8px 0">No numbers yet. Press <b>+ Add ${slot.toLowerCase()}</b>.</p>`}
+    ${d.cordless?`<div class="field" style="margin:12px 0 0;max-width:360px"><label for="pd-keep">Lines kept for your phone system</label><input type="text" id="pd-keep" value="${esc(d.keep)}" placeholder="e.g. 1" autocomplete="off" oninput="PV.draft.keep=this.value"><div class="hint">Lines already on the base, such as your phone system's line 1. They keep ringing every handset. Leave empty if AthanBox is the base's only line.</div></div>`:""}`;
+}
+function provDetailHTML(r){
+  const on=r.lines.some(l=>l.signed_in);
+  return `<div class="row" style="justify-content:space-between;margin-bottom:6px"><button class="linkbtn" onclick="provBack()">‹ All phones</button>${provStatus(r)}</div>
+    <h2 style="font-size:20px;margin:6px 0 2px">${esc(r.label||r.mac)}</h2>
+    <div class="muted" style="font-size:13px;margin-bottom:14px">${[provModel(r), r.ip&&esc(r.ip), r.fetched!=null?`fetched its settings ${provAgo(r.fetched)}`:"hasn't fetched its settings yet"].filter(Boolean).join(" · ")}</div>
+    <div id="provdraft">${provDraftHTML()}</div>
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:14px;margin-top:16px">
+      <button class="btn danger" onclick="provRemove()">Remove phone</button>
+      <div class="row"><button class="btn" ${on?"":"disabled title=\"Not signed in yet: press Auto Provision Now on the phone the first time\""} onclick="provUpdate('${esc(r.mac)}')">Update now</button><button class="btn primary" onclick="provSave()">Save</button></div></div>`;
+}
+function provModalHTML(){
+  return `<div class="overlay" onclick="if(event.target===this)provClose()"><div class="card provmodal" role="dialog" aria-modal="true" aria-labelledby="pd-title">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 id="pd-title" style="margin:0;font-size:20px">Add a MAC address</h2><button class="btn small" aria-label="Close" onclick="provClose()">✕</button></div>
+    <div id="provdraft">${provDraftHTML()}</div>
+    <div class="hint" style="margin-top:12px">You can change the numbers later by opening the phone in the list.</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" onclick="provClose()">Cancel</button><button class="btn primary" onclick="provSave()">Add phone</button></div></div></div>`;
+}
+function provRedraw(){ const el=$("#provdraft"); if(el) el.innerHTML=provDraftHTML(); }
+function provKind(c){ const d=PV.draft; if(d.cordless===c) return; d.cordless=c; d.rows.forEach((x,i)=>x.n=String(i+1)); provRedraw(); }
+function provAddRow(){ const d=PV.draft, used=new Set(d.rows.map(x=>+x.n)); let n=1; while(used.has(n)) n++; if(n>(d.cordless?8:16)) return toast(d.cordless?"A base takes up to 8 handsets":"A phone takes up to 16 lines","bad"); d.rows.push({n:String(n), username:"new"}); provRedraw(); }
 function provApplyConfig(r){ if(!r.config) return; CFG=r.config; normalize(CFG); SAVED=JSON.stringify(CFG); dirty(); }
-async function provAdd(){
-  if(isDirty()) return toast("Save or discard your other changes first, then add the phone.","bad");
-  const cordless=$("#prov-cordless").checked;
-  const req={mac:$("#prov-mac").value, name:$("#prov-name").value, lines:+$("#prov-lines").value||1, line:+$("#prov-first").value||0, cordless, keep:cordless?$("#prov-keep").value:""};
-  await act(async()=>{ const r=await api("/api/provisioning/add", req); PROV=r; provApplyConfig(r); render();
-    toast(`Added ${r.added.map(a=>`${a.username} on line ${a.line}${a.handset?` (handset ${a.handset})`:""}`).join(", ")}. Now give the ${cordless?"base":"phone"} the link.`); });
+async function provSave(){
+  if(isDirty()) return toast("Save or discard your other changes first, then save the phone.","bad");
+  const d=PV.draft, slot=d.cordless?"handset":"line";
+  const req={mac:d.mac, old_mac:d.old, name:d.name, cordless:d.cordless, keep:d.cordless?d.keep:"", rows:d.rows.filter(x=>x.username).map(x=>({[slot]:+x.n, username:x.username}))};
+  await act(async()=>{ const r=await api("/api/provisioning/phone", req); PROV=r; provApplyConfig(r);
+    const m=String(d.mac).replace(/[\s:.\-]/g,"").toLowerCase();
+    const wasNew=PV.modal; PV.modal=false; PV.sel=m; const row=provRows().find(x=>x.key===m); PV.draft=row?provDraftFrom(row):null; if(!row) PV.sel=""; provFill();
+    toast(r.added.length?`Saved. New extension${r.added.length>1?"s":""} ${r.added.map(a=>a.username).join(", ")}. ${wasNew?`Now give the ${d.cordless?"base":"phone"} the link.`:"Press Update now so the phone gets it."}`:wasNew?`Saved. Now give the ${d.cordless?"base":"phone"} the link.`:"Saved. Press Update now so the phone gets it straight away."); });
+}
+async function provRemove(){
+  const d=PV.draft; if(!confirm(`Take ${d.name||d.mac} off remote provisioning? Its extensions stay under Your phones, and the phone keeps its current settings until it's reset.`)) return;
+  if(isDirty()) return toast("Save or discard your other changes first.","bad");
+  await act(async()=>{ const r=await api("/api/provisioning/phone", {mac:d.old||d.mac, remove:true}); PROV=r; provApplyConfig(r); PV.sel=""; PV.draft=null; provFill(); }, "Removed");
 }
 async function provUpdate(m){
-  await act(async()=>{ const r=await api("/api/provisioning/update", {mac:m}); PROV=r; provFill();
+  await act(async()=>{ const r=await api("/api/provisioning/update", {mac:m}); PROV=r; provList();
     const ok=r.results.filter(x=>x.ok).length;
     toast(ok===r.results.length?`Asked ${ok} phone${ok===1?"":"s"} to update. It takes a few seconds.`:`${ok} of ${r.results.length} phones accepted. The others didn't answer: press Auto Provision Now on them.`, ok?"ok":"bad"); });
 }
@@ -1008,10 +1161,7 @@ function editorHTML(){
           <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
           <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div>
-        <div class="grid4"><div class="field"><label for="dp${i}a">MAC address (for provisioning)</label><input type="text" id="dp${i}a" data-path="edit.desk.${i}.mac" placeholder="80:5E:C0:12:34:56" value="${esc(a.mac||"")}" spellcheck="false"><div class="hint">Optional. On a sticker under the phone (or the DECT base). The phone then gets this line from the provisioning link by itself.</div></div>
-          <div class="field"><label for="dp${i}l">Line on the phone</label><input type="number" min="1" max="16" id="dp${i}l" data-path="edit.desk.${i}.line" placeholder="Next free" value="${esc(a.line||"")}"><div class="hint">Which account on the phone it fills. Pick 2 if line 1 is your phone system's. On a DECT base, a line rings the handsets whose Incoming Lines include it.</div></div>
-          <div class="field"><label for="dp${i}h">Handset (cordless base)</label><input type="number" min="1" max="8" id="dp${i}h" data-path="edit.desk.${i}.handset" placeholder="None" value="${esc(a.handset||"")}"><div class="hint">On a Yealink cordless base: the one handset this line rings, so it picks up by itself.</div></div>
-          <div class="field"><label for="dp${i}k">The base's other lines</label><input type="text" id="dp${i}k" data-path="edit.desk.${i}.keep_lines" placeholder="e.g. 1" value="${esc(a.keep_lines||"")}"><div class="hint">With a handset set: lines that keep ringing it too, such as the phone system's.</div></div></div></div>`).join("")}
+        ${SESSION.box?`<div class="hint" style="margin-top:8px">${a.mac?`On phone <span class="mono">${esc(a.mac)}</span>${a.phone?" ("+esc(a.phone)+")":""}, ${a.handset?"handset "+esc(a.handset):"line "+esc(a.line||"next free")}. `:""}Which phone and line it's on is set on <button class="linkbtn" onclick="go('provisioning')">Remote provisioning</button>.</div>`:""}</div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
       <div class="hint">For the azan, AthanBox rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into AthanBox are always refused, and repeated wrong passwords are blocked.</div>`;
   }
@@ -1059,7 +1209,7 @@ function guideHTML(){
   <details><summary>Yealink cordless (W52P, W56P, W60B DECT)</summary><p>The cordless handsets (W52H, W56H, W59R and others) pick up the azan by themselves only when both of these are true:<br>
     1. <b>Auto Intercom is on, on every handset.</b> On each handset: Menu → Settings → Telephony → <b>Auto Intercom</b> → <b>On (Beep Off)</b> (or On (Beep On) for a short beep first). It is set on each handset on its own.<br>
     2. <b>The line the azan comes in on rings only that one handset.</b> When a line rings several handsets, the base rings them all and none picks up by itself. So give each handset its own line: add one account per handset under <b>Desk phones sign in to AthanBox</b>, register each on the base's web page under Account → Register (Account 1, 2, 3...), and set each account's <b>Incoming Lines</b> to just its handset (on the handset: Menu → Settings → Telephony → Incoming Lines, base PIN 0000 by default).<br>
-    <b>Easiest:</b> under <b>Remote provisioning</b> above, use <b>Add a phone</b> with the base's MAC address and tick <b>Yealink cordless base</b>. AthanBox makes one extension per handset, and the base gets each line set to ring its own handset, with Auto Intercom on, from the link.<br>
+    <b>Easiest:</b> on <b>Phones › Remote provisioning</b>, press <b>+ Add MAC address</b>, type the base's MAC address and choose <b>Yealink cordless base</b>. AthanBox makes one extension per handset, and the base gets each line set to ring its own handset, with Auto Intercom on, from the link.<br>
     <span class="muted">Calling the base by its IP address (Call each phone directly) or through a paging group that rings one shared line will only ring. Multicast paging also works on these bases (Directory → Multicast IP → Multicast Listening), but only when AthanBox is on the same local network, never from the cloud. Keep the base and handsets on recent firmware (base 25.81 or later for the W52P). A handset that is on a call won't pick up.</span></p></details>
   <details><summary>Grandstream UCM</summary><p>1. <b>Extension/Trunk → Extensions</b>: add (or pick) an extension for AthanBox, e.g. <span class="kbd">1004</span>, name it "Azan". Note its <b>SIP/IAX password</b> (not the user portal password).<br>
     2. <b>Call Features → Paging/Intercom</b>: add a <b>Paging</b> group, e.g. number <span class="kbd">6300</span>, and add the desk phones as members.<br>
@@ -1074,7 +1224,7 @@ function guideHTML(){
     <b>Fanvil / Snom:</b> add the line, and turn on auto-answer (intercom) for it, with the microphone muted.<br>
     <b>Poly / Polycom:</b> add the line, then set <span class="kbd">voIpProt.SIP.alertInfo.1.value = alert-autoanswer</span> and <span class="kbd">voIpProt.SIP.alertInfo.1.class = autoAnswer</span>.<br>
     <span class="muted">The phone shows the line as registered, and the phone shows "Signed in" here. Press <b>Test</b> next to the entry: the phones should pick up by themselves and play the chime.</span><br>
-    <b>Or let the phone set itself up:</b> fill in the phone's MAC address on the desk phone here and use <b>Remote provisioning</b> above. Yealink phones then get the line and auto-answer from the link, on this network or from anywhere.</p></details>
+    <b>Or let the phone set itself up:</b> add its MAC address on <b>Phones › Remote provisioning</b> and choose its extensions there. Yealink phones then get the line and auto-answer from the link, on this network or from anywhere.</p></details>
   <details><summary>Grandstream UCM as a SIP trunk to AthanBox</summary><p>1. <b>Extension/Trunk → VoIP Trunks → Add SIP Trunk</b>: Type <b>Register SIP Trunk</b>, Provider name "AthanBox", Host name = AthanBox's IP address and port (e.g. <span class="kbd">192.168.1.20:5060</span>), Username and Password = the SIP trunk account here.<br>
     2. <b>Extension/Trunk → Inbound Routes</b>: add a route for that trunk with the pattern = the account's <b>Number to call</b> (e.g. <span class="kbd">7000</span>), destination = your Paging/Intercom group.<br>
     3. The trunk shows as registered on the UCM and "Signed in" here. No extension is needed for AthanBox.</p></details>

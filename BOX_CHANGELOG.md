@@ -6,6 +6,18 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.3 - A tidier Phones page, with its own Remote provisioning page
+
+- **Phones has a sub-menu:** **Your phones** and **Remote provisioning**. Your phones keeps the list of ways the azan reaches your phones, with the **Phone setup guide** under it.
+- **Remote provisioning** is now a page of its own. The link sits at the top with **Copy**. **Public address**, **Provisioning port**, **Allowed addresses** and **New link** are under **Link settings**, out of the way day to day.
+- **One list of phones by MAC address**, with a search box (MAC, name or extension) and filters: **Signed in**, **Needs numbers** and **Never fetched**. Each row shows the phone's name, model, the numbers on it and whether it's signed in. A phone that fetched the link but isn't added yet shows up by itself, highlighted, with an **Assign numbers** button.
+- **Click a phone to choose its numbers:** pick an extension for each line (desk phone) or each handset (Yealink cordless base) from a list of your extensions, or **+ New extension**, which makes one with its own number and password. **Not AthanBox** leaves a line, such as your phone system's line 1, as it is. **Update now** and **Remove phone** are there too. Removing a phone keeps its extensions.
+- **+ Add MAC address** opens a short window: the MAC, a name, desk phone or cordless base, and the numbers, in one go.
+- Editing **Desk phones sign in to AthanBox** under Your phones now only asks for each extension's name, number, password and sign-ins. Its MAC address, line and handset are set on Remote provisioning, and each extension says which phone it's on. Existing settings carry over as they are.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update.
+
 ## 0.9.2 - Yealink cordless handsets picking up the azan
 
 - **Add a cordless base in one step.** Under **Remote provisioning** on the **Phones** page, **Add a phone** has a new **Yealink cordless base** tick box. Type the base's MAC address and how many handsets: AthanBox makes one extension per handset, and the base's settings from the provisioning link set each AthanBox line to ring its own handset only, with Auto Intercom on, so every handset picks up the azan by itself. This works with AthanBox in the cloud too. **The base's other lines** (such as your phone system's line 1) keep ringing every handset.
