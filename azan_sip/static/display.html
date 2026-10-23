@@ -119,6 +119,30 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .live .stage{gap:1.6vw;margin-top:2.6vh}
 .live .player{display:block;flex:0 1 auto;height:100%;aspect-ratio:16/9;max-width:min(var(--vw),calc(100% - 250px - 1.6vw))}
 .vid-right .player{order:2}
+/* ---- Crypto: live prices in the place of Makkah live */
+.cpanel{display:none}
+.crypto .player{background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);box-shadow:none}
+.crypto .player video,.crypto .player .badge,.crypto .player .pmsg,.crypto .player .sound{display:none !important}
+.crypto .cpanel{--cs:calc(min(4.6vh, 30vh / var(--cn,2)) * var(--s));display:flex;flex-direction:column;position:absolute;top:0;right:0;bottom:0;left:0;padding:2.4vh 2vw 1.6vh;color:var(--t-ink)}
+.ctop{display:flex;align-items:center;justify-content:space-between;gap:1vw;margin-bottom:1vh}
+.ctop .ctitle{display:flex;align-items:center;gap:1vh;font-size:calc(1.9vh*var(--s));font-weight:700;letter-spacing:.3vh;text-transform:uppercase;color:var(--t-accent)}
+.ctop .ctitle .rec{width:1.2vh;height:1.2vh;border-radius:50%;background:#2fbf71;animation:pulse 1.6s infinite}
+.ctop .cupd{font-size:calc(1.7vh*var(--s));color:var(--t-muted)}
+.crows{flex:1;display:flex;flex-direction:column;min-height:0}
+.crow{flex:1;display:grid;grid-template-columns:auto minmax(0,1fr) 24% minmax(26%,auto);align-items:center;column-gap:1.6vw;border-top:1px solid rgb(var(--t-tint) / .1);min-height:0}
+.crow:first-child{border-top:0}
+.cbadge{width:calc(var(--cs)*1.5);height:calc(var(--cs)*1.5);border-radius:50%;display:grid;place-items:center;background:var(--t-accent);color:var(--t-on);font-weight:800;font-size:calc(var(--cs)*.42);letter-spacing:-.02em;overflow:hidden}
+.cname{min-width:0}
+.cname b{display:block;font-size:var(--cs);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cname span{font-size:calc(var(--cs)*.55);color:var(--t-muted);font-weight:600;letter-spacing:.1vh}
+.cspark{width:100%;height:calc(var(--cs)*1.4)}
+.cspark polyline{fill:none;stroke-width:2.2;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.cprice{text-align:right;white-space:nowrap}
+.cprice b{display:block;font-size:calc(var(--cs)*1.15);font-variant-numeric:tabular-nums;line-height:1.1}
+.cchg{font-size:calc(var(--cs)*.6);font-weight:700;font-variant-numeric:tabular-nums}
+.up{color:#2fbf71;stroke:#2fbf71}.down{color:#e5484d;stroke:#e5484d}
+.cmsg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;text-align:center;color:var(--t-muted);font-size:2.4vh}
+.cmsg b{color:var(--t-ink);font-size:3vh}
 .live .side{flex:1 1 0;min-width:250px;padding:2.6vh 1.4vw;border-radius:1.8vh;background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);overflow:hidden}
 .live .hero{padding-bottom:0}
 .live .hero .name{font-size:calc(7vh*var(--s)*var(--f,1));margin:.4vh 0 .8vh}
@@ -318,6 +342,10 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
   .live .stage{flex-direction:column;margin-top:16px;gap:14px}
   .live .player{height:auto;width:100%;max-width:none;order:0}
   .live .side{flex:none;min-width:0;padding:16px;border-radius:14px}
+  .crypto .player{aspect-ratio:auto}
+  .crypto .cpanel{position:static;--cs:calc(19px*var(--s));padding:14px 16px 6px}
+  .ctop{flex-wrap:wrap;gap:4px 12px}.ctop .ctitle{font-size:13px}.ctop .cupd{font-size:12px}
+  .crow{grid-template-columns:auto minmax(0,1fr) 20% auto;column-gap:10px;padding:10px 0}
   .live .hero .name{font-size:calc(52px*var(--s)*var(--f,1))}
   .live .hero .when{font-size:calc(17px*var(--s)*var(--f,1))}.live .hero .until{font-size:calc(22px*var(--s)*var(--f,1))}
   .live.l-list .side .hero{padding:2px 0 14px}
@@ -362,6 +390,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
       <div class="badge"><span class="rec"></span>LIVE · Makkah</div>
       <div class="pmsg" id="pmsg"><div class="spin"></div><h2>Connecting to Makkah live…</h2></div>
       <button class="sound" id="sound" type="button" hidden></button>
+      <div class="cpanel" id="cpanel" aria-live="polite"></div>
     </div>
     <div class="side">
       <section class="hero" id="hero" aria-live="polite"></section>
@@ -376,6 +405,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
     <div class="status" id="status"></div>
     <div class="fbtns">
     <button class="fbtn" id="livebtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg><span>Makkah live</span></button>
+    <button class="fbtn" id="cryptobtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Crypto</span></button>
     <button class="fbtn" id="tvsound" type="button" hidden></button>
     <button class="fbtn" id="fs" type="button" hidden onclick="fullScreen()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Full screen</button>
     <button class="fbtn" id="settings" type="button" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Settings</button>
@@ -462,7 +492,7 @@ function applyLook(L){
   if(S) render();
 }
 function layoutClasses(){  // the prayer times have their own layout next to Makkah live
-  const L = look(), list = !KIDS && (LV.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
+  const L = look(), list = !KIDS && (LV.on || CR.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
   b.toggle("l-list", list); b.toggle("l-cards", !list);
 }
 let uiTimer = null;
@@ -651,7 +681,12 @@ async function load(){
     // Makkah live: ?live=1 in the address, else what this screen chose last, else the setting for new screens
     const q = new URLSearchParams(location.search).get("live"), mine = store.get("azanLive");
     if(!PREVIEW) setLive(q !== null ? q !== "0" : mine !== null ? mine === "1" : !!(st.look && st.look.live_start), false);
+    // Crypto: ?crypto=1 in the address, else what this screen chose last
+    const qc = new URLSearchParams(location.search).get("crypto"), mc = store.get("azanCrypto");
+    if(!PREVIEW && st.crypto_button !== false && (qc !== null ? qc !== "0" : mc === "1")) setCrypto(true, false);
   } else if(LV.on && !PREVIEW && LV.key !== null && LV.key !== liveKey()){ LV.directFailed = false; startLive(); }  // the stream setting changed
+  $("#cryptobtn").hidden = PREVIEW || st.crypto_button === false;
+  if(CR.on && st.crypto_button === false) setCrypto(false, false);   // switched off on the Display page
   render(); azanCheck();
 }
 function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden = false; $("#screen").hidden = true; }
@@ -924,6 +959,7 @@ function playChime(vol){   // the phones' chime, made here: four soft notes
 // uses no data for it; if the stream doesn't let web pages read it, the screen goes through AthanBox after all,
 // unless that is turned off too.
 const RELAY = "/live/stream.m3u8";
+const CR = {on:false, timer:null, data:null, err:""};   // the Crypto view (below)
 const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0,
             directFailed:false, played:false, key:null};
 const liveKey = () => JSON.stringify((S && S.live) || {});
@@ -1036,8 +1072,9 @@ $("#sound").addEventListener("click", () => {
 });
 function setLive(on, remember){
   if(on === LV.on && !remember && LV.started) return;
+  if(on && CR.on) setCrypto(false, remember);   // Makkah live and Crypto share the same place
   LV.on = on; LV.started = true;
-  document.body.classList.toggle("live", on);
+  document.body.classList.toggle("live", on || CR.on);
   layoutClasses();
   if(S) render();
   const b = $("#livebtn");
@@ -1054,6 +1091,69 @@ function azanCheck(){  // our own azan is playing on the phones: keep the stream
   else if(!S.playing && LV.azanMuted){ LV.azanMuted = false; if(LV.want && !KIDS){ v.muted = false; v.play().catch(() => {}); } soundBtn(); }
 }
 $("#livebtn").addEventListener("click", () => setLive(!LV.on, true));
+
+// ---------------------------------------------------------------- Crypto
+// Live prices of the coins chosen on the Display page, in Makkah live's place. AthanBox fetches them
+// from CoinGecko once a minute for every screen (/api/crypto); this screen asks every 30 seconds.
+function setCrypto(on, remember){
+  if(on && LV.on) setLive(false, remember);
+  CR.on = on;
+  document.body.classList.toggle("crypto", on);
+  document.body.classList.toggle("live", on || LV.on);
+  layoutClasses();
+  const b = $("#cryptobtn");
+  b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.querySelector("span").textContent = on ? "Hide crypto" : "Crypto";
+  if(remember) store.set("azanCrypto", on ? "1" : "0");
+  clearInterval(CR.timer); CR.timer = null;
+  if(on){ renderCrypto(); fetchCrypto(); CR.timer = setInterval(fetchCrypto, 30000); }
+  if(S) render();
+}
+async function fetchCrypto(){
+  try{
+    const r = await fetch("/api/crypto", {cache: "no-store"});
+    if(!r.ok) throw new Error("AthanBox didn't answer");
+    CR.data = await r.json(); CR.err = "";
+  }catch(e){ CR.err = "Can't reach AthanBox for the prices"; }
+  renderCrypto();
+}
+function money(v, d){
+  if(v === null || v === undefined) return "–";
+  const cur = String(d.currency || "gbp").toUpperCase(), a = Math.abs(v);
+  const opt = a >= 1000 ? {maximumFractionDigits: 0} : a >= 1 ? {minimumFractionDigits: 2, maximumFractionDigits: 2} : {maximumSignificantDigits: 4};
+  try{ return new Intl.NumberFormat(undefined, Object.assign({style: "currency", currency: cur}, opt)).format(v); }
+  catch(e){ return (d.symbol || "") + v.toLocaleString(undefined, opt); }
+}
+function sparkSVG(p){
+  if(!p || p.length < 2) return "";
+  const lo = Math.min.apply(null, p), hi = Math.max.apply(null, p), span = hi - lo || 1;
+  const pts = p.map((v, i) => `${(i / (p.length - 1) * 100).toFixed(2)},${(28 - (v - lo) / span * 26).toFixed(2)}`).join(" ");
+  return `<svg class="cspark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><polyline class="${p[p.length - 1] >= p[0] ? "up" : "down"}" points="${pts}"/></svg>`;
+}
+function renderCrypto(){
+  if(!CR.on) return;
+  const d = CR.data, el = $("#cpanel"), coins = (d && d.coins) || [];
+  let when = "";
+  if(d && d.updated && d.now && S && S.clock){   // on AthanBox's clock, like the big clock
+    const [h, m, s] = S.clock.split(":").map(Number), t = new Date(2000, 0, 1, h, m, s + (Date.now() - got) / 1000 - (d.now - d.updated));
+    when = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  }
+  const top = `<div class="ctop"><div class="ctitle"><span class="rec"></span>Live · Crypto</div><div class="cupd">${d ? `Prices in ${esc(String(d.currency || "").toUpperCase())}` : ""}${when ? ` · updated ${when}` : ""}${d && d.stale ? " · couldn't update" : ""}</div></div>`;
+  el.style.setProperty("--cn", Math.max(2, coins.length));
+  if(!coins.length){
+    const msg = CR.err || (d && d.error) || "Getting the prices…";
+    el.innerHTML = top + `<div class="cmsg"><b>${d || CR.err ? "No prices yet" : "Crypto"}</b>${esc(msg)}</div>`;
+    return;
+  }
+  el.innerHTML = top + `<div class="crows">${coins.map(c => {
+    const ch = c.change, cls = ch === null || ch === undefined ? "" : ch >= 0 ? "up" : "down";
+    return `<div class="crow"><div class="cbadge">${esc((c.symbol || "?").slice(0, 4))}</div>
+      <div class="cname"><b>${esc(c.name)}</b><span>${esc(c.symbol)}</span></div>
+      ${sparkSVG(c.spark)}
+      <div class="cprice"><b>${money(c.price, d)}</b><span class="cchg ${cls}">${cls ? `${ch >= 0 ? "▲" : "▼"} ${Math.abs(ch).toFixed(2)}%` : ""}</span></div></div>`;
+  }).join("")}</div>`;
+}
+$("#cryptobtn").addEventListener("click", () => setCrypto(!CR.on, true));
 
 // ---------------------------------------------------------------- settings, full screen
 // Settings: sign in here, then the control panel opens.

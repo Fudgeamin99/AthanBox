@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.6 - Live crypto prices on the prayer-times screen
+
+- **Crypto view:** a new **Crypto** button on the prayer-times screen shows live prices in Makkah live's place, next to the prayer times. Each coin shows its price, the change over the last 24 hours and a line for the last 7 days. Press **Crypto** again, or **Makkah live**, to switch back.
+- **Choose the coins:** on the **Display** page, pick up to 8 coins from the popular ones (Bitcoin, Ethereum, Solana, XRP and more) or search for any other coin, and choose the currency (pounds to start with). A switch takes the Crypto button off every screen.
+- AthanBox gets the prices from CoinGecko once a minute and shares them with every screen, so TV screens need no internet of their own. Open a screen straight on the Crypto view with **Crypto** in the menu or `/display?crypto=1`.
+
 ## 0.9.5 - Phones set their clock from the provisioning link
 
 - **Provisioned phones show the right time.** The provisioning link now also sets each Yealink phone's (and cordless base's) clock: AthanBox's time zone from the **Prayer times** page, this year's daylight-saving dates worked out from it, and internet time servers (pool.ntp.org and time.google.com). A time server handed out by your network's DHCP still comes first.

@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, hostvol, kids, live, look, provision, ramadan, rtp, screens, security, sipserver, tomlw, updater
+from . import __version__, crypto, hostvol, kids, live, look, provision, ramadan, rtp, screens, security, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import app_dir
 from .sipreg import Registration, RegistrationManager
@@ -314,6 +314,7 @@ class Service:
         self.extra_servers: list[ThreadingHTTPServer] = []
         self.wizard = {"rev": 0, "state": None, "driver": ""}  # first-time setup, shared by the screen and phones
         self.live = live.LiveRelay(lambda: self.live_url)
+        self.crypto = crypto.Prices()   # the Crypto view on the prayer-times screen
         self.tvs = screens.Screens()       # TV screens that play the azan (the TV app)
         self.sounds = screens.Sounds()
         self.shared.screens_listening = self.tvs.listening
@@ -351,6 +352,8 @@ class Service:
 
     def apply(self, cfg: dict, save: bool = True):
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
+        if "crypto" in cfg:
+            cfg["crypto"] = crypto.clean(cfg["crypto"])
         look.check(cfg)
         kids.check(cfg)
         ramadan.check(cfg.get("ramadan"))
@@ -821,6 +824,7 @@ class Service:
                   "setup_manual": self.setup_manual(),
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "live": self.live_screen(),
+                  "crypto_button": crypto.clean(self.cfg.get("crypto"))["button"],   # the Crypto button on screens
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
                   "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to AthanBox
@@ -955,6 +959,8 @@ class Service:
                 "zones": zones, "audio_files": files, "ips": local_ips(),
                 "ffmpeg": bool(shutil.which("ffmpeg")), "config_path": str(self.config_path),
                 "live_default": live.DEFAULT_URL,
+                "crypto_popular": [{"id": i, "name": n, "symbol": s} for i, n, s in crypto.POPULAR],
+                "crypto_currencies": list(crypto.CURRENCIES), "crypto_max": crypto.MAX_COINS,
                 "folder": str(self.base)}
 
     @staticmethod
@@ -1351,8 +1357,15 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._may_see_setup_code():
                     return self._send(404, b"Not found", "text/plain")
                 return self._send(200, qr_svg(self._setup_urls()[0]), "image/svg+xml")
+            if p == "/api/crypto":   # the Crypto view on the prayer-times screen: public, like the prayer times
+                return self._json(svc.crypto.get(svc.cfg.get("crypto")))
             if not self._authed():
                 return self._need_login()
+            if p == "/api/crypto/search":   # the Display page: find a coin to add
+                try:
+                    return self._json({"ok": True, "coins": svc.crypto.search(parse_qs(url.query).get("q", [""])[0])})
+                except Exception as exc:
+                    return self._json({"ok": False, "error": f"Couldn't search CoinGecko ({getattr(exc, 'reason', None) or exc})"}, 502)
             if p == "/api/config":
                 return self._json({"config": svc.cfg, "meta": svc.meta()})
             if p == "/api/setup/state":
