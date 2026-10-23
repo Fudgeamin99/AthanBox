@@ -8,6 +8,8 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 ## 0.9.2 - Yealink cordless handsets picking up the azan
 
+- **Add a cordless base in one step.** Under **Remote provisioning** on the **Phones** page, **Add a phone** has a new **Yealink cordless base** tick box. Type the base's MAC address and how many handsets: AthanBox makes one extension per handset, and the base's settings from the provisioning link set each AthanBox line to ring its own handset only, with Auto Intercom on, so every handset picks up the azan by itself. This works with AthanBox in the cloud too. **The base's other lines** (such as your phone system's line 1) keep ringing every handset.
+- Each desk phone extension has a **Handset (cordless base)** and **The base's other lines** setting too, to change them later.
 - **Yealink cordless phones (W52P, W56P, W60B with W52H, W56H and other handsets)** have their own entry in the **Phone setup guide** on the **Phones** page. A handset only picks up the azan by itself when **Auto Intercom** is on for that handset and the line the azan comes in on rings only that handset. When one line rings several handsets, they all just ring. The guide shows how to give each handset its own line, signed in to AthanBox. It also says where multicast paging is on these bases, and that it only works when AthanBox is on the same local network.
 - The **Things to check** list in first-time setup mentions it too, when the test chime rings but isn't answered.
 - AthanBox already sends the auto-answer headers Yealink looks for, so calls aren't changed.

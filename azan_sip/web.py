@@ -419,6 +419,7 @@ class Service:
             phones.append({"mac": provision.pretty(m), "key": m, "fetched": seen.get(m, {}).get("ago"),
                            "lines": [{"username": a.get("username"), "name": a.get("name", ""),
                                       "line": lines.get(a.get("username")),
+                                      "handset": a.get("handset"),
                                       "signed_in": bool(signed.get(str(a.get("username", "")).lower()))}
                                      for a in sorted(accts, key=lambda a: lines.get(a.get("username")) or 99)]})
         return {**s, "links": links, "running": bool(self.provision_server), "error": self.provision_error,
@@ -431,10 +432,12 @@ class Service:
             n, first = int(req.get("lines") or 1), int(req.get("line") or 0)
         except (TypeError, ValueError):
             raise ValueError("Lines must be a number") from None
-        added = provision.add_phone(cfg, str(req.get("mac") or ""), str(req.get("name") or ""), n, first)
+        added = provision.add_phone(cfg, str(req.get("mac") or ""), str(req.get("name") or ""), n, first,
+                                    bool(req.get("cordless")), req.get("keep") or "")
         self.apply(cfg, save=True)
         log.info("Remote provisioning: added phone %s with extension%s %s", added[0]["mac"], "s" if len(added) > 1 else "",
-                 ", ".join(f"{a['username']} (line {a['line']})" for a in added))
+                 ", ".join(f"{a['username']} (line {a['line']}" + (f", handset {a['handset']})" if a.get("handset") else ")")
+                           for a in added))
         return {**self.provisioning(), "added": added}
 
     def provision_now(self, req: dict) -> dict:

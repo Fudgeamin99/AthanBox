@@ -777,7 +777,7 @@ function toEdit(t){
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
   e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)})):[];
-  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):""})):[];
+  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):"", handset:a.handset?String(a.handset):"", keep_lines:(a.keep_lines||[]).join(", ")})):[];
   return e;
 }
 function fromEdit(e){
@@ -806,6 +806,11 @@ function fromEdit(e){
       const mac=String(a.mac||"").replace(/[\s:.\-]/g,"").toLowerCase(), line=String(a.line||"").trim();
       if(mac){ if(!/^[0-9a-f]{12}$/.test(mac)) throw new Error(`${a.mac} isn't a MAC address. It looks like 80:5E:C0:12:34:56, on a sticker under the phone or base`); x.mac=mac.match(/../g).join(":").toUpperCase(); }
       if(line){ const n=parseInt(line,10); if(!(n>=1&&n<=16)) throw new Error(`The line for ${x.username} must be between 1 and 16`); x.line=n; }
+      const hs=String(a.handset||"").trim();
+      if(hs){ const n=parseInt(hs,10); if(!(n>=1&&n<=8)) throw new Error(`The handset for ${x.username} must be between 1 and 8`); if(!x.mac) throw new Error(`Type the base's MAC address for ${x.username}, so its handset can be set`); x.handset=n; }
+      const keep=String(a.keep_lines||"").split(/[\s,]+/).filter(Boolean).map(v=>parseInt(v,10));
+      if(keep.some(n=>!(n>=1&&n<=16))) throw new Error(`Other lines on the base are line numbers from 1 to 16, such as 1 or 1, 2`);
+      if(hs&&keep.length) x.keep_lines=[...new Set(keep)].sort((p,q)=>p-q);
       return x; });
     if(!accts.length) throw new Error("Add at least one desk phone");
     const seen=new Set();
@@ -872,7 +877,9 @@ function provFill(){
       <div class="field" style="margin:0"><label for="prov-name">Name</label><input type="text" id="prov-name" maxlength="40" placeholder="Main hall" autocomplete="off"></div>
       <div class="field" style="margin:0"><label for="prov-lines">Lines</label><input type="number" id="prov-lines" min="1" max="8" value="1"></div>
       <div class="field" style="margin:0"><label for="prov-first">From line</label><input type="number" id="prov-first" min="1" max="16" placeholder="Next free"></div></div>
-    <div class="row" style="margin-top:8px"><button class="btn primary" onclick="provAdd()">Add phone</button><span class="muted" style="font-size:13px">Makes the extensions (with passwords) and saves them. For a DECT base, choose one line per handset. Then give the phone the link once.</span></div>
+    <label class="row" style="gap:8px;margin-top:10px;font-size:14px"><input type="checkbox" id="prov-cordless" onchange="provCordless()"> <span><b>Yealink cordless base</b> (W60B, W52P, W56P and others): one line per handset, so each handset picks up by itself</span></label>
+    <div class="field" id="prov-keep-f" style="margin:8px 0 0;max-width:340px;display:none"><label for="prov-keep">The base's other lines</label><input type="text" id="prov-keep" placeholder="e.g. 1" autocomplete="off"><div class="hint">Lines already on the base, such as your phone system's line 1. They keep ringing every handset. Leave empty if AthanBox is the base's only line.</div></div>
+    <div class="row" style="margin-top:8px"><button class="btn primary" onclick="provAdd()">Add phone</button><span class="muted" style="font-size:13px" id="prov-add-hint">Makes the extensions (with passwords) and saves them. For a DECT base, tick Yealink cordless base. Then give the phone the link once.</span></div>
     ${provPhonesHTML(P)}
     <details style="margin-top:12px"><summary>Set it up</summary><p>
       <b>1. Add the phone:</b> use <b>Add a phone</b> above with its MAC address (or press <b>Add this phone</b> on a phone that already asked). Pick <b>From line</b> 2 if line 1 is your phone system's. On a DECT base, add one line per handset. You can also type a MAC address on an extension under <b>Desk phones sign in to AthanBox</b>.<br>
@@ -892,17 +899,21 @@ function provPhonesHTML(P){
   return `<div class="row" style="justify-content:space-between;margin:16px 0 6px"><div class="lbl" style="margin:0">Provisioned phones</div>${any&&list.length>1?`<button class="btn small" onclick="provUpdate('')">Update all phones</button>`:""}</div>
     ${list.map(ph=>{ const on=ph.lines.some(l=>l.signed_in);
       return `<div class="tvrow"><div style="flex:1;min-width:0"><div class="t"><span class="mono">${esc(ph.mac)}</span> <span class="muted" style="font-weight:400;font-size:13px">${esc(ago(ph.fetched))}</span></div>
-        <div class="d">${ph.lines.map(l=>`Line ${l.line}: ${esc(l.name||"")} (${esc(l.username)})${l.signed_in?" · signed in":""}`).join(" · ")}</div></div>
+        <div class="d">${ph.lines.map(l=>`Line ${l.line}${l.handset?` → handset ${esc(l.handset)}`:""}: ${esc(l.name||"")} (${esc(l.username)})${l.signed_in?" · signed in":""}`).join(" · ")}</div></div>
         <button class="btn small" ${on?"":"disabled title=\"Not signed in yet: press Auto Provision Now on the phone the first time\""} onclick="provUpdate('${esc(ph.mac)}')">Update now</button></div>`; }).join("")}
     <div class="hint" style="margin-top:6px"><b>Update now</b> asks a signed-in phone to download its settings again straight away, after you change its lines or passwords, instead of waiting for its daily check.</div>`;
 }
+function provCordless(){ const on=$("#prov-cordless").checked; $("#prov-keep-f").style.display=on?"":"none";
+  $("label[for=prov-lines]").textContent=on?"Handsets":"Lines";
+  $("#prov-add-hint").textContent=on?"Makes one extension per handset and saves them. The base then rings each AthanBox line on its own handset. Give the base the link once.":"Makes the extensions (with passwords) and saves them. For a DECT base, tick Yealink cordless base. Then give the phone the link once."; }
 function provPick(m){ const el=$("#prov-mac"); if(!el) return; el.value=m; $("#prov-name").focus(); el.scrollIntoView({block:"center"}); }
 function provApplyConfig(r){ if(!r.config) return; CFG=r.config; normalize(CFG); SAVED=JSON.stringify(CFG); dirty(); }
 async function provAdd(){
   if(isDirty()) return toast("Save or discard your other changes first, then add the phone.","bad");
-  const req={mac:$("#prov-mac").value, name:$("#prov-name").value, lines:+$("#prov-lines").value||1, line:+$("#prov-first").value||0};
+  const cordless=$("#prov-cordless").checked;
+  const req={mac:$("#prov-mac").value, name:$("#prov-name").value, lines:+$("#prov-lines").value||1, line:+$("#prov-first").value||0, cordless, keep:cordless?$("#prov-keep").value:""};
   await act(async()=>{ const r=await api("/api/provisioning/add", req); PROV=r; provApplyConfig(r); render();
-    toast(`Added ${r.added.map(a=>`${a.username} on line ${a.line}`).join(", ")}. Now give the phone the link.`); });
+    toast(`Added ${r.added.map(a=>`${a.username} on line ${a.line}${a.handset?` (handset ${a.handset})`:""}`).join(", ")}. Now give the ${cordless?"base":"phone"} the link.`); });
 }
 async function provUpdate(m){
   await act(async()=>{ const r=await api("/api/provisioning/update", {mac:m}); PROV=r; provFill();
@@ -998,7 +1009,9 @@ function editorHTML(){
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
           <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div>
         <div class="grid4"><div class="field"><label for="dp${i}a">MAC address (for provisioning)</label><input type="text" id="dp${i}a" data-path="edit.desk.${i}.mac" placeholder="80:5E:C0:12:34:56" value="${esc(a.mac||"")}" spellcheck="false"><div class="hint">Optional. On a sticker under the phone (or the DECT base). The phone then gets this line from the provisioning link by itself.</div></div>
-          <div class="field"><label for="dp${i}l">Line on the phone</label><input type="number" min="1" max="16" id="dp${i}l" data-path="edit.desk.${i}.line" placeholder="Next free" value="${esc(a.line||"")}"><div class="hint">Which account on the phone it fills. Pick 2 if line 1 is your phone system's. On a DECT base, a line rings the handsets whose Incoming Lines include it.</div></div></div></div>`).join("")}
+          <div class="field"><label for="dp${i}l">Line on the phone</label><input type="number" min="1" max="16" id="dp${i}l" data-path="edit.desk.${i}.line" placeholder="Next free" value="${esc(a.line||"")}"><div class="hint">Which account on the phone it fills. Pick 2 if line 1 is your phone system's. On a DECT base, a line rings the handsets whose Incoming Lines include it.</div></div>
+          <div class="field"><label for="dp${i}h">Handset (cordless base)</label><input type="number" min="1" max="8" id="dp${i}h" data-path="edit.desk.${i}.handset" placeholder="None" value="${esc(a.handset||"")}"><div class="hint">On a Yealink cordless base: the one handset this line rings, so it picks up by itself.</div></div>
+          <div class="field"><label for="dp${i}k">The base's other lines</label><input type="text" id="dp${i}k" data-path="edit.desk.${i}.keep_lines" placeholder="e.g. 1" value="${esc(a.keep_lines||"")}"><div class="hint">With a handset set: lines that keep ringing it too, such as the phone system's.</div></div></div></div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
       <div class="hint">For the azan, AthanBox rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into AthanBox are always refused, and repeated wrong passwords are blocked.</div>`;
   }
@@ -1046,6 +1059,7 @@ function guideHTML(){
   <details><summary>Yealink cordless (W52P, W56P, W60B DECT)</summary><p>The cordless handsets (W52H, W56H, W59R and others) pick up the azan by themselves only when both of these are true:<br>
     1. <b>Auto Intercom is on, on every handset.</b> On each handset: Menu → Settings → Telephony → <b>Auto Intercom</b> → <b>On (Beep Off)</b> (or On (Beep On) for a short beep first). It is set on each handset on its own.<br>
     2. <b>The line the azan comes in on rings only that one handset.</b> When a line rings several handsets, the base rings them all and none picks up by itself. So give each handset its own line: add one account per handset under <b>Desk phones sign in to AthanBox</b>, register each on the base's web page under Account → Register (Account 1, 2, 3...), and set each account's <b>Incoming Lines</b> to just its handset (on the handset: Menu → Settings → Telephony → Incoming Lines, base PIN 0000 by default).<br>
+    <b>Easiest:</b> under <b>Remote provisioning</b> above, use <b>Add a phone</b> with the base's MAC address and tick <b>Yealink cordless base</b>. AthanBox makes one extension per handset, and the base gets each line set to ring its own handset, with Auto Intercom on, from the link.<br>
     <span class="muted">Calling the base by its IP address (Call each phone directly) or through a paging group that rings one shared line will only ring. Multicast paging also works on these bases (Directory → Multicast IP → Multicast Listening), but only when AthanBox is on the same local network, never from the cloud. Keep the base and handsets on recent firmware (base 25.81 or later for the W52P). A handset that is on a call won't pick up.</span></p></details>
   <details><summary>Grandstream UCM</summary><p>1. <b>Extension/Trunk → Extensions</b>: add (or pick) an extension for AthanBox, e.g. <span class="kbd">1004</span>, name it "Azan". Note its <b>SIP/IAX password</b> (not the user portal password).<br>
     2. <b>Call Features → Paging/Intercom</b>: add a <b>Paging</b> group, e.g. number <span class="kbd">6300</span>, and add the desk phones as members.<br>
