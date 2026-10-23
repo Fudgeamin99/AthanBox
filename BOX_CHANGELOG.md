@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.4 - Test one phone from Remote provisioning
+
+- **Test** on each signed-in phone under **Phones › Remote provisioning**, in the list and on the phone's own page. It plays the test chime on that phone only (every line or handset it has on AthanBox), so you can check a phone without ringing the others. A phone that isn't signed in yet says so.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update.
+
 ## 0.9.3 - A tidier Phones page, with its own Remote provisioning page
 
 - **Phones has a sub-menu:** **Your phones** and **Remote provisioning**. Your phones keeps the list of ways the azan reaches your phones, with the **Phone setup guide** under it.

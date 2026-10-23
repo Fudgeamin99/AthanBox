@@ -986,7 +986,7 @@ function provTableHTML(rows, total){
   if(!rows.length) return `<div class="empty">No phone matches.</div>`;
   return `<div style="overflow-x:auto"><table class="provtable"><thead><tr><th>MAC address</th><th>Name</th><th>Model</th><th>Numbers on this phone</th><th>Status</th><th></th></tr></thead><tbody>
     ${rows.map(r=>`<tr class="${r.state==="new"?"hl":""}" onclick="provOpen('${esc(r.key)}')"><td class="mono">${esc(r.mac)}</td><td>${r.label?esc(r.label):'<span class="muted">Not named</span>'}</td><td>${provModel(r)}</td><td>${provExts(r)}</td><td>${provStatus(r)}</td>
-      <td style="text-align:right">${r.state==="new"?`<button class="btn small primary" onclick="event.stopPropagation();provOpenNew('${esc(r.mac)}')">Assign numbers</button>`:`<button class="btn small" onclick="event.stopPropagation();provOpen('${esc(r.key)}')">Open ›</button>`}</td></tr>`).join("")}
+      <td style="text-align:right">${r.state==="new"?`<button class="btn small primary" onclick="event.stopPropagation();provOpenNew('${esc(r.mac)}')">Assign numbers</button>`:`${r.state==="on"?`<button class="btn small" title="Play the test chime on this phone only" onclick="event.stopPropagation();provTest('${esc(r.key)}')">${ICON.play} Test</button> `:""}<button class="btn small" onclick="event.stopPropagation();provOpen('${esc(r.key)}')">Open ›</button>`}</td></tr>`).join("")}
     </tbody></table></div><div class="hint" style="margin-top:10px">A phone that fetches the link but isn't added yet shows up here by itself, highlighted. Press a row to choose its numbers.</div>`;
 }
 function provItemsHTML(rows){
@@ -1041,7 +1041,7 @@ function provDetailHTML(r){
     <div id="provdraft">${provDraftHTML()}</div>
     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:14px;margin-top:16px">
       <button class="btn danger" onclick="provRemove()">Remove phone</button>
-      <div class="row"><button class="btn" ${on?"":"disabled title=\"Not signed in yet: press Auto Provision Now on the phone the first time\""} onclick="provUpdate('${esc(r.mac)}')">Update now</button><button class="btn primary" onclick="provSave()">Save</button></div></div>`;
+      <div class="row"><button class="btn" ${on?"title=\"Play the test chime on this phone only\"":"disabled title=\"Not signed in yet: give it the link, or press Auto Provision Now on the phone\""} onclick="provTest('${esc(r.key)}')">${ICON.play} Test</button><button class="btn" ${on?"":"disabled title=\"Not signed in yet: press Auto Provision Now on the phone the first time\""} onclick="provUpdate('${esc(r.mac)}')">Update now</button><button class="btn primary" onclick="provSave()">Save</button></div></div>`;
 }
 function provModalHTML(){
   return `<div class="overlay" onclick="if(event.target===this)provClose()"><div class="card provmodal" role="dialog" aria-modal="true" aria-labelledby="pd-title">
@@ -1072,6 +1072,11 @@ async function provUpdate(m){
   await act(async()=>{ const r=await api("/api/provisioning/update", {mac:m}); PROV=r; provList();
     const ok=r.results.filter(x=>x.ok).length;
     toast(ok===r.results.length?`Asked ${ok} phone${ok===1?"":"s"} to update. It takes a few seconds.`:`${ok} of ${r.results.length} phones accepted. The others didn't answer: press Auto Provision Now on them.`, ok?"ok":"bad"); });
+}
+async function provTest(k){
+  const t=CFG.targets.find(t=>t.type==="phones"), r=provRows().find(x=>x.key===k);
+  if(!t||!r) return toast("Save the phone first, then test it.","bad");
+  await test({source:"tone", target:t, phone:r.mac, label:"Test chime - "+(r.label||r.mac)});
 }
 function provCopy(u){ (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Copied")).catch(()=>prompt("Copy the link:", u)); }
 async function provSet(change){
