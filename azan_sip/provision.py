@@ -198,6 +198,149 @@ def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_l
     return added
 
 
+def _desk_target(cfg: dict) -> dict:
+    """The "Desk phones sign in to AthanBox" entry, made if there isn't one yet."""
+    targets = cfg.setdefault("targets", [])
+    t = next((x for x in targets if x.get("type") == "phones"), None)
+    if t is None:
+        port = next((x.get("port") for x in targets if x.get("type") == "server"), None) or 5060
+        t = {"name": "Desk phones sign in to AthanBox", "type": "phones", "port": port, "codec": "PCMU",
+             "enabled": True, "accounts": []}
+        targets.append(t)
+    return t
+
+
+def phone_name(accts: list[dict]) -> str:
+    """The name the Remote provisioning page shows for a phone: the one given to it, else its first line's."""
+    for a in accts:
+        if _v(a.get("phone")):
+            return _v(a.get("phone"))
+    return _v(accts[0].get("name")) if accts else ""
+
+
+def assign_phone(cfg: dict, phone_mac: str, name: str = "", cordless: bool = False, keep="",
+                 rows: list | None = None, old_mac: str = "") -> list[dict]:
+    """The Remote provisioning page's phone: which extensions it has, on which line (desk phone) or handset
+    (cordless base). Changes cfg in place and returns the extensions it made.
+
+    Each row is {"line" or "handset": n, "username": an existing desk phone extension, or "new" for a new one
+    with its own number and password}; a row without a username is left out (such as the phone system's line 1).
+    Extensions that were on this phone and aren't in the rows any more stay, without the phone."""
+    m = mac(phone_mac)
+    if not m:
+        raise ValueError("Type the phone's MAC address. It looks like 80:5E:C0:12:34:56, on a sticker under the phone or base")
+    old = mac(old_mac) or m
+    if old != m and m in phones(cfg):
+        raise ValueError(f"{pretty(m)} is already in the list. Open it there instead")
+    rows = [r for r in (rows or []) if isinstance(r, dict) and str(r.get("username") or "").strip()]
+    keep_list = keep_lines(keep) if cordless else []
+    t = _desk_target(cfg)
+    accts = t.setdefault("accounts", [])
+    name = _v(name)[:40]
+    slot = "handset" if cordless else "line"
+    seen_slot, seen_user = set(), set()
+    for r in rows:
+        try:
+            n = int(r.get(slot))
+        except (TypeError, ValueError):
+            n = 0
+        top = MAX_HANDSETS if cordless else MAX_LINES
+        if not 1 <= n <= top:
+            raise ValueError(f"Choose a {slot} from 1 to {top}")
+        if n in seen_slot:
+            raise ValueError(f"{slot.capitalize()} {n} is used twice")
+        if not cordless and n in keep_list:
+            raise ValueError(f"Line {n} is kept for your phone system")
+        seen_slot.add(n)
+        u = str(r["username"]).strip()
+        if u != "new":
+            if u.lower() in seen_user:
+                raise ValueError(f"Extension {u} is used twice on this phone")
+            seen_user.add(u.lower())
+            if not any(str(a.get("username", "")).lower() == u.lower() for a in accts):
+                raise ValueError(f"There is no desk phone extension {u}. Add it under Your phones first, or pick New extension")
+    # This phone's lines so far: an extension that stays keeps its line on the phone
+    before = {str(a.get("username", "")).lower(): a.get("line") for a in accts if _mac_or_none(a.get("mac")) in (m, old)}
+    label = name or phone_name([a for a in accts if _mac_or_none(a.get("mac")) in (m, old)]) or f"Phone {pretty(m)[-5:]}"
+    for a in accts:
+        if _mac_or_none(a.get("mac")) in (m, old):
+            for k in ("mac", "line", "handset", "keep_lines", "phone"):
+                a.pop(k, None)
+    used = {str(a.get("username", "")).lower() for x in cfg.get("targets", []) if x.get("type") in ("server", "phones")
+            for a in x.get("accounts", [])}
+    chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    added, chosen, ext = [], [], 101
+    for r in sorted(rows, key=lambda r: int(r.get(slot))):
+        n, u = int(r.get(slot)), str(r["username"]).strip()
+        if u == "new":
+            while str(ext) in used:
+                ext += 1
+            a = {"name": f"{label} {n}" if cordless or len(rows) > 1 else label, "username": str(ext),
+                 "password": "".join(secrets.choice(chars) for _ in range(14)), "kind": "phone", "max_signins": 1}
+            accts.append(a)
+            used.add(str(ext))
+            added.append(a)
+        else:
+            a = next(a for a in accts if str(a.get("username", "")).lower() == u.lower())
+            for k in ("mac", "line", "handset", "keep_lines", "phone"):   # moved here from another phone
+                a.pop(k, None)
+        a["mac"] = pretty(m)
+        if name:
+            a["phone"] = name
+        if cordless:
+            a["handset"] = n
+            if keep_list:
+                a["keep_lines"] = keep_list
+        else:
+            a["line"] = n
+        chosen.append(a)
+    if cordless:   # each handset's own line on the base: the one it had, else the next free one
+        taken = set(keep_list)
+        for a in chosen:
+            ln = before.get(str(a["username"]).lower())
+            if str(ln or "").isdigit() and int(ln) not in taken:
+                a["line"] = int(ln)
+                taken.add(int(ln))
+        ln = 1
+        for a in chosen:
+            if "line" not in a:
+                while ln in taken:
+                    ln += 1
+                if ln > MAX_LINES:
+                    raise ValueError(f"That base has no free line left (up to {MAX_LINES})")
+                a["line"] = ln
+                taken.add(ln)
+    return added
+
+
+def remove_phone(cfg: dict, phone_mac: str) -> int:
+    """Take a phone off Remote provisioning. Its extensions stay, without the phone. Returns how many it had."""
+    m = mac(phone_mac)
+    n = 0
+    for t in cfg.get("targets", []):
+        if t.get("type") != "phones":
+            continue
+        for a in t.get("accounts", []):
+            if _mac_or_none(a.get("mac")) == m:
+                for k in ("mac", "line", "handset", "keep_lines", "phone"):
+                    a.pop(k, None)
+                n += 1
+    return n
+
+
+def _mac_or_none(text) -> str | None:
+    try:
+        return mac(text) or None
+    except ValueError:
+        return None
+
+
+def model(agent: str) -> str:
+    """The phone's model from its User-Agent, such as "T54W" from "Yealink SIP-T54W 96.86.0.100 ..."."""
+    hit = re.search(r"Yealink\s+(?:SIP-|W\d+B-)?([A-Za-z0-9-]{2,20})", agent or "")
+    return hit.group(1) if hit else ""
+
+
 def lines_for(cfg: dict, phone_mac: str) -> list[tuple[int, dict, dict]]:
     """(line on the phone, account, its desk phones entry) for each desk phone account with this MAC address.
     Accounts without a line take the lowest free ones, in the order they're listed."""
@@ -335,7 +478,8 @@ class Provisioner:
         now = time.time()
         return [{**x, "ago": int(now - x["at"])} for x in items]
 
-    def handle(self, cfg: dict, path: str, ip: str, host_header: str, box_ip: str) -> tuple[int, bytes, str]:
+    def handle(self, cfg: dict, path: str, ip: str, host_header: str, box_ip: str,
+               agent: str = "") -> tuple[int, bytes, str]:
         """(status, body, content type) for a GET of /provision/<key>/<brand>/<file>."""
         s = settings(cfg)
         plain = "text/plain; charset=utf-8"
@@ -373,7 +517,7 @@ class Provisioner:
         lines = lines_for(cfg, phone)
         with self.lock:
             self.seen[phone] = {"mac": pretty(phone), "key": phone, "ip": ip, "brand": brand.name, "at": time.time(),
-                                "lines": [a.get("username") for _, a, _ in lines]}
+                                "model": model(agent), "lines": [a.get("username") for _, a, _ in lines]}
             if len(self.seen) > 200:
                 del self.seen[min(self.seen, key=lambda k: self.seen[k]["at"])]
         if not lines:

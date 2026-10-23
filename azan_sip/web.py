@@ -416,7 +416,12 @@ class Service:
         phones = []
         for m, accts in provision.phones(self.cfg).items():
             lines = {a.get("username"): n for n, a, _ in provision.lines_for(self.cfg, m)}
-            phones.append({"mac": provision.pretty(m), "key": m, "fetched": seen.get(m, {}).get("ago"),
+            last = seen.get(m, {})
+            phones.append({"mac": provision.pretty(m), "key": m, "fetched": last.get("ago"), "ip": last.get("ip", ""),
+                           "model": last.get("model", ""), "name": next((a["phone"] for a in accts if a.get("phone")), ""),
+                           "label": provision.phone_name(accts),
+                           "cordless": any(str(a.get("handset") or "").isdigit() for a in accts),
+                           "keep": next((a.get("keep_lines") for a in accts if a.get("keep_lines")), []),
                            "lines": [{"username": a.get("username"), "name": a.get("name", ""),
                                       "line": lines.get(a.get("username")),
                                       "handset": a.get("handset"),
@@ -438,6 +443,26 @@ class Service:
         log.info("Remote provisioning: added phone %s with extension%s %s", added[0]["mac"], "s" if len(added) > 1 else "",
                  ", ".join(f"{a['username']} (line {a['line']}" + (f", handset {a['handset']})" if a.get("handset") else ")")
                            for a in added))
+        return {**self.provisioning(), "added": added}
+
+    def assign_provision_phone(self, req: dict) -> dict:
+        """The Remote provisioning page's phone: save its name and which extension is on each line or handset,
+        or take it off ("remove")."""
+        cfg = copy.deepcopy(self.cfg)
+        if req.get("remove"):
+            n = provision.remove_phone(cfg, str(req.get("mac") or ""))
+            self.apply(cfg, save=True)
+            log.info("Remote provisioning: took phone %s off (%d extension%s kept)", req.get("mac"), n, "" if n == 1 else "s")
+            return {**self.provisioning(), "added": []}
+        rows = req.get("rows") if isinstance(req.get("rows"), list) else []
+        added = provision.assign_phone(cfg, str(req.get("mac") or ""), str(req.get("name") or ""),
+                                       bool(req.get("cordless")), req.get("keep") or "", rows,
+                                       str(req.get("old_mac") or ""))
+        self.apply(cfg, save=True)
+        m = provision.mac(str(req.get("mac") or ""))
+        log.info("Remote provisioning: phone %s now has %s", provision.pretty(m),
+                 ", ".join(f"{a.get('username')} on line {n}" + (f" (handset {a['handset']})" if a.get("handset") else "")
+                           for n, a, _ in provision.lines_for(cfg, m)) or "no extensions")
         return {**self.provisioning(), "added": added}
 
     def provision_now(self, req: dict) -> dict:
@@ -1208,7 +1233,8 @@ class Handler(BaseHTTPRequestHandler):
         svc = self.service
         try:
             code, body, ctype = provision.PROVISIONER.handle(svc.cfg, p, self.client_address[0],
-                                                             self.headers.get("Host") or "", box_ip())
+                                                             self.headers.get("Host") or "", box_ip(),
+                                                             self.headers.get("User-Agent") or "")
         except Exception:
             log.exception("provisioning error")
             code, body, ctype = 500, b"Error", "text/plain"
@@ -1456,6 +1482,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, **svc.set_provisioning(req), "config": svc.cfg})
             if p == "/api/provisioning/add":
                 return self._json({"ok": True, **svc.add_provision_phone(req), "config": svc.cfg})
+            if p == "/api/provisioning/phone":
+                if not svc.box:
+                    raise ValueError("Remote provisioning is only on AthanBox")
+                return self._json({"ok": True, **svc.assign_provision_phone(req), "config": svc.cfg})
             if p == "/api/provisioning/update":
                 return self._json({"ok": True, **svc.provision_now(req)})
             if p.startswith("/api/security/") and not svc.security:
