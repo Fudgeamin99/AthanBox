@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.7 - When the crypto prices last refreshed
+
+- **Last refreshed:** under the coins on the Crypto view, a line now says when the prices last refreshed, to the second on AthanBox's clock, and that they come from CoinGecko every minute. If a refresh fails, it says so there.
+
 ## 0.9.6 - Live crypto prices on the prayer-times screen
 
 - **Crypto view:** a new **Crypto** button on the prayer-times screen shows live prices in Makkah live's place, next to the prayer times. Each coin shows its price, the change over the last 24 hours and a line for the last 7 days. Press **Crypto** again, or **Makkah live**, to switch back.
