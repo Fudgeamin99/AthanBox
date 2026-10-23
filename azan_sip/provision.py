@@ -186,7 +186,7 @@ def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_l
                 handset += 1
             if handset > MAX_HANDSETS:
                 raise ValueError(f"That base has no free handset left (up to {MAX_HANDSETS})")
-            a["name"] = f"{name} {handset}"
+            a["name"] = f"{name} handset {handset}"
             a["handset"] = handset
             if keep_list:
                 a["keep_lines"] = keep_list
