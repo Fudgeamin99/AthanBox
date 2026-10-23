@@ -35,6 +35,7 @@ _KEY = re.compile(r"^[A-Za-z0-9_-]{20,64}$")
 _HOST = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$")
 MAX_TRIES, TRY_WINDOW, LOCKOUT = 10, 600, 900   # wrong keys from one address before it is refused for a while
 MAX_LINES = 16
+MAX_HANDSETS = 8   # a Yealink DECT base (W60B and others) takes up to 8 handsets
 
 
 def new_key() -> str:
@@ -108,6 +109,17 @@ def check(cfg: dict) -> None:
                     if other:
                         raise ValueError(f"{other} and {a.get('username')} both use line {line} on the same phone")
                     seen[(m, line)] = str(a.get("username"))
+            handset = a.get("handset")
+            if handset not in (None, ""):
+                try:
+                    handset = int(handset)
+                except (TypeError, ValueError):
+                    handset = 0
+                if not 1 <= handset <= MAX_HANDSETS:
+                    raise ValueError(f"The handset for {a.get('username')} must be between 1 and {MAX_HANDSETS}")
+                if not m:
+                    raise ValueError(f"Type the base's MAC address for {a.get('username')}, so its handset can be set")
+            keep_lines(a.get("keep_lines"))   # raises with a friendly message
 
 
 def phones(cfg: dict) -> dict[str, list[dict]]:
@@ -130,14 +142,20 @@ def pretty(m: str) -> str:
     return ":".join(m[i:i + 2] for i in range(0, 12, 2)).upper()
 
 
-def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_line: int = 0) -> list[dict]:
+def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_line: int = 0,
+              cordless: bool = False, keep="") -> list[dict]:
     """Add a phone in one step: `lines` new desk phone extensions with its MAC address, on its next free lines
-    (from `first_line` if given), each with its own new extension number and password. Changes cfg in place."""
+    (from `first_line` if given), each with its own new extension number and password. Changes cfg in place.
+
+    `cordless`: a Yealink DECT base, one extension per handset. Its handsets only pick up by themselves when the
+    line rings that one handset, so each extension also gets the next free handset, and the base is told to ring
+    it on that handset only (plus the base's own `keep` lines, such as the phone system's line 1)."""
     m = mac(phone_mac)
     if not m:
         raise ValueError("Type the phone's MAC address. It looks like 80:5E:C0:12:34:56, on a sticker under the phone or base")
     if not 1 <= lines <= 8:
-        raise ValueError("Choose 1 to 8 lines")
+        raise ValueError("Choose 1 to 8 handsets" if cordless else "Choose 1 to 8 lines")
+    keep_list = keep_lines(keep)
     targets = cfg.setdefault("targets", [])
     t = next((x for x in targets if x.get("type") == "phones"), None)
     if t is None:
@@ -147,7 +165,9 @@ def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_l
         targets.append(t)
     used = {str(a.get("username", "")).lower() for x in targets if x.get("type") in ("server", "phones")
             for a in x.get("accounts", [])}
-    taken = {n for n, _, _ in lines_for(cfg, m)}
+    taken = {n for n, _, _ in lines_for(cfg, m)} | set(keep_list)
+    handsets = {int(a["handset"]) for _, a, _ in lines_for(cfg, m) if str(a.get("handset") or "").isdigit()}
+    handset = 1
     name = _v(name)[:40] or f"Phone {pretty(m)[-5:]}"
     added, ext, line = [], 101, max(1, first_line)
     chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -161,6 +181,16 @@ def add_phone(cfg: dict, phone_mac: str, name: str = "", lines: int = 1, first_l
         a = {"name": name if lines == 1 else f"{name} {i + 1}", "username": str(ext),
              "password": "".join(secrets.choice(chars) for _ in range(14)), "kind": "phone", "max_signins": 1,
              "mac": pretty(m), "line": line}
+        if cordless:
+            while handset in handsets:
+                handset += 1
+            if handset > MAX_HANDSETS:
+                raise ValueError(f"That base has no free handset left (up to {MAX_HANDSETS})")
+            a["name"] = f"{name} {handset}"
+            a["handset"] = handset
+            if keep_list:
+                a["keep_lines"] = keep_list
+            handsets.add(handset)
         t.setdefault("accounts", []).append(a)
         used.add(str(ext))
         taken.add(line)
@@ -192,6 +222,24 @@ def lines_for(cfg: dict, phone_mac: str) -> list[tuple[int, dict, dict]]:
             taken.add(line)
         out.append((line, a, t))
     return sorted(out, key=lambda x: x[0])
+
+
+def keep_lines(text) -> list[int]:
+    """The base's other lines that keep ringing every handset, from "1" or "1, 2" (or a list)."""
+    items = text if isinstance(text, list) else re.split(r"[\s,]+", str(text or "").strip())
+    out = []
+    for x in items:
+        if str(x).strip() == "":
+            continue
+        try:
+            n = int(x)
+        except (TypeError, ValueError):
+            n = 0
+        if not 1 <= n <= MAX_LINES:
+            raise ValueError(f"Other lines on the base are line numbers from 1 to {MAX_LINES}, such as 1 or 1, 2")
+        if n not in out:
+            out.append(n)
+    return sorted(out)
 
 
 def _v(text) -> str:
@@ -248,6 +296,14 @@ class Yealink:
                     f"{n}.nat.udp_update_enable = 1",
                     f"{n}.nat.udp_update_time = 30",
                     f"{n}.nat.rport = 1"]
+        # A DECT base only auto-answers when the line rings one handset: ring each AthanBox line on its own handset
+        handsets: dict[int, set[int]] = {}
+        for line, a, _t in lines:
+            if str(a.get("handset") or "").isdigit():
+                handsets.setdefault(int(a["handset"]), set()).update([line, *keep_lines(a.get("keep_lines"))])
+        if handsets:
+            out.append("# Cordless handsets: each AthanBox line rings its own handset only, so it picks up by itself")
+            out += [f"handset.{h}.incoming_lines = {','.join(str(x) for x in sorted(ls))}" for h, ls in sorted(handsets.items())]
         return "\n".join(out) + "\n"
 
 

@@ -72,6 +72,10 @@ code=$(curl -s -o /dev/null -w '%{http_code}' "$url${path}y000000000077.cfg")
 curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"mac": "80:5E:C0:00:00:01", "name": "CI"}' \
      "$url/api/provisioning/add" | grep -q '"added"' || { echo "FAIL: Add a phone didn't add it"; exit 1; }
 curl -fsS "$url${path}805ec0000001.cfg" | grep -q '^account.1.auto_answer = 1' || { echo "FAIL: the added phone got no line"; exit 1; }
+curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' \
+     -d '{"mac": "80:5E:C0:00:00:02", "name": "Base", "lines": 2, "cordless": true, "keep": "1"}' \
+     "$url/api/provisioning/add" | grep -q '"handset": 2' || { echo "FAIL: Add a phone didn't add a cordless base"; exit 1; }
+curl -fsS "$url${path}805ec0000002.cfg" | grep -q '^handset.2.incoming_lines = 1,3' || { echo "FAIL: the cordless base got no handset lines"; exit 1; }
 code=$(curl -s -o /dev/null -w '%{http_code}' "$url/provision/not-the-right-key-at-all-0000/yealink/y000000000077.cfg")
 [ "$code" = 404 ] || { echo "FAIL: a wrong provisioning link answered $code (expected 404)"; exit 1; }
 curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"enabled": false}' "$url/api/provisioning" >/dev/null
