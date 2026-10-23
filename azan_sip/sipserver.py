@@ -6,7 +6,8 @@ system (as a register SIP trunk) sign in to AthanBox, and it calls them to play 
   (accounts of kind "trunk": a phone system called on the number you choose, such as a paging group;
   with no number, the device itself, as before 0.6.2). Each account can allow several sign-ins at once.
 - Sign-ins use SIP digest authentication; repeated wrong passwords from an address are blocked
-  for a while. Calls from outside are always refused: this server never connects calls anywhere.
+  for a while. It never connects calls anywhere: the only calls it takes are to the Quran by phone
+  extensions (quranline.py), from devices signed in to it.
 - Calls go out from the same port the phones signed in to, as phones expect from their server.
 """
 from __future__ import annotations
@@ -24,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import __version__, rtp, security
+from . import __version__, quranline, rtp, security
 from .sip import SipCall, SipMessage, SipTarget, _digest, _rand
 
 log = logging.getLogger("azan-sip")
@@ -258,8 +259,8 @@ class SipServer(threading.Thread):
             self._register(msg, addr)
         elif m == "OPTIONS":
             self._reply(msg, addr, "200 OK", ["Accept: application/sdp"], to_tag=False)
-        elif m == "INVITE":                    # nobody can call through AthanBox
-            self._reply(msg, addr, "403 Forbidden")
+        elif m == "INVITE":
+            self._invite(msg, addr)
         elif m == "ACK":
             return
         elif m in ("BYE", "CANCEL"):
@@ -306,7 +307,7 @@ class SipServer(threading.Thread):
             return "stale"
         md5 = lambda s: hashlib.md5(s.encode()).hexdigest()  # noqa: E731
         ha1 = md5(f"{p['username']}:{REALM}:{account.password}")
-        ha2 = md5(f"REGISTER:{p.get('uri', '')}")
+        ha2 = md5(f"{req.method}:{p.get('uri', '')}")
         if p.get("qop", "").lower() == "auth":
             want = md5(f"{ha1}:{p['nonce']}:{p.get('nc', '')}:{p.get('cnonce', '')}:auth:{ha2}")
         else:
@@ -388,6 +389,40 @@ class SipServer(threading.Thread):
             self._save()
         self._reply(req, addr, "200 OK", [f"Contact: <{contact}>;expires={expires}", f"Expires: {expires}",
                                           f"Date: {time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime())}"])
+
+    # ------------------------------------------------------------ calls in: Quran by phone
+    def _invite(self, req: SipMessage, addr):
+        """Only the Quran by phone extensions take calls, and only from devices signed in to AthanBox: by the
+        account's password, or (phone systems that don't send one) from the address it signed in from."""
+        ip = addr[0]
+        m = re.match(r"sips?:([^@;>]+)@", req.first.split(" ")[1] if " " in req.first else "")
+        kind = quranline.LINE.which(m.group(1) if m else "")
+        if self._blocked(ip):
+            self._reply(req, addr, "403 Forbidden")
+            return
+        who = next((a for u, bs in self.active().items() for b in bs if b.addr == (addr[0], addr[1])
+                    and (a := self.accounts.get(u)) and a.enabled), None)
+        if who is None:
+            h = req.get("authorization") or req.get("proxy-authorization")
+            pm = re.search(r'username="?([^",]+)', h)
+            acct = self.accounts.get(pm.group(1).lower()) if pm else None
+            result = self._check_auth(req, acct) if acct and acct.enabled and req.get("authorization") else \
+                "none" if not h else "bad"
+            if result in ("none", "stale"):
+                self._challenge(req, addr, stale=result == "stale")
+                return
+            if result != "ok":
+                self.failures.setdefault(ip, []).append(time.time())
+                log.warning("A call from %s to AthanBox was refused: wrong username or password", ip)
+                self._reply(req, addr, "403 Forbidden")
+                return
+            who = acct
+        if kind is None:
+            log.info("%s dialled %s on AthanBox, which isn't a Quran by phone extension", who.name or who.username,
+                     m.group(1) if m else "?")
+            self._reply(req, addr, "404 Not Found")
+            return
+        quranline.InboundCall(self, req, addr, kind, who.name or who.username).start()
 
     # ------------------------------------------------------------ remote provisioning: "Update now"
     def check_sync(self, usernames: set[str], timeout: float = 4.0) -> list[dict]:

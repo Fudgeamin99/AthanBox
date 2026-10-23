@@ -472,6 +472,7 @@ function normalize(c){
   c.targets = c.targets || [];
   c.crypto = c.crypto || {coins:["bitcoin","ethereum"], currency:"gbp", button:true};
   c.crypto.coins = c.crypto.coins || [];
+  c.quran_line = Object.assign({enabled:true, live_ext:"700", playlist_ext:"701", playlist:[], shuffle:false}, c.quran_line || {});
   c.prayers.enabled = c.prayers.enabled || PRAYERS.slice();
   c.prayers.skip_days = c.prayers.skip_days || [];
   if(c.location.timezone === undefined) c.location.timezone = "local";
@@ -892,10 +893,33 @@ function pagePhones(){
         <button class="btn small" onclick="testTarget(${i})">${ICON.play} Test</button><button class="btn small" onclick="editTarget(${i})">Edit</button>
         <label class="switch" title="On/off"><input type="checkbox" data-path="targets.${i}.enabled" data-kind="bool" ${t.enabled!==false?"checked":""}><span></span></label></div>`).join("")
       :'<div class="empty">No phones yet. Click <b>Add phones</b> to start.</div>'}
-      </div>${guideHTML()}`;
+      </div>${quranCardHTML()}${guideHTML()}`;
   }
   $("#main").innerHTML = html;
   if(SESSION.box && !editing && !PROV) provLoad();
+}
+// ---- Quran by phone: extensions on AthanBox's own SIP server that play the live recitation or a playlist
+function quranCardHTML(){
+  const Q = CFG.quran_line, files = META.audio_files || [], has = f => Q.playlist.includes(f);
+  const lines = CFG.targets.some(t => t.type === "phones" || t.type === "server");
+  const inp = (path, v, id) => `<input type="text" id="${id}" inputmode="tel" maxlength="12" style="max-width:140px" data-path="${path}" value="${esc(v)}">`;
+  return `<div class="card" id="qurancard"><h2>Quran by phone</h2>
+    <p class="muted" style="margin-top:0">Dial an extension on a phone's AthanBox line to listen to the live recitation from Masjid al-Haram, or to a Quran playlist. It plays until you hang up. Only phones and phone systems signed in to AthanBox can call.</p>
+    ${lines ? "" : `<div class="banner" style="margin-bottom:10px">No phone signs in to AthanBox yet. Add one with <b>Add phones</b> › <b>Desk phones sign in to AthanBox</b> (or <b>Register to AthanBox</b> for a phone system), then dial the extension on that line.</div>`}
+    <div class="toggle-row"><div><div class="t">Quran by phone</div><div class="d">Turn it off and these extensions stop answering.</div></div>${sw("quran_line.enabled", Q.enabled, "data-rerender")}</div>
+    ${Q.enabled ? `<div class="row" style="gap:16px;margin-top:12px;flex-wrap:wrap">
+      <div class="field" style="margin:0"><label for="q-live">Live from Makkah</label>${inp("quran_line.live_ext", Q.live_ext, "q-live")}</div>
+      <div class="field" style="margin:0"><label for="q-pl">Quran playlist</label>${inp("quran_line.playlist_ext", Q.playlist_ext, "q-pl")}</div></div>
+    <div class="field" style="margin-top:14px"><label>Playlist (${Q.playlist.length ? `${Q.playlist.length} chosen, in this order` : "none chosen"})</label>
+      ${Q.playlist.length ? "" : `<p class="muted" style="margin:0 0 8px">With none chosen, it plays ${esc(META.quran_online || "the whole Quran from the internet")}, surah by surah.</p>`}
+      ${files.length ? `<div class="row" style="gap:8px;flex-wrap:wrap">${files.map(f => `<button class="chip ${has(f)?"on":""}" aria-pressed="${has(f)}" onclick="toggleQuran(${esc(JSON.stringify(f))})">${has(f) ? `${Q.playlist.indexOf(f)+1}. ` : ""}${esc(f)}</button>`).join("")}</div>` : ""}
+      <div class="hint">Recordings come from the audio folder. Add recitations on the <a href="#audio" onclick="go('audio');return false">Azan sound</a> page with <b>Add recording…</b></div></div>
+    ${Q.playlist.length > 1 ? `<div class="toggle-row"><div><div class="t">Shuffle</div><div class="d">Play the chosen recordings in a different order each call.</div></div>${sw("quran_line.shuffle", Q.shuffle)}</div>` : ""}` : ""}</div>`;
+}
+function toggleQuran(f){
+  const P = CFG.quran_line.playlist, i = P.indexOf(f);
+  if(i >= 0) P.splice(i, 1); else P.push(f);
+  const el = $("#qurancard"); if(el) el.outerHTML = quranCardHTML(); dirty();
 }
 // ---- Remote provisioning (Phones › Remote provisioning): desk phones download their AthanBox line from a link,
 // on the network or from anywhere. One list of phones by MAC address; open one to choose its extensions.
