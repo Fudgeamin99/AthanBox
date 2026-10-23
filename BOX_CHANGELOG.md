@@ -6,6 +6,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.10.0 - Quran by phone
+
+- **Quran by phone:** dial **700** on a phone's AthanBox line to hear the live recitation from Masjid al-Haram (the sound of Makkah live), or **701** for a Quran playlist. It plays until you hang up. Choose the extensions and the playlist on the Phones page, under Quran by phone. The playlist plays the recordings you choose from the audio folder, in order or shuffled. With none chosen, it plays the whole Quran recited by Mishary Alafasy, surah by surah, from the internet.
+- Only desk phones and phone systems signed in to AthanBox can call, using their AthanBox password or the address they signed in from. A phone system registered to AthanBox needs a route that sends 700 and 701 over that trunk.
+
 ## 0.9.9 - Crypto rows fit with many coins
 
 - **Fix:** with five or more coins on the Crypto view, each coin's change and its arrow spilled below the row's line. The text in each row now shrinks just enough to fit, on any screen size.

@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, crypto, hostvol, kids, live, look, provision, ramadan, rtp, screens, security, sipserver, tomlw, updater
+from . import __version__, crypto, hostvol, kids, live, look, provision, quranline, ramadan, rtp, screens, security, sipserver, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import app_dir
 from .sipreg import Registration, RegistrationManager
@@ -354,6 +354,8 @@ class Service:
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
         if "crypto" in cfg:
             cfg["crypto"] = crypto.clean(cfg["crypto"])
+        if "quran_line" in cfg:
+            cfg["quran_line"] = quranline.clean(cfg["quran_line"])
         look.check(cfg)
         kids.check(cfg)
         ramadan.check(cfg.get("ramadan"))
@@ -366,6 +368,7 @@ class Service:
             self._stop_scheduler(halt_audio=False)  # an azan that is playing carries on
             self.app, self.cfg, self.error = app, cfg, None
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
+            quranline.LINE.configure(cfg.get("quran_line"), self.audio_dir, lambda: self.live_url)  # Quran by phone
             sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to AthanBox
             g = cfg.get("general", {})
             self._host_volume(g.get("tv_volume", 100))
@@ -961,6 +964,7 @@ class Service:
                 "live_default": live.DEFAULT_URL,
                 "crypto_popular": [{"id": i, "name": n, "symbol": s} for i, n, s in crypto.POPULAR],
                 "crypto_currencies": list(crypto.CURRENCIES), "crypto_max": crypto.MAX_COINS,
+                "quran_online": quranline.ONLINE_NAME,
                 "folder": str(self.base)}
 
     @staticmethod
