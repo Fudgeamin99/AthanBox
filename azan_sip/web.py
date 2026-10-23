@@ -1052,6 +1052,17 @@ class Service:
                 for x in targets:
                     if isinstance(x, sipserver.ServerTarget):
                         x.only = user
+            phone = str(req.get("phone") or "")
+            if phone:   # the Test button on one phone (Remote provisioning): ring the lines it's signed in with
+                server = sipserver.MANAGER.server
+                users = [str(a.get("username", "")).lower() for a in provision.phones(self.cfg).get(provision.mac(phone), [])]
+                active = server.active() if server and server.status == "running" else {}
+                if not any(u in active for u in users):
+                    raise RuntimeError("That phone isn't signed in to AthanBox yet. Give it the provisioning link, or press "
+                                       "Auto Provision Now on the phone")
+                for x in targets:
+                    if isinstance(x, sipserver.ServerTarget):
+                        x.only_any = frozenset(users)
         if app.now_playing:
             raise RuntimeError(f"Already playing: {app.now_playing}")
         if req.get("wait"):  # play it now and say whether it worked (setup wizard)
