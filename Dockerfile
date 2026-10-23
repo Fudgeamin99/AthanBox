@@ -26,7 +26,8 @@ ENV AZAN_SECURITY_STATUS=/data/security/status.json
 # No USER line: the entrypoint starts as root only to give /data to user azan (1000), then
 # runs AthanBox as that user.
 VOLUME /data
-EXPOSE 8765
+# 8765: the control panel. 8766: remote provisioning, while it is on (the Phones page)
+EXPOSE 8765 8766
 # Python runs as process 1, which ignores SIGTERM: stop with Ctrl+C's signal, so AthanBox signs out
 # of the phone system and stops in a moment instead of being killed after Docker's timeout.
 STOPSIGNAL SIGINT

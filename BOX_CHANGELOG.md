@@ -6,14 +6,41 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
-## 0.8.3 - Yealink cordless handsets picking up the azan
+## 0.9.2 - Yealink cordless handsets picking up the azan
 
-- **Yealink cordless phones (W52P, W56P, W60B with W52H, W56H and other handsets)** have their own entry in the **Phone setup guide** on the **Phones** page. A handset only picks up the azan by itself when **Auto Intercom** is on for that handset and the line the azan comes in on rings only that handset. When one line rings several handsets, they all just ring. The guide shows how to give each handset its own line, signed in to AthanBox.
+- **Yealink cordless phones (W52P, W56P, W60B with W52H, W56H and other handsets)** have their own entry in the **Phone setup guide** on the **Phones** page. A handset only picks up the azan by itself when **Auto Intercom** is on for that handset and the line the azan comes in on rings only that handset. When one line rings several handsets, they all just ring. The guide shows how to give each handset its own line, signed in to AthanBox. It also says where multicast paging is on these bases, and that it only works when AthanBox is on the same local network.
 - The **Things to check** list in first-time setup mentions it too, when the test chime rings but isn't answered.
 - AthanBox already sends the auto-answer headers Yealink looks for, so calls aren't changed.
 - **Debian:** update as usual in Settings → Updates. Nothing else changes.
 - **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
 - The Android app and the Wyse client need no update.
+
+## 0.9.1 - Add and update provisioned phones from the Phones page
+
+- **Add a phone** on the Remote provisioning card: type the phone's MAC address, a name and how many lines (one per handset on a DECT base), and AthanBox makes the extensions with their passwords and saves them. **From line** keeps line 1 free for your phone system. A phone that already asked for its settings has an **Add this phone** button under **Phones that asked recently**, with its MAC filled in.
+- **Provisioned phones** lists each phone with its lines, which are signed in, and when it last fetched its settings.
+- **Update now** (one phone) and **Update all phones** ask signed-in phones to download their settings again straight away (SIP NOTIFY check-sync), instead of waiting for the daily check. Phones provisioned by 0.9.1 are told not to restart for it. A phone that isn't signed in yet still needs **Auto Provision Now** pressed once on it.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
+## 0.9.0 - Remote provisioning for desk phones
+
+- **Remote provisioning:** on the **Phones** page, switch on **Remote provisioning** to get a provisioning link. Paste it into a Yealink phone's **Settings → Auto Provision → Server URL** and the phone downloads its AthanBox line by itself, with **auto-answer** on, intercom answering with the microphone off, Auto Intercom on DECT handsets, and a daily check for changes. No more typing SIP details on each phone.
+  - Each extension under **Desk phones sign in to AthanBox** has a new **MAC address** field, and a **Line on the phone** for when line 1 is your phone system's. Extensions with the same MAC become lines 1, 2, 3 on that phone, so a Yealink DECT base (W60B with W52H/W56H handsets) gets one line per handset.
+  - **Phones outside the network:** forward TCP port **8766** and UDP port **5060** on AthanBox's router and fill in the **Public address**. The phone then signs in to that address too. Only the provisioning links answer on port 8766, not the control panel.
+  - The link carries a long random key, and **New link** replaces it. A wrong key is logged and counts for fail2ban's **Control panel** jail. **Allowed addresses** can limit who may download. **Phones that asked recently** shows which phones fetched their settings, and the MAC of any phone that isn't matched yet.
+  - Yealink for now. The link names the brand, so other brands can follow.
+- **Debian:** update as usual in Settings → Updates. AthanBox sets up the new fail2ban rule by itself after the update. Port 8766 opens only while remote provisioning is on. No new packages or services.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. With host networking, port 8766 needs nothing in `compose.yaml`; the `security` container picks up the new fail2ban rule with the update.
+- The Android app and the Wyse client need no update.
+
+## 0.8.4 - Choose the test chime sound
+
+- **Test chime sound:** in **Settings → Testing and calls**, choose what the **Test chime** buttons play: the built-in chime or any of your recordings. A recording plays for the **Test chime length**, at the **Test chime volume**. If the chosen recording is removed, the built-in chime plays instead.
+
+## 0.8.3 - Test one desk phone at a time
+
+- **Test button on each account:** under **Desk phones sign in to AthanBox** and **Register to AthanBox (SIP trunk)**, each signed-in account now has its own **Test** button. It rings only the phones signed in with that account, instead of every phone. **Test now** at the bottom still rings them all.
 
 ## 0.8.2 - Kids mode: tap a missed star, and last week's stars
 

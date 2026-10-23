@@ -4,7 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.8.2, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.4](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.4). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.8.4, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.4](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.4). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
@@ -150,6 +150,13 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 | IP speaker (RTP) | Paging speakers that listen on a fixed IP address and port. |
 | Register to AthanBox (SIP trunk) | A phone system that adds AthanBox as a register SIP trunk (no extension needed). AthanBox listens on UDP port 5060. |
 | Desk phones sign in to AthanBox | Desk phones with no phone system, or as a second line next to it. Each phone gets its own extension on AthanBox, and AthanBox rings them with auto-answer so they pick up by themselves. Same UDP port 5060. For Yealink cordless (DECT) handsets, give each handset its own account and turn on Auto Intercom on each handset. |
+
+**Remote provisioning:** on the **Phones** page, switch on **Remote provisioning** to get a link such as `http://<AthanBox's address>:8766/provision/<key>/yealink/`. Type a desk phone's MAC address on its extension under *Desk phones sign in to AthanBox*, paste the link into the phone's **Settings → Auto Provision → Server URL**, and the phone downloads its AthanBox line with auto-answer on, so nobody types SIP details on it. Several extensions with the same MAC become lines 1, 2, 3 on that phone, which suits a Yealink DECT base (W60B with W52H/W56H handsets). Yealink desk phones and DECT bases for now.
+
+- **Add a phone** on the same card makes its extensions in one step from its MAC address, a name and how many lines. **Update now** asks a signed-in phone to download its settings again straight away (SIP NOTIFY check-sync).
+- **Phones outside the network:** forward TCP port 8766 (provisioning) and UDP port 5060 (SIP) on AthanBox's router to AthanBox, and fill in the **Public address** (your public IP or a dynamic DNS name). Only the provisioning links answer on port 8766, so the control panel stays private.
+- **Keeping it safe:** the link carries a long random key, and **New link** replaces it. A wrong key is logged, and fail2ban's control panel jail bans an address that keeps guessing. **Allowed addresses** can limit downloads to your own sites. The link is plain http, so the SIP password crosses the internet unencrypted: keep to the allowed addresses where you can.
+- Debian and Docker work the same. With Docker's host networking the port needs nothing in `compose.yaml`.
 
 ## Password
 

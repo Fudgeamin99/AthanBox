@@ -53,7 +53,7 @@ MAX_ENTRIES = 2000
 # What the control panel writes to azan.log (see auth.py and sipserver.py). The address is matched
 # at the end of the line, after the SIP user name, which a caller could choose.
 FILTERS = {
-    "azan-sip-panel": r"^\s*WARNING\s+Wrong control panel (?:password|setup code) from <HOST>$",
+    "azan-sip-panel": r"^\s*WARNING\s+Wrong (?:control panel (?:password|setup code)|provisioning link) from <HOST>$",
     "azan-sip-sip": r"^\s*WARNING\s+SIP sign-in for .* from <HOST> failed: wrong username or password$",
 }
 FILTER_TEXT = """# Written by AthanBox (Security page). Changes here are overwritten.
