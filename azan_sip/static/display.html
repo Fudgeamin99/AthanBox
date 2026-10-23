@@ -141,6 +141,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .cprice b{display:block;font-size:calc(var(--cs)*1.15);font-variant-numeric:tabular-nums;line-height:1.1}
 .cchg{font-size:calc(var(--cs)*.6);font-weight:700;font-variant-numeric:tabular-nums}
 .up{color:#2fbf71;stroke:#2fbf71}.down{color:#e5484d;stroke:#e5484d}
+.cfoot{margin-top:.8vh;padding-top:1vh;border-top:1px solid rgb(var(--t-tint) / .1);font-size:calc(1.7vh*var(--s));color:var(--t-muted);text-align:right;font-variant-numeric:tabular-nums}
 .cmsg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;text-align:center;color:var(--t-muted);font-size:2.4vh}
 .cmsg b{color:var(--t-ink);font-size:3vh}
 .live .side{flex:1 1 0;min-width:250px;padding:2.6vh 1.4vw;border-radius:1.8vh;background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);overflow:hidden}
@@ -344,7 +345,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
   .live .side{flex:none;min-width:0;padding:16px;border-radius:14px}
   .crypto .player{aspect-ratio:auto}
   .crypto .cpanel{position:static;--cs:calc(19px*var(--s));padding:14px 16px 6px}
-  .ctop{flex-wrap:wrap;gap:4px 12px}.ctop .ctitle{font-size:13px}.ctop .cupd{font-size:12px}
+  .ctop{flex-wrap:wrap;gap:4px 12px}.ctop .ctitle{font-size:13px}.ctop .cupd,.cfoot{font-size:12px}
   .crow{grid-template-columns:auto minmax(0,1fr) 20% auto;column-gap:10px;padding:10px 0}
   .live .hero .name{font-size:calc(52px*var(--s)*var(--f,1))}
   .live .hero .when{font-size:calc(17px*var(--s)*var(--f,1))}.live .hero .until{font-size:calc(22px*var(--s)*var(--f,1))}
@@ -1136,9 +1137,10 @@ function renderCrypto(){
   let when = "";
   if(d && d.updated && d.now && S && S.clock){   // on AthanBox's clock, like the big clock
     const [h, m, s] = S.clock.split(":").map(Number), t = new Date(2000, 0, 1, h, m, s + (Date.now() - got) / 1000 - (d.now - d.updated));
-    when = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+    when = [t.getHours(), t.getMinutes(), t.getSeconds()].map(x => String(x).padStart(2, "0")).join(":");
   }
-  const top = `<div class="ctop"><div class="ctitle"><span class="rec"></span>Live · Crypto</div><div class="cupd">${d ? `Prices in ${esc(String(d.currency || "").toUpperCase())}` : ""}${when ? ` · updated ${when}` : ""}${d && d.stale ? " · couldn't update" : ""}</div></div>`;
+  const top = `<div class="ctop"><div class="ctitle"><span class="rec"></span>Live · Crypto</div><div class="cupd">${d ? `Prices in ${esc(String(d.currency || "").toUpperCase())}` : ""}</div></div>`;
+  const foot = when ? `<div class="cfoot">Last refreshed ${when} · from CoinGecko, every minute${d.stale ? ` · <span class="down">couldn't refresh since</span>` : ""}</div>` : "";
   el.style.setProperty("--cn", Math.max(2, coins.length));
   if(!coins.length){
     const msg = CR.err || (d && d.error) || "Getting the prices…";
@@ -1151,7 +1153,7 @@ function renderCrypto(){
       <div class="cname"><b>${esc(c.name)}</b><span>${esc(c.symbol)}</span></div>
       ${sparkSVG(c.spark)}
       <div class="cprice"><b>${money(c.price, d)}</b><span class="cchg ${cls}">${cls ? `${ch >= 0 ? "▲" : "▼"} ${Math.abs(ch).toFixed(2)}%` : ""}</span></div></div>`;
-  }).join("")}</div>`;
+  }).join("")}</div>` + foot;
 }
 $("#cryptobtn").addEventListener("click", () => setCrypto(!CR.on, true));
 
