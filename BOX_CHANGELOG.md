@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.3 - Cordless handsets named by handset again
+
+- A cordless base added with **Yealink cordless base** names its extensions by handset again, such as **Main hall handset 1**, **Main hall handset 2**, as in 0.9.2's first build. Bases already added keep their names; rename them on the desk phone if you like.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+- The Android app and the Wyse client need no update.
+
 ## 0.9.2 - Yealink cordless handsets picking up the azan
 
 - **Add a cordless base in one step.** Under **Remote provisioning** on the **Phones** page, **Add a phone** has a new **Yealink cordless base** tick box. Type the base's MAC address and how many handsets: AthanBox makes one extension per handset, and the base's settings from the provisioning link set each AthanBox line to ring its own handset only, with Auto Intercom on, so every handset picks up the azan by itself. This works with AthanBox in the cloud too. **The base's other lines** (such as your phone system's line 1) keep ringing every handset.
