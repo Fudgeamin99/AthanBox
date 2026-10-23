@@ -123,7 +123,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .cpanel{display:none}
 .crypto .player{background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);box-shadow:none}
 .crypto .player video,.crypto .player .badge,.crypto .player .pmsg,.crypto .player .sound{display:none !important}
-.crypto .cpanel{--cs:calc(min(4.6vh, 30vh / var(--cn,2)) * var(--s));display:flex;flex-direction:column;position:absolute;top:0;right:0;bottom:0;left:0;padding:2.4vh 2vw 1.6vh;color:var(--t-ink)}
+.crypto .cpanel{--cs:calc(min(4.6vh, 30vh / var(--cn,2)) * var(--s) * var(--fit,1));display:flex;flex-direction:column;position:absolute;top:0;right:0;bottom:0;left:0;padding:2.4vh 2vw 1.6vh;color:var(--t-ink)}
 .ctop{display:flex;align-items:center;justify-content:space-between;gap:1vw;margin-bottom:1vh}
 .ctop .ctitle{display:flex;align-items:center;gap:1vh;font-size:calc(1.9vh*var(--s));font-weight:700;letter-spacing:.3vh;text-transform:uppercase;color:var(--t-accent)}
 .ctop .ctitle .rec{width:1.2vh;height:1.2vh;border-radius:50%;background:#2fbf71;animation:pulse 1.6s infinite}
@@ -139,7 +139,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .cspark polyline{fill:none;stroke-width:2.2;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
 .cprice{text-align:right;white-space:nowrap}
 .cprice b{display:block;font-size:calc(var(--cs)*1.15);font-variant-numeric:tabular-nums;line-height:1.1}
-.cchg{font-size:calc(var(--cs)*.6);font-weight:700;font-variant-numeric:tabular-nums}
+.cchg{display:block;font-size:calc(var(--cs)*.6);line-height:1.2;font-weight:700;font-variant-numeric:tabular-nums}
 .up{color:#2fbf71;stroke:#2fbf71}.down{color:#e5484d;stroke:#e5484d}
 .cfoot{margin-top:.8vh;padding-top:1vh;border-top:1px solid rgb(var(--t-tint) / .1);font-size:calc(1.7vh*var(--s));color:var(--t-muted);display:flex;align-items:flex-end;justify-content:space-between;gap:2vw}.cdua{display:flex;flex-direction:column;align-items:flex-start;min-width:0;line-height:1.35}.cdua .ar{font-size:calc(2.3vh*var(--s));color:var(--t-soft);line-height:1.6}.cduaen{font-style:italic}.cref{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .cmsg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;text-align:center;color:var(--t-muted);font-size:2.4vh}
@@ -1158,7 +1158,24 @@ function renderCrypto(){
       ${sparkSVG(c.spark)}
       <div class="cprice"><b>${money(c.price, d)}</b><span class="cchg ${cls}">${cls ? `${ch >= 0 ? "▲" : "▼"} ${Math.abs(ch).toFixed(2)}%` : ""}</span></div></div>`;
   }).join("")}</div>` + foot;
+  fitCrypto(el);
 }
+// Shrink the rows' text until each coin's price and change fit inside its row (many coins, short screens)
+function fitCrypto(el){
+  el.style.removeProperty("--fit");
+  let fit = 1;
+  for(let i = 0; i < 4; i++){
+    let need = 1;
+    for(const row of el.querySelectorAll(".crow")){
+      const room = row.clientHeight - 6;
+      for(const c of row.children) if(c.offsetHeight > room) need = Math.min(need, room / c.offsetHeight);
+    }
+    if(need >= 1) break;
+    fit *= Math.max(.4, need * .97);
+    el.style.setProperty("--fit", fit.toFixed(3));
+  }
+}
+addEventListener("resize", () => { if(CR.on) renderCrypto(); });
 $("#cryptobtn").addEventListener("click", () => setCrypto(!CR.on, true));
 
 // ---------------------------------------------------------------- settings, full screen

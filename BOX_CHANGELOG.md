@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.9.9 - Crypto rows fit with many coins
+
+- **Fix:** with five or more coins on the Crypto view, each coin's change and its arrow spilled below the row's line. The text in each row now shrinks just enough to fit, on any screen size.
+
 ## 0.9.8 - A dua for provision on the Crypto view
 
 - **Dua:** the bottom left of the Crypto view now shows the dua for provision from at-Tirmidhi 3563, in Arabic with the English underneath. The last refreshed time stays on the right.
