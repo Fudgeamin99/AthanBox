@@ -1394,6 +1394,9 @@ class Handler(BaseHTTPRequestHandler):
             if p in ("/", "/index.html"):
                 if svc.box and not svc.configured() and not svc.setup_manual():  # first-time setup (keeps ?setup=)
                     return self._send(302, b"", "text/plain", {"Location": self.prefix + "/setup" + (f"?{url.query}" if url.query else "")})
+                if not self.prefix and svc.sites and svc.sites.mode == "group":
+                    # Group: signing in opens the Sites page; the first site's own panel is at /s/main/
+                    return self._send(302, b"", "text/plain", {"Location": "/sites" + (f"?{url.query}" if url.query else "")})
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             if p in PAGES:
                 if p == "/setup" and not (svc.box and (not svc.configured() or "again" in parse_qs(url.query, keep_blank_values=True))):

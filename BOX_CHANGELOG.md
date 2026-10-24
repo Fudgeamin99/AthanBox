@@ -6,6 +6,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.11.1 - The Sites page opens first, in dark mode
+
+- **Sites first:** in Group, opening AthanBox (http://azan.local or the server's address) goes straight to the Sites page. The first site's own control panel is now at /s/main/, like every other site's.
+- **Dark mode:** the Sites page is dark. The sun button at the top switches it to light, and the browser remembers your choice.
+
 ## 0.11.0 - Sites: one server for many mosques and homes
 
 - **Enterprise or Group:** the new Sites page (Settings > Sites, or /sites) switches between Enterprise, which is one site as before, and Group, which runs many sites on one server. Nothing changes for an AthanBox that stays on Enterprise.
