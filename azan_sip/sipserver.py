@@ -47,6 +47,7 @@ class Account:
     dial: str = ""               # the number to call on the phone system (e.g. a paging group); empty: the device
     enabled: bool = True
     max_signins: int = 1         # how many devices / phone systems may be signed in with it at once
+    azan: bool = True            # off: it stays signed in, but the azan doesn't call it (its Test button still does)
 
 
 @dataclass
@@ -550,7 +551,8 @@ class ServerManager:
                 return
             accounts = [Account(str(a.get("username", "")).strip(), str(a.get("password", "")), a.get("name", ""),
                                 KINDS[t["type"]], str(a.get("dial", "")).strip() if t["type"] == "server" else "",
-                                a.get("enabled", True), max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))))
+                                a.get("enabled", True), max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))),
+                                a.get("azan", True) is not False)
                         for t in ts for a in t.get("accounts", []) if isinstance(a, dict)]
             port = int(ts[0].get("port", 5060) or 5060)   # both methods use the same port (checked on saving)
             s = self.server
@@ -627,8 +629,9 @@ class ServerTarget:
         jobs = []
         for u, bs in server.active().items():
             acct = server.accounts.get(u)
-            if acct and acct.enabled and acct.kind == self.kind and self.only in (None, u) \
-                    and (self.only_any is None or u in self.only_any):
+            # a Test button rings its own line even when that line is off for the azan
+            picked = self.only == u if self.only else u in self.only_any if self.only_any is not None else acct and acct.azan
+            if acct and acct.enabled and acct.kind == self.kind and picked:
                 # every device / phone system signed in with the account, once each: a device that signed
                 # in more than once from the same address gets only its newest sign-in
                 newest = {b.addr: b for b in bs}   # bs is oldest first
