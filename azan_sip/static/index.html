@@ -847,8 +847,8 @@ function toEdit(t){
   e.username=t.username||""; e.password=t.password||""; e.auth_username=t.auth_username||""; e.register=t.register!==false;
   e.phones=(t.uris||(k==="direct"&&t.uri?[t.uri]:[])).map(u=>u.replace(/^sip:/,"")).join("\n");
   e.rtp=(t.addresses||(t.address&&k==="rtp"?[t.address]:[])).join("\n");
-  e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1)})):[];
-  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):"", handset:a.handset?String(a.handset):"", keep_lines:(a.keep_lines||[]).join(", "), phone:a.phone||""})):[];
+  e.port=String(t.port||sipPort()); e.accounts=k==="server"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({...a, kind:"trunk", dial:a.dial||"", max_signins:String(a.max_signins||1), azan:a.azan!==false})):[];
+  e.desk=k==="phones"?JSON.parse(JSON.stringify(t.accounts||[])).map(a=>({name:a.name||"", username:a.username||"", password:a.password||"", max_signins:String(a.max_signins||1), mac:a.mac||"", line:a.line?String(a.line):"", handset:a.handset?String(a.handset):"", keep_lines:(a.keep_lines||[]).join(", "), phone:a.phone||"", azan:a.azan!==false})):[];
   return e;
 }
 function fromEdit(e){
@@ -857,7 +857,7 @@ function fromEdit(e){
   if(e.kind==="multicast"){ if(!/^(22[4-9]|23\d)\./.test(e.mc_ip)) throw new Error("A multicast address starts with 224-239, e.g. 224.5.6.20"); return {...base,type:"multicast",address:`${e.mc_ip}:${parseInt(e.mc_port)||10008}`}; }
   if(e.kind==="server"){
     const port=parseInt(e.port,10); if(!(port>=1&&port<=65535)) throw new Error("The SIP port must be a number, usually 5060");
-    const accts=(e.accounts||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"trunk", dial:(a.dial||"").trim(), max_signins:parseInt(a.max_signins,10)}));
+    const accts=(e.accounts||[]).map(a=>({name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"trunk", dial:(a.dial||"").trim(), max_signins:parseInt(a.max_signins,10), ...(a.azan===false?{azan:false}:{})}));
     if(!accts.length) throw new Error("Add at least one SIP trunk account");
     const seen=new Set();
     for(const a of accts){
@@ -873,7 +873,7 @@ function fromEdit(e){
   }
   if(e.kind==="phones"){
     const port=parseInt(e.port,10); if(!(port>=1&&port<=65535)) throw new Error("The SIP port must be a number, usually 5060");
-    const accts=(e.desk||[]).map(a=>{ const x={name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:parseInt(a.max_signins,10)||1};
+    const accts=(e.desk||[]).map(a=>{ const x={name:(a.name||"").trim(), username:(a.username||"").trim(), password:a.password||"", kind:"phone", max_signins:parseInt(a.max_signins,10)||1, ...(a.azan===false?{azan:false}:{})};
       const mac=String(a.mac||"").replace(/[\s:.\-]/g,"").toLowerCase(), line=String(a.line||"").trim();
       if(mac){ if(!/^[0-9a-f]{12}$/.test(mac)) throw new Error(`${a.mac} isn't a MAC address. It looks like 80:5E:C0:12:34:56, on a sticker under the phone or base`); x.mac=mac.match(/../g).join(":").toUpperCase(); }
       if(line){ const n=parseInt(line,10); if(!(n>=1&&n<=16)) throw new Error(`The line for ${x.username} must be between 1 and 16`); x.line=n; }
@@ -1195,7 +1195,7 @@ function editorHTML(){
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
       <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. Choose another (e.g. 5070) if a phone system or softphone already uses 5060 on AthanBox. Desk phones signing in to AthanBox use the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">SIP trunk accounts</div>
-      ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('accounts',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
+      ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}${lineSwitch("accounts",i,a)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('accounts',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid5"><div class="field"><label for="ac${i}n">Name</label><input type="text" id="ac${i}n" data-path="edit.accounts.${i}.name" placeholder="Office UCM" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="ac${i}u">Username</label><input type="text" id="ac${i}u" data-path="edit.accounts.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="ac${i}p">Password</label><input type="text" id="ac${i}p" data-path="edit.accounts.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
@@ -1217,7 +1217,7 @@ function editorHTML(){
       ${info&&info.status==="failed"?`<div class="banner bad">${ICON.warn}<div>${esc(info.detail)}</div></div>`:""}
       <div class="grid2"><div class="field"><label>SIP port</label><input type="number" min="1" max="65535" data-path="edit.port" value="${evl("port")}"><div class="hint">5060 is usual. A SIP trunk to AthanBox uses the same port.</div></div>${codec}</div>
       <div class="lbl" style="margin:6px 0 8px">Desk phones</div>
-      ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('desk',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
+      ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}${lineSwitch("desk",i,a)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('desk',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid4"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
           <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
@@ -1237,6 +1237,11 @@ function editorHTML(){
       <div class="row"><button class="btn" onclick="testEditing()">${ICON.play} Test now</button><button class="btn" onclick="editing=null;render()">Cancel</button><button class="btn primary" onclick="finishEdit()">Done</button></div>
     </div></div>`;
 }
+// On/off for one line: off, it stays signed in (and its Test button still rings it) but the azan doesn't call it
+function lineSwitch(list, i, a){
+  const on = a.azan !== false;
+  return `<label class="row" style="gap:6px;font-size:13px;color:var(--muted)" title="${on ? "Rings for the azan" : "Off: stays signed in, but the azan doesn't ring it"}">${on ? "On" : "Off"}${sw(`edit.${list}.${i}.azan`, on, `onchange="editing.${list}[${i}].azan=this.checked;render()"`)}</label>`;
+}
 function newAccount(){
   const used=new Set((editing&&editing.accounts||[]).map(a=>String(a.username).toLowerCase()));
   let n=1; while(used.has("trunk"+n)) n++;
@@ -1248,7 +1253,7 @@ function newDeskPhone(){
     ...CFG.targets.filter(t=>SIPKIND[t.type]).flatMap(t=>(t.accounts||[]).map(a=>String(a.username).toLowerCase()))]);
   let n=101; while(used.has(String(n))) n++;
   const chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", buf=new Uint32Array(14); crypto.getRandomValues(buf);
-  return {name:"", username:String(n), password:[...buf].map(x=>chars[x%chars.length]).join(""), max_signins:"1"};
+  return {name:"", username:String(n), password:[...buf].map(x=>chars[x%chars.length]).join(""), max_signins:"1", azan:true};
 }
 function finishEdit(){ try{ const t=fromEdit(editing); if(editing.index<0) CFG.targets.push(t); else CFG.targets[editing.index]=t; editing=null; dirty(); render(); toast("Press Save changes to start using it."); }catch(e){ toast(e.message,"bad"); } }
 function removeTarget(){ if(!confirm("Remove these phones?")) return; CFG.targets.splice(editing.index,1); editing=null; dirty(); render(); }

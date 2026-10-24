@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.11.3 - Turn one line off
+
+- **An on/off switch on each line:** each desk phone and SIP trunk line on the Phones page has its own switch. A line that's off stays signed in, so its phone shows as registered and Quran by phone still works, but the azan doesn't ring it. Its Test button still rings it, so you can check it while it's off.
+
 ## 0.11.2 - DECT handsets auto-answer the azan
 
 - **Lines on one base are called a moment apart:** when several handsets on one DECT base (like Yealink W53H handsets) sign in to AthanBox, the azan used to call them all in the same instant. The base auto-answered only the first, and the others just rang. Now each further line on the same base is called 1.5 seconds after the one before, so every handset can auto-answer. Phones on their own addresses are still called all at once.
