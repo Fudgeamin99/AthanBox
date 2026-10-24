@@ -828,6 +828,7 @@ class Service:
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "live": self.live_screen(),
                   "crypto_button": crypto.clean(self.cfg.get("crypto"))["button"],   # the Crypto button on screens
+                  "quran_now": quranline.LINE.now_playing(),   # Quran by phone: what the playlist station is playing
                   "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
                   "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to AthanBox

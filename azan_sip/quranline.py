@@ -5,9 +5,12 @@ or to a Quran playlist.
   AthanBox sends the number over that trunk. Only devices signed in to AthanBox can call (their own SIP
   password, or the address they are signed in from), like every other part of AthanBox's SIP server.
 - The live extension plays the sound of the Makkah live stream (the same link as the prayer-times screen).
-- The playlist extension plays the recordings chosen on the Phones page, in order or shuffled, or the whole
-  Quran recited by Mishary Alafasy from the internet when none are chosen. Either keeps going until the
-  caller hangs up (at most MAX_MINUTES).
+- The playlist extension is like a radio station: it plays all the time, from when AthanBox starts, and a
+  caller joins wherever it has got to (hanging up and calling back carries on where it is, not from the
+  start). It plays the recordings chosen on the Phones page, in order or shuffled, or the whole Quran
+  recited by Mishary Alafasy from the internet when none are chosen.
+- Both are shared stations (one download of the live stream however many people listen); the live one runs
+  only while someone is listening. Calls end when the caller hangs up (at most MAX_MINUTES).
 """
 from __future__ import annotations
 
@@ -64,16 +67,48 @@ class QuranLine:
         self.audio_dir: Path | None = None
         self.live_url: Callable[[], str] = lambda: ""
         self.active = 0
+        self.lock = threading.Lock()
+        self.stations: dict[str, Station] = {}
 
     def configure(self, cfg: dict | None, audio_dir: Path, live_url: Callable[[], str]):
-        self.cfg, self.audio_dir, self.live_url = clean(cfg), Path(audio_dir), live_url
+        new = clean(cfg)
+        restart = (new["playlist"], new["shuffle"], new["enabled"]) != (self.cfg["playlist"], self.cfg["shuffle"],
+                                                                        self.cfg["enabled"]) or self.audio_dir != Path(audio_dir)
+        self.cfg, self.audio_dir, self.live_url = new, Path(audio_dir), live_url
+        with self.lock:
+            if restart and "playlist" in self.stations:   # the playlist changed: the station starts it again
+                self.stations.pop("playlist").stop.set()
+        if new["enabled"]:
+            self.station("playlist")                     # the radio plays even while nobody is listening
+        else:
+            with self.lock:
+                for s in self.stations.values():
+                    s.stop.set()
+                self.stations.clear()
+
+    def station(self, kind: str) -> "Station":
+        """The running station for an extension, started if it isn't (or if the live link has changed)."""
+        with self.lock:
+            s = self.stations.get(kind)
+            if s and (not s.is_alive() or s.stop.is_set() or (kind == "live" and s.url != self.live_url())):
+                s.stop.set()
+                s = None
+            if s is None:
+                s = self.stations[kind] = Station(kind, self.live_url() if kind == "live" else "")
+                s.start()
+            return s
+
+    def now_playing(self) -> str:
+        s = self.stations.get("playlist")
+        return s.now if s and s.is_alive() else ""
 
     def which(self, number: str) -> str | None:
         if not self.cfg["enabled"]:
             return None
         return {self.cfg["live_ext"]: "live", self.cfg["playlist_ext"]: "playlist"}.get(number)
 
-    def frames(self, kind: str, codec: str, stop: threading.Event) -> Iterator[bytes]:
+    def frames(self, kind: str, codec: str, stop: threading.Event,
+               on_item: Callable[[str], None] = lambda name: None) -> Iterator[bytes]:
         """The sound to play, as G.711 bytes in pieces of any size, until stop is set."""
         if kind == "live":
             yield from _ffmpeg(self.live_url(), codec, stop, live=True)
@@ -93,9 +128,13 @@ class QuranLine:
             if self.cfg["shuffle"] and not online:
                 random.shuffle(order)
             failed, any_played = 0, False   # failed in a row: give up (and hang up) rather than try every surah of an unreachable site
-            for item in order:
+            for i, item in enumerate(order):
                 if stop.is_set() or failed >= 3:
                     return
+                on_item(item.name if isinstance(item, Path) else f"Surah {items.index(item) + 1}")
+                if isinstance(item, Path) and i + 1 < len(order) and isinstance(order[i + 1], Path):
+                    nxt = order[i + 1]   # convert the next recording now, so there's no gap before it
+                    threading.Thread(target=lambda: _quiet(audio.load, nxt, codec), daemon=True).start()
                 played = False
                 if isinstance(item, Path):
                     try:
@@ -152,6 +191,118 @@ def _ffmpeg(url: str, codec: str, stop: threading.Event, live: bool = False) -> 
         if not got and not stop.is_set():
             log.warning("Quran by phone: couldn't play %s%s", "the live recitation" if live else url,
                         f": {err.splitlines()[-1]}" if err else "")
+
+
+def _quiet(fn, *args):
+    try:
+        fn(*args)
+    except Exception:
+        pass
+
+
+# mu-law (how stations make their sound) to A-law, for phones that only take PCMA
+def _ulaw_to_linear(u: int) -> int:
+    u = ~u & 0xFF
+    t = (((u & 0x0F) << 3) + 0x84) << ((u & 0x70) >> 4)
+    return (0x84 - t) if u & 0x80 else (t - 0x84)
+
+
+TO_ALAW = audio.encode_pcm16([_ulaw_to_linear(u) for u in range(256)], "PCMA")
+
+
+class Station(threading.Thread):
+    """One extension's sound, played in real time for everyone listening, like a radio station: each call
+    takes the 20 ms pieces as they go out, joining wherever the station has got to."""
+    IDLE_STOP = 30.0   # the live station stops this long after its last listener leaves
+
+    def __init__(self, kind: str, url: str = ""):
+        super().__init__(name=f"quran-station-{kind}", daemon=True)
+        self.kind, self.url = kind, url
+        self.stop = threading.Event()
+        self.listeners: set[queue.Queue] = set()
+        self.lock = threading.Lock()
+        self.now = ""
+        self.empty_since = time.monotonic()
+
+    def join_listener(self) -> queue.Queue:
+        q: queue.Queue = queue.Queue(maxsize=50)   # a second
+        with self.lock:
+            self.listeners.add(q)
+        return q
+
+    def leave(self, q: queue.Queue):
+        with self.lock:
+            self.listeners.discard(q)
+            if not self.listeners:
+                self.empty_since = time.monotonic()
+
+    def run(self):
+        if self.kind == "playlist":
+            log.info("Quran by phone: the playlist station is playing")
+        fails = 0
+        while not self.stop.is_set():
+            fails = 0 if self._play() else fails + 1
+            if self.stop.is_set() or (self.kind == "live" and (not self.listeners or fails >= 3)):
+                break                  # nobody listening, or the live stream can't be reached: callers hang up
+            self.stop.wait(5 if self.kind == "live" else 60)   # the stream dropped, or nothing could be played: try again
+        self.stop.set()
+        with LINE.lock:
+            if LINE.stations.get(self.kind) is self:
+                del LINE.stations[self.kind]
+
+    def _play(self) -> bool:
+        """Play until the source ends. Returns whether any sound came."""
+        buf: queue.Queue = queue.Queue(maxsize=150)   # 3 seconds
+        done = threading.Event()
+        played = False
+
+        def feed():
+            rest = b""
+            try:
+                for piece in LINE.frames(self.kind, "PCMU", self.stop, lambda name: setattr(self, "now", name)):
+                    rest += piece
+                    while len(rest) >= rtp.FRAME and not self.stop.is_set():
+                        frame, rest = rest[:rtp.FRAME], rest[rtp.FRAME:]
+                        while not self.stop.is_set():
+                            try:
+                                buf.put(frame, timeout=0.5)
+                                break
+                            except queue.Full:
+                                continue
+            except Exception:
+                log.exception("Quran by phone: playing failed")
+            finally:
+                done.set()
+
+        threading.Thread(target=feed, daemon=True).start()
+        nxt = time.monotonic()
+        while not self.stop.is_set():
+            try:
+                frame = buf.get_nowait()
+            except queue.Empty:
+                if done.is_set():
+                    return played      # the stream or the playlist has ended
+                frame = None           # still loading: listeners hear silence, and the station waits
+            if frame is not None:
+                played = True
+                with self.lock:
+                    targets = list(self.listeners)
+                for q in targets:
+                    try:
+                        q.put_nowait(frame)
+                    except queue.Full:   # a listener fell behind: drop its oldest piece
+                        _quiet(q.get_nowait)
+                        _quiet(q.put_nowait, frame)
+            if self.kind == "live" and not self.listeners and time.monotonic() - self.empty_since > self.IDLE_STOP:
+                self.stop.set()
+                return played
+            nxt += rtp.PTIME_MS / 1000
+            delay = nxt - time.monotonic()
+            if delay > 0:
+                self.stop.wait(delay)
+            elif delay < -0.5:
+                nxt = time.monotonic()
+        return played
 
 
 LINE = QuranLine()
@@ -338,52 +489,43 @@ class InboundCall(threading.Thread):
                  " (nothing more to play)" if stopped_by_us and not ended_by_phone else "")
 
     def _play(self):
-        """Feed the sound into a short buffer and send it every 20 ms, with silence while the stream catches up."""
-        buf: queue.Queue = queue.Queue(maxsize=150)   # 3 seconds
-        done = threading.Event()
-
-        def feed():
-            rest = b""
-            try:
-                for piece in LINE.frames(self.kind, self.codec, self.stop):
-                    rest += piece
-                    while len(rest) >= rtp.FRAME and not self.stop.is_set():
-                        frame, rest = rest[:rtp.FRAME], rest[rtp.FRAME:]
-                        while not self.stop.is_set():
-                            try:
-                                buf.put(frame, timeout=0.5)
-                                break
-                            except queue.Full:
-                                continue
-            except Exception:
-                log.exception("Quran by phone: playing failed")
-            finally:
-                done.set()
-
-        threading.Thread(target=feed, daemon=True).start()
-        silence = audio.silence(rtp.PTIME_MS, self.codec)
+        """Send the station's sound to the phone every 20 ms, with silence while it waits for more."""
+        station = LINE.station(self.kind)
+        q = station.join_listener()
+        silence, alaw = audio.silence(rtp.PTIME_MS, self.codec), self.codec == "PCMA"
         pt, seq, ts, ssrc = CODECS[self.codec], random.randint(0, 0xFFFF), random.randint(0, 0xFFFFFFFF), random.getrandbits(32)
-        nxt, first = time.monotonic(), True
-        while not self.stop.is_set():
-            try:
-                frame = buf.get_nowait()
-            except queue.Empty:
-                if done.is_set():
-                    break              # the playlist or the stream has ended
+        nxt, first, primed = time.monotonic(), True, False
+        try:
+            while not self.stop.is_set():
+                primed = primed or q.qsize() >= 3   # a few pieces in hand first, so small timing differences don't click
                 frame = silence
-            pkt = struct.pack("!BBHII", 0x80, (0x80 if first else 0) | pt, seq & 0xFFFF, ts & 0xFFFFFFFF, ssrc) + frame
-            first = False
-            try:
-                self.rtp_sock.sendto(pkt, self.dest)
-            except OSError:
-                pass
-            seq, ts = seq + 1, ts + rtp.FRAME
-            nxt += rtp.PTIME_MS / 1000
-            delay = nxt - time.monotonic()
-            if delay > 0:
-                self.stop.wait(delay)
-            elif delay < -0.5:
-                nxt = time.monotonic()
+                if primed:
+                    try:
+                        frame = q.get_nowait()
+                        if alaw:
+                            frame = frame.translate(TO_ALAW)
+                    except queue.Empty:
+                        primed = False
+                pkt = struct.pack("!BBHII", 0x80, (0x80 if first else 0) | pt, seq & 0xFFFF, ts & 0xFFFFFFFF, ssrc) + frame
+                first = False
+                try:
+                    self.rtp_sock.sendto(pkt, self.dest)
+                except OSError:
+                    pass
+                seq, ts = seq + 1, ts + rtp.FRAME
+                nxt += rtp.PTIME_MS / 1000
+                delay = nxt - time.monotonic()
+                if delay > 0:
+                    self.stop.wait(delay)
+                elif delay < -0.5:
+                    nxt = time.monotonic()
+                if station.stop.is_set() and q.empty():
+                    if self.kind == "live":
+                        break              # the live stream couldn't be played: hang up
+                    station = LINE.station(self.kind)   # the playlist was changed: listen to the new one
+                    q = station.join_listener()
+        finally:
+            station.leave(q)
         self.stop.set()
 
     def _latch(self):
