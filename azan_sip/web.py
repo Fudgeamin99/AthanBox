@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, crypto, hostvol, kids, live, look, provision, quranline, ramadan, rtp, screens, security, sipserver, tomlw, updater
+from . import __version__, crypto, hostvol, kids, live, look, provision, quranline, ramadan, rtp, screens, security, sipserver, sites, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import app_dir
 from .sipreg import Registration, RegistrationManager
@@ -48,7 +48,11 @@ AUDIO_EXT = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".wma", "
 STATIC = Path(__file__).with_name("static")
 STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
                 ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png"}
-PAGES = {"/setup": "setup.html", "/display": "display.html"}
+PAGES = {"/setup": "setup.html", "/display": "display.html", "/sites": "sites.html"}
+SITE_PATH = re.compile(r"^/s/([a-z][a-z0-9]{1,11})(/.*)?$")   # Group: /s/<code>/ is that site's control panel
+# Things the whole server shares, so they are changed from the first site only
+SERVER_ONLY = ("/api/password", "/api/factory-reset", "/api/setup", "/api/update", "/api/quit", "/api/security",
+               "/api/provisioning", "/api/sites", "/sites")
 USB_ROOTS = ("/media", "/run/media")  # where Debian mounts USB sticks
 
 # The TV app's own routes. From other devices these follow "Let TV screens connect" only, so switching
@@ -139,7 +143,7 @@ tr.ten td{{background-color:#f3ecd9}} tr.ten td.k{{background:#eadfbf}}
 
 # ------------------------------------------------------------------ logging
 class RingHandler(logging.Handler):
-    def __init__(self, n=500):
+    def __init__(self, n=3000):   # every site's lines; each control panel shows its own
         super().__init__()
         self.lines: collections.deque = collections.deque(maxlen=n)
         self.counter = 0
@@ -149,7 +153,8 @@ class RingHandler(logging.Handler):
             self.counter += 1
             self.lines.append({"id": self.counter, "t": time.strftime("%Y-%m-%d %H:%M:%S",
                                                                       time.localtime(record.created)),
-                               "level": record.levelname, "msg": record.getMessage()})
+                               "level": record.levelname, "msg": record.getMessage(),
+                               "site": sites.current() or sites.MAIN})
         except Exception:  # never let logging break the app
             pass
 
@@ -254,6 +259,16 @@ def clean_config(cfg: dict) -> dict:
     return out
 
 
+def write_config(path: Path, cfg: dict):
+    text = tomlw.dumps(clean_config(cfg))
+    tomllib.loads(text)  # round-trip check before replacing the file
+    if path.exists():
+        shutil.copyfile(path, path.with_suffix(".toml.bak"))
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def message_box(text: str, title: str = "AthanBox"):
     if sys.stderr:
         print(text, file=sys.stderr)
@@ -292,7 +307,13 @@ def add_bundled_sounds(audio_dir: Path) -> None:
 
 # ------------------------------------------------------------------ service
 class Service:
-    def __init__(self, config_path: Path):
+    """One site's control panel and scheduler. The first site (root None) also runs what the whole server
+    shares: the password, updates, security, phones signing in, Quran by phone and the other sites."""
+
+    def __init__(self, config_path: Path, root: "Service | None" = None, code: str = sites.MAIN):
+        self.root = root
+        self.code = code
+        self.sites: sites.Sites | None = None   # the first site only
         self.config_path = Path(config_path).resolve()
         self.base = self.config_path.parent
         self.audio_dir = self.base / "audio"
@@ -302,16 +323,16 @@ class Service:
         self.thread: threading.Thread | None = None
         self.error: str | None = None
         self.cfg: dict = {}
-        self.server: ThreadingHTTPServer | None = None
+        self.server: ThreadingHTTPServer | None = root.server if root else None
         self.shared = Shared()
         self.regs = RegistrationManager()
         self.update_info: dict | None = None
         self.update_lock = threading.Lock()
         self.restarting = False
         self.started = time.time()
-        self.box = False
-        self.auth = Auth(self.base / "auth")
-        self.extra_servers: list[ThreadingHTTPServer] = []
+        self.box = root.box if root else False
+        self.auth = root.auth if root else Auth(self.base / "auth")   # one password for the whole server
+        self.extra_servers: list[ThreadingHTTPServer] = root.extra_servers if root else []
         self.wizard = {"rev": 0, "state": None, "driver": ""}  # first-time setup, shared by the screen and phones
         self.live = live.LiveRelay(lambda: self.live_url)
         self.crypto = crypto.Prices()   # the Crypto view on the prayer-times screen
@@ -320,7 +341,7 @@ class Service:
         self.shared.screens_listening = self.tvs.listening
         self.stars = kids.Stars(self.base / "kids.json")   # kids mode: "Did you pray?" stars, per screen
         self._tv_next = (0.0, None, None)
-        self.security: security.Security | None = None   # the Security page (box mode only)
+        self.security: security.Security | None = root.security if root else None   # the Security page (box mode only)
         self.provision_server: ThreadingHTTPServer | None = None   # remote provisioning's own port (box mode)
         self.provision_error = ""
         self.load()
@@ -342,13 +363,7 @@ class Service:
             log.error(self.error)
 
     def write(self, cfg: dict):
-        text = tomlw.dumps(clean_config(cfg))
-        tomllib.loads(text)  # round-trip check before replacing the file
-        if self.config_path.exists():
-            shutil.copyfile(self.config_path, self.config_path.with_suffix(".toml.bak"))
-        tmp = self.config_path.with_suffix(".tmp")
-        tmp.write_text(text, encoding="utf-8")
-        os.replace(tmp, self.config_path)
+        write_config(self.config_path, cfg)
 
     def apply(self, cfg: dict, save: bool = True):
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
@@ -368,15 +383,62 @@ class Service:
             self._stop_scheduler(halt_audio=False)  # an azan that is playing carries on
             self.app, self.cfg, self.error = app, cfg, None
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
-            quranline.LINE.configure(cfg.get("quran_line"), self.audio_dir, lambda: self.live_url)  # Quran by phone
-            sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to AthanBox
             g = cfg.get("general", {})
-            self._host_volume(g.get("tv_volume", 100))
+            if self.primary:
+                quranline.LINE.configure(cfg.get("quran_line"), self.audio_dir, lambda: self.live_url)  # Quran by phone
+                sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to AthanBox
+                self._host_volume(g.get("tv_volume", 100))
             if g.get("scheduler_enabled", True) and g.get("configured", True):
-                self.thread = threading.Thread(target=app.run_forever, name="scheduler", daemon=True)
+                self.thread = threading.Thread(target=app.run_forever, name=f"scheduler-{self.code}", daemon=True)
                 self.thread.start()
-            if self.box:
+            if self.box and self.primary:
                 self._sync_provision_server()
+
+    def log_lines(self) -> list[dict]:
+        """This site's activity log (the first site also gets what the whole server does)."""
+        return [x for x in list(RING.lines) if x.get("site", sites.MAIN) == self.code]
+
+    @property
+    def primary(self) -> bool:
+        """The first site, which also runs what the whole server shares."""
+        return self.root is None
+
+    # -- sites (sites.py): Enterprise is one site, Group is many
+    def make_site(self, code: str, folder: Path, cfg: dict | None) -> "Service":
+        if cfg is not None:
+            write_config(folder / "config.toml", cfg)
+        return Service(folder / "config.toml", root=self, code=code)
+
+    def first_settings(self, name: str, tz: str) -> dict:
+        """A new site starts with the first site's settings, without its phones."""
+        if tz:
+            import zoneinfo
+            if tz not in zoneinfo.available_timezones():
+                raise sites.SiteError(f"{tz} isn't a time zone AthanBox knows")
+        cfg = copy.deepcopy(self.cfg)
+        for key in ("targets", "quran_line", "provisioning"):
+            cfg.pop(key, None)
+        cfg.setdefault("general", {})["configured"] = True
+        if tz:
+            cfg.setdefault("location", {})["timezone"] = tz
+        return cfg
+
+    def summary(self) -> dict:
+        """How the site is doing, for the Sites page."""
+        with self.lock:
+            app, cfg = self.app, self.cfg
+            regs = self.regs.info()
+            out = {"error": self.error, "timezone": (cfg.get("location") or {}).get("timezone") or "local",
+                   "location": (cfg.get("location") or {}).get("name") or "",
+                   "phones": len(app.targets) if app else 0,
+                   "registered": sum(r["status"] == "registered" for r in regs), "lines": len(regs),
+                   "screens": len(self.tvs.info()), "playing": app.now_playing if app else None,
+                   "next": None, "warnings": []}
+            if app:
+                out["next"] = self.next_info(app, "azan")
+                out["warnings"] = self.warnings(app)
+                out["timezone"] = app.times.tz_name
+        return out
 
     # -- remote provisioning (provision.py): desk phones download their AthanBox line
     def _sync_provision_server(self):
@@ -582,6 +644,8 @@ class Service:
             self.wizard = {"rev": self.wizard["rev"] + 1, "state": None, "driver": ""}
             self.app, self.cfg, self.error = None, {}, None
             self.load()
+            if self.sites:
+                self.sites.reset()   # the other sites are put aside in sites/.removed, and it's Enterprise again
             if self.box:
                 self.auth.new_setup_code()
         log.warning("Factory reset done - settings, recordings and the owner's password were removed")
@@ -594,6 +658,12 @@ class Service:
         self.thread = None
 
     def shutdown(self):
+        if not self.primary:   # a site that is being removed, or the server stopping
+            self._stop_scheduler()
+            self.regs.stop_all()
+            return
+        if self.sites:
+            self.sites.shutdown()
         if self.provision_server:
             self.provision_server.shutdown()
             self.provision_server.server_close()
@@ -622,12 +692,14 @@ class Service:
         here = "" if self.extra_servers else f":{port}"   # with port 80 open, no port is needed
         hosts = [host] if host else []
         hosts += [ip + here for ip in dict.fromkeys([box_ip(), *local_ips()])]
+        site = "" if self.primary else f"/s/{self.code}"   # Group: this site's own TV page
         urls = [f"http://{h}/" for h in dict.fromkeys(hosts)]
         on = self.screens_on
         ip = box_ip()
-        return {"screens": on, "tv_urls": [u + "tv" for u in urls], "apk_urls": [u + "apk" for u in urls],
+        return {"screens": on, "tv_urls": [u + site.lstrip("/") + ("/" if site else "") + "tv" for u in urls],
+                "apk_urls": [u + "apk" for u in urls],
                 "apk_here": APK_FILE.is_file(), "address": ip if port == DEFAULT_PORT else f"{ip}:{port}",
-                "tv_qr": qr_svg(urls[0] + "tv").decode() if urls and on else None,
+                "tv_qr": qr_svg(urls[0] + site.lstrip("/") + ("/" if site else "") + "tv").decode() if urls and on else None,
                 "apk_qr": qr_svg(urls[0] + "apk").decode() if urls and on else None}
 
     def today(self) -> date:
@@ -828,10 +900,10 @@ class Service:
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "live": self.live_screen(),
                   "crypto_button": crypto.clean(self.cfg.get("crypto"))["button"],   # the Crypto button on screens
-                  "quran_now": quranline.LINE.now_playing(),   # Quran by phone: what the playlist station is playing
-                  "location": self.cfg.get("location", {}).get("name") or "", "log": list(RING.lines)[-200:],
+                  "quran_now": quranline.LINE.now_playing() if self.primary else None,   # Quran by phone: what the playlist station is playing
+                  "location": self.cfg.get("location", {}).get("name") or "", "log": self.log_lines()[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
-                  "sipserver": sipserver.MANAGER.info(),   # phones and phone systems that sign in to AthanBox
+                  "sipserver": sipserver.MANAGER.info() if self.primary else None,   # phones and phone systems that sign in to AthanBox
                   "screens": {"on": self.screens_on, "list": [dict(s, kids=s["id"] in kid_ids) for s in self.tvs.info()]}}
             if app is None:
                 return st
@@ -1079,7 +1151,7 @@ class Service:
         if req.get("wait"):  # play it now and say whether it worked (setup wizard)
             first = RING.counter
             if not app.broadcast(clip, req.get("label") or "Test", targets, on_screens):
-                problems = [x["msg"] for x in list(RING.lines) if x["id"] > first and x["level"] in ("WARNING", "ERROR")]
+                problems = [x["msg"] for x in self.log_lines() if x["id"] > first and x["level"] in ("WARNING", "ERROR")]
                 raise RuntimeError(problems[-1] if problems else "the test chime didn't play")
             return {"ok": True}
         threading.Thread(target=app.broadcast, args=(clip, req.get("label") or "Test", targets, on_screens),
@@ -1202,7 +1274,16 @@ class Handler(BaseHTTPRequestHandler):
                 "custom_password": svc.auth.custom_password() if svc.box else False,
                 "configured": svc.configured(), "setup": bool(svc.box and svc.auth.setup_code),
                 "local": self._client_local(), "docker": updater.DOCKER, "ip": box_ip(), "version": VERSION,
-                "panel": look.panel(svc.cfg)}
+                "panel": look.panel(svc.cfg), "site": self._site_info()}
+
+    def _site_info(self) -> dict | None:
+        """Group: which site this control panel is for (None in Enterprise, which has only one)."""
+        reg = type(self).service.sites
+        if not reg or reg.mode != "group":
+            return None
+        site = reg.site(self.service.code) or {}
+        return {"code": self.service.code, "name": site.get("name") or self.service.code,
+                "group": site.get("group_name") or "", "main": self.service.primary, "prefix": self.prefix}
 
     def _page_host(self) -> str:
         """The address this page was opened on (an IP address or a .local name), if it is one other devices can use."""
@@ -1262,10 +1343,43 @@ class Handler(BaseHTTPRequestHandler):
             code, body, ctype = 500, b"Error", "text/plain"
         return self._send(code, body, ctype)
 
-    def do_GET(self):
+    def _route(self) -> bool:
+        """Group: /s/<code>/... is that site's own control panel, the same pages and API as the first site's
+        (whose panel stays at /). False when the answer has been sent already."""
+        root = type(self).service
+        self.service, self.prefix = root, ""
+        sites.set_current(sites.MAIN)   # a request thread is reused for the next request
         if security.FILTER.blocked(self.client_address[0]):   # on the blacklist (Security page)
-            return self._send(403, b"Forbidden", "text/plain")
-        if self.service.box and self.path.startswith(provision.PREFIX):
+            self._send(403, b"Forbidden", "text/plain")
+            return False
+        path, sep, query = self.path.partition("?")
+        m = SITE_PATH.match(path)
+        if not m:
+            return True
+        svc = root.sites.get(m.group(1)) if root.sites and root.sites.mode == "group" else None
+        if svc is None:
+            self._send(404, b"Not found", "text/plain")
+            return False
+        if not m.group(2):
+            self._send(302, b"", "text/plain", {"Location": f"/s/{m.group(1)}/{sep}{query}"})
+            return False
+        self.service, self.prefix, self.path = svc, f"/s/{m.group(1)}", m.group(2) + sep + query
+        sites.set_current(svc.code)   # its log lines go to its own activity log
+        if not svc.primary and m.group(2).startswith(SERVER_ONLY):
+            self._json({"ok": False, "error": "That is set for the whole server, in the first site's control panel"}, 404)
+            return False
+        return True
+
+    def do_GET(self):
+        if self._route():
+            self._get()
+
+    def do_POST(self):
+        if self._route():
+            self._post()
+
+    def _get(self):
+        if self.service.box and self.service.primary and self.path.startswith(provision.PREFIX):
             return self._provision(urlparse(self.path).path)
         if not self._host_ok():
             return self._send(403, b"Forbidden", "text/plain")
@@ -1279,11 +1393,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if p in ("/", "/index.html"):
                 if svc.box and not svc.configured() and not svc.setup_manual():  # first-time setup (keeps ?setup=)
-                    return self._send(302, b"", "text/plain", {"Location": "/setup" + (f"?{url.query}" if url.query else "")})
+                    return self._send(302, b"", "text/plain", {"Location": self.prefix + "/setup" + (f"?{url.query}" if url.query else "")})
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             if p in PAGES:
                 if p == "/setup" and not (svc.box and (not svc.configured() or "again" in parse_qs(url.query, keep_blank_values=True))):
-                    return self._send(302, b"", "text/plain", {"Location": "/display" if self._client_local() else "/"})
+                    return self._send(302, b"", "text/plain", {"Location": self.prefix + ("/display" if self._client_local() else "/")})
                 return self._send(200, (STATIC / PAGES[p]).read_bytes(), "text/html; charset=utf-8",
                                   frame="SAMEORIGIN" if p == "/display" else "DENY")
             if p.startswith("/static/"):
@@ -1373,6 +1487,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": f"Couldn't search CoinGecko ({getattr(exc, 'reason', None) or exc})"}, 502)
             if p == "/api/config":
                 return self._json({"config": svc.cfg, "meta": svc.meta()})
+            if p == "/api/sites":   # the Sites page: Enterprise or Group, the groups and every site
+                return self._json(svc.sites.info())
             if p == "/api/setup/state":
                 return self._json(svc.wizard)
             if p == "/api/update":
@@ -1398,8 +1514,8 @@ class Handler(BaseHTTPRequestHandler):
             log.exception("panel error")
             return self._json({"ok": False, "error": str(exc)}, 500)
 
-    def do_POST(self):
-        if security.FILTER.blocked(self.client_address[0]) or not self._host_ok() or self.headers.get("X-Azan-Panel") != "1":
+    def _post(self):
+        if not self._host_ok() or self.headers.get("X-Azan-Panel") != "1":
             return self._send(403, b"Forbidden", "text/plain")
         svc = self.service
         url = urlparse(self.path)
@@ -1509,6 +1625,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not svc.box:
                     raise ValueError("Remote provisioning is only on AthanBox")
                 return self._json({"ok": True, **svc.set_provisioning(req), "config": svc.cfg})
+            if p.startswith("/api/sites/"):   # the Sites page
+                return self._json({"ok": True, **self._sites_post(p, req)})
             if p == "/api/provisioning/add":
                 return self._json({"ok": True, **svc.add_provision_phone(req), "config": svc.cfg})
             if p == "/api/provisioning/phone":
@@ -1601,6 +1719,25 @@ class Handler(BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
 
+    def _sites_post(self, p: str, req: dict) -> dict:
+        reg = self.service.sites
+        if p == "/api/sites/mode":
+            reg.set_mode(str(req.get("mode") or ""))
+        elif p == "/api/sites/group":
+            reg.save_group(req)
+        elif p == "/api/sites/group/delete":
+            reg.delete_group(str(req.get("id") or ""))
+        elif p == "/api/sites/add":
+            reg.add(req, self.service.first_settings)
+        elif p == "/api/sites/update":
+            reg.update(req)
+        elif p == "/api/sites/remove":
+            reg.remove(str(req.get("code") or ""))
+        else:
+            raise ValueError("Unknown request")
+        return reg.info()
+
+
 class ProvisionHandler(Handler):
     """Remote provisioning's own port: only the provisioning links, nothing of the control panel."""
 
@@ -1665,6 +1802,7 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
                     f"Change [general] port in {config_path.name}.")
         return 1
 
+    sites.track_threads()
     svc = Service(config_path)
     svc.server = server
     Handler.service = svc
@@ -1678,6 +1816,7 @@ def serve(config_path: str | Path = "config.toml", open_browser: bool = True, ve
         except OSError as exc:
             log.warning("Could not open port 80 (%s) - the panel is on port %d only", exc, port)
         log.info("AthanBox mode: control panel open to the network, password needed to change settings")
+    svc.sites = sites.Sites(svc, svc.make_site)   # Group: the other sites, each with its own settings
     log.info("AthanBox %s - control panel at %s", VERSION, url)
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()

@@ -6,6 +6,15 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.11.0 - Sites: one server for many mosques and homes
+
+- **Enterprise or Group:** the new Sites page (Settings > Sites, or /sites) switches between Enterprise, which is one site as before, and Group, which runs many sites on one server. Nothing changes for an AthanBox that stays on Enterprise.
+- **Groups:** file sites under groups you name, like London or Manchester. The groups are listed down the left. Pick one to see its sites with their next azan, phones, TV screens and whether anything needs a look.
+- **Each site has its own settings:** each site has its own location, time zone, calculation, recordings, Ramadan times, display and TV screens, and its own control panel at /s/code/. A new site starts with the first site's settings, without its phones.
+- **Own activity log:** each site's control panel shows only what that site did.
+- **Shared by the whole server:** the password, updates, security and remote provisioning stay in the first site's control panel. Phones that sign in to AthanBox (and Quran by phone) still belong to the first site. Signing in with the site code, like wcp-201, comes next.
+- **Removing a site** stops it and keeps its folder in sites/.removed on the server, so nothing is lost.
+
 ## 0.10.1 - The Quran playlist plays like a radio station
 
 - **Like a radio:** extension 701 now plays all the time, from when AthanBox starts. Callers join wherever it has got to, so hanging up and calling back carries on instead of starting the playlist again, and everyone calling hears the same thing. The Phones page shows what is playing.

@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sites · AthanBox</title>
+<link rel="stylesheet" href="static/box.css">
+<style>
+/* Sites: Enterprise (one site) or Group (many sites, filed under groups). Layout: groups down the left. */
+body{min-height:100vh;display:flex;flex-direction:column}
+.top{height:64px;background:var(--head);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:22px;padding:0 24px;flex:none}
+.seg{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--card)}
+.seg button{all:unset;cursor:pointer;padding:9px 16px;font-weight:600;font-size:15px;color:var(--muted)}
+.seg button.on{background:var(--brand);color:#fff}
+.grow{flex:1}
+.top input[type=search]{width:250px;padding:9px 14px;font-size:15px;border-radius:10px}
+.wrap{display:flex;flex:1;min-height:0}
+aside{width:270px;flex:none;background:var(--head);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px}
+aside .item{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;font-weight:500}
+aside .item:hover{background:var(--brand-soft)}
+aside .item.on{background:var(--brand-soft);font-weight:700;color:var(--brand-2)}
+aside .item .n{color:var(--muted);font-size:14px;font-weight:500}
+aside .sub{display:flex;flex-direction:column;padding-left:14px;margin-bottom:4px}
+aside .sub a{padding:7px 12px;font-size:14.5px;color:#3b4a45;text-decoration:none;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+aside .sub a:hover{background:var(--brand-soft)}
+aside .head{font-size:12px;letter-spacing:.08em;font-weight:700;color:var(--muted);padding:16px 12px 6px}
+aside .newg{all:unset;cursor:pointer;margin-top:8px;padding:9px 12px;border:1px dashed var(--line);border-radius:9px;color:var(--muted);font-size:15px}
+aside .foot{margin-top:auto;padding:12px;font-size:14px}
+main{flex:1;min-width:0;padding:28px 32px 60px;display:flex;flex-direction:column;gap:20px}
+.hrow{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.hrow h1{margin:0;font-size:27px}
+.hrow .sub{color:var(--muted);margin-top:3px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+.tile .l{color:var(--muted);font-size:13.5px}
+.tile .v{font-size:25px;font-weight:700;margin-top:4px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.site{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.site .t{display:flex;align-items:center;gap:10px}
+.site .name{flex:1;font-weight:700;font-size:17.5px;min-width:0}
+.site .code{font-size:13px;color:var(--muted);font-weight:500}
+.st{font-size:12.5px;padding:4px 10px;border-radius:99px;font-weight:700;white-space:nowrap}
+.st.ok{background:var(--ok-soft);color:#17573c}
+.st.warn{background:var(--gold-soft);color:var(--gold-ink)}
+.st.bad{background:var(--bad-soft);color:var(--bad)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;font-size:15px}
+.facts .l{color:var(--muted);font-size:12.5px}
+.site .acts{display:flex;gap:16px;align-items:center;font-size:15px}
+.site .acts a{font-weight:700}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:13px;padding:30px;text-align:center;color:var(--muted)}
+.intro{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:20px 22px}
+.intro h2{margin:0 0 6px;font-size:19px}
+.intro p{margin:0 0 14px;color:var(--muted)}
+.modal .box{max-width:520px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1d2622;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;z-index:60}
+#toast.bad{background:var(--bad)}
+@media (max-width:900px){
+  .top{flex-wrap:wrap;height:auto;padding:12px 16px;gap:12px} .top input[type=search]{width:100%}
+  .wrap{flex-direction:column} aside{width:auto;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:20px 16px 60px} .tiles{grid-template-columns:1fr 1fr} .cards{grid-template-columns:1fr} .two{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="/" style="text-decoration:none;color:inherit" id="logo"></a>
+  <div class="seg" role="group" aria-label="Mode">
+    <button data-mode="enterprise">Enterprise</button>
+    <button data-mode="group">Group</button>
+  </div>
+  <div class="grow"></div>
+  <input type="search" id="q" placeholder="Search sites" aria-label="Search sites">
+  <button class="btn small" onclick="signOut()">Sign out</button>
+</header>
+<div class="wrap">
+  <aside id="side"></aside>
+  <main id="main"><p class="muted">Loading…</p></main>
+</div>
+
+<div class="modal" id="lock" hidden><form class="box" id="lockform">
+  <h2>Sign in</h2><p>Enter AthanBox's password to manage the sites.</p>
+  <div class="field"><input type="password" id="lockpw" autocomplete="current-password" aria-label="Password"></div>
+  <div class="err" id="lockerr"></div>
+  <div class="row"><button class="btn primary" type="submit">Sign in</button></div>
+</form></div>
+<div class="modal" id="dlg" hidden><form class="box" id="dlgform"></form></div>
+<div id="toast" hidden></div>
+
+<script src="static/box.js"></script>
+<script>
+let D = null, ZONES = [], SEL = "all", OPEN = null;   // SEL: "all", a group id, or "none" (not in a group)
+$("#logo").innerHTML = LOGO + "AthanBox";
+
+function toast(msg, kind){
+  const t = $("#toast"); t.textContent = msg; t.className = kind || ""; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3500);
+}
+async function call(path, body){
+  try { return await api(path, body); }
+  catch(e){
+    if(e.status === 401){ await signIn(); return call(path, body); }
+    throw e;
+  }
+}
+let lockWait = [];
+function signIn(){
+  return new Promise(res => { lockWait.push(res); $("#lock").hidden = false; setTimeout(() => $("#lockpw").focus(), 50); });
+}
+$("#lockform").addEventListener("submit", async e => {
+  e.preventDefault(); $("#lockerr").textContent = "";
+  try { await api("api/login", {password: $("#lockpw").value}); $("#lock").hidden = true; const w = lockWait; lockWait = []; w.forEach(f => f()); }
+  catch(err){ $("#lockerr").textContent = err.message; }
+});
+async function signOut(){ try { await api("api/logout", {}); } catch(e){} location.reload(); }
+
+async function load(){
+  D = await call("api/sites");
+  render();
+}
+async function change(path, body, done){
+  try { D = await call(path, body); $("#dlg").hidden = true; render(); if(done) toast(done); }
+  catch(e){ const el = $("#dlgerr"); if(el && !$("#dlg").hidden) el.textContent = e.message; else toast(e.message, "bad"); }
+}
+
+// -- what each site is doing
+function siteUrl(s){ return s.main ? "/" : `/s/${s.code}/`; }
+function health(s){
+  if(s.error) return {k: "bad", t: "Problem"};
+  if(s.playing) return {k: "ok", t: "Playing azan"};
+  if(s.lines && s.registered < s.lines) return {k: "warn", t: `${s.lines - s.registered} line${s.lines - s.registered > 1 ? "s" : ""} not registered`};
+  if(!s.phones && !s.screens) return {k: "warn", t: "No phones yet"};
+  if((s.warnings || []).length) return {k: "warn", t: "Needs a look"};
+  return {k: "ok", t: "Running"};
+}
+function nextText(s){
+  const n = s.next;
+  if(!n) return "None";
+  return `${esc(prayerName(n))} ${esc(n.time)}${n.day === "today" ? "" : ` <span class="muted">${esc(n.day)}</span>`}`;
+}
+function prayerName(n){ return n.kind === "azan" && TITLE[n.prayer] ? TITLE[n.prayer] : n.label; }
+function groupName(id){ const g = D.groups.find(g => g.id === id); return g ? g.name : ""; }
+function shown(){
+  const q = $("#q").value.trim().toLowerCase();
+  return D.sites.filter(s => (SEL === "all" || (SEL === "none" ? !s.group : s.group === SEL))
+    && (!q || `${s.name} ${s.code} ${groupName(s.group)} ${s.location}`.toLowerCase().includes(q)));
+}
+
+function render(){
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.mode === D.mode));
+  $("#q").hidden = D.mode !== "group";
+  if(SEL !== "all" && SEL !== "none" && !D.groups.some(g => g.id === SEL)) SEL = "all";
+  renderSide(); renderMain();
+}
+function renderSide(){
+  const count = id => D.sites.filter(s => id === "none" ? !s.group : s.group === id).length;
+  const sub = id => D.sites.filter(s => id === "none" ? !s.group : s.group === id)
+    .map(s => `<a href="${siteUrl(s)}" title="Open ${esc(s.name)}">${esc(s.name)}</a>`).join("");
+  const item = (id, name, n) => `<button class="item${SEL === id ? " on" : ""}" onclick="pick('${id}')">${esc(name)}<span class="n">${n}</span></button>`
+    + (SEL === id && id !== "all" && n ? `<div class="sub">${sub(id)}</div>` : "");
+  let h = item("all", "All sites", D.sites.length);
+  if(D.mode === "group"){
+    h += `<div class="head">GROUPS</div>` + D.groups.map(g => item(g.id, g.name, count(g.id))).join("");
+    if(count("none")) h += item("none", "Not in a group", count("none"));
+    h += `<button class="newg" onclick="groupDialog()">+ New group</button>`;
+  }
+  h += `<div class="foot"><a href="/">Server settings</a><div class="hint" style="margin-top:4px">Password, updates and security, in the first site's control panel.</div></div>`;
+  $("#side").innerHTML = h;
+}
+function pick(id){ SEL = id; render(); }
+
+function renderMain(){
+  const list = shown();
+  const g = D.groups.find(g => g.id === SEL);
+  const title = SEL === "all" ? "All sites" : SEL === "none" ? "Not in a group" : g.name;
+  const phones = list.reduce((a, s) => a + (s.phones || 0), 0), screens = list.reduce((a, s) => a + (s.screens || 0), 0);
+  const good = list.filter(s => health(s).k === "ok").length;
+  const soon = list.filter(s => s.next).sort((a, b) => a.next.seconds - b.next.seconds)[0];
+  let h = `<div class="hrow"><div class="grow"><h1>${esc(title)}</h1><div class="sub">${list.length} site${list.length === 1 ? "" : "s"}${D.mode === "enterprise" ? " · Enterprise" : ""}</div></div>`;
+  if(g) h += `<button class="btn small" onclick="groupDialog('${g.id}')">Rename group</button><button class="btn small" onclick="deleteGroup('${g.id}')">Delete group</button>`;
+  if(D.mode === "group") h += `<button class="btn small primary" onclick="siteDialog()">+ Add site</button>`;
+  h += `</div>`;
+  if(D.mode === "enterprise"){
+    h += `<div class="intro"><h2>Enterprise: one site</h2><p>This server runs one mosque or home, as it always has. Switch to Group to run more sites on this server. Each one gets its own settings, time zone, recordings and phones, and you can file them under groups like London or Manchester. Your site carries on exactly as it is.</p>
+      <button class="btn small primary" onclick="setMode('group')">Switch to Group</button></div>`;
+  }
+  h += `<div class="tiles">
+    <div class="tile"><div class="l">Sites running</div><div class="v">${good} of ${list.length}</div></div>
+    <div class="tile"><div class="l">Phones called</div><div class="v">${phones}</div></div>
+    <div class="tile"><div class="l">TV screens</div><div class="v">${screens}</div></div>
+    <div class="tile"><div class="l">Next azan</div><div class="v">${soon ? `${esc(prayerName(soon.next))} ${esc(soon.next.time)}` : "None"}</div>${soon && list.length > 1 ? `<div class="hint">${esc(soon.name)}</div>` : ""}</div></div>`;
+  if(!list.length){
+    h += `<div class="empty">${$("#q").value ? "No site matches your search." : "No sites in this group yet."}${D.mode === "group" ? ` <button class="link" onclick="siteDialog()">Add a site</button>` : ""}</div>`;
+  } else {
+    h += `<div class="cards">` + list.map(s => {
+      const st = health(s);
+      return `<div class="site"><div class="t"><div class="name">${esc(s.name)} <span class="code">${s.main ? "first site" : esc(s.code)}</span></div><span class="st ${st.k}" title="${esc(s.error || (s.warnings || []).join(" "))}">${st.t}</span></div>
+        <div class="facts"><div><div class="l">Next azan</div>${nextText(s)}</div><div><div class="l">Phones</div>${s.phones}${s.lines ? ` <span class="muted">${s.registered}/${s.lines} lines</span>` : ""}</div><div><div class="l">TV screens</div>${s.screens}</div></div>
+        <div class="hint">${esc(s.timezone)}${D.mode === "group" && SEL === "all" ? ` · ${esc(groupName(s.group) || "Not in a group")}` : ""}</div>
+        <div class="acts"><a href="${siteUrl(s)}">Open site</a>${D.mode === "group" ? `<button class="link" onclick="siteDialog('${s.code}')">Edit</button>` : ""}${s.main ? "" : `<button class="link" style="color:var(--bad)" onclick="removeSite('${s.code}')">Remove</button>`}</div></div>`;
+    }).join("") + `</div>`;
+  }
+  $("#main").innerHTML = h;
+}
+
+// -- changing things
+async function setMode(mode){
+  if(mode === D.mode) return;
+  await change("api/sites/mode", {mode}, mode === "group" ? "Group is on: add your sites" : "Back to Enterprise");
+}
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$("#q").addEventListener("input", renderMain);
+
+function dialog(html, submit){
+  const f = $("#dlgform");
+  f.innerHTML = html + `<div class="err" id="dlgerr"></div><div class="row"><button class="btn" type="button" onclick="$('#dlg').hidden=true">Cancel</button><button class="btn primary" type="submit">Save</button></div>`;
+  f.onsubmit = e => { e.preventDefault(); $("#dlgerr").textContent = ""; submit(); };
+  $("#dlg").hidden = false;
+  setTimeout(() => { const i = f.querySelector("input"); if(i) i.focus(); }, 50);
+}
+function groupDialog(id){
+  const g = D.groups.find(g => g.id === id);
+  dialog(`<h2>${g ? "Rename group" : "New group"}</h2><p>A group is a name for some of your sites, like London or Manchester.</p>
+    <div class="field"><label for="gname">Name</label><input type="text" id="gname" maxlength="60" value="${esc(g ? g.name : "")}"></div>`,
+    () => change("api/sites/group", {id: id || "", name: $("#gname").value}, g ? "Group renamed" : "Group added").then(() => {
+      if(!g && D){ const n = D.groups[D.groups.length - 1]; if(n){ SEL = n.id; render(); } }
+    }));
+}
+async function deleteGroup(id){
+  if(!confirm(`Delete the group ${groupName(id)}? Its sites carry on, outside any group.`)) return;
+  await change("api/sites/group/delete", {id}, "Group deleted");
+}
+function codeFrom(name){
+  const words = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+  let c = words.length > 1 ? words.map(w => w[0]).join("") : (words[0] || "");
+  c = c.replace(/^[0-9]+/, "").slice(0, 12);
+  if(c.length < 3 && words[0]) c = words[0].replace(/^[0-9]+/, "").slice(0, 6);
+  let n = c, i = 2;
+  while(D.sites.some(s => s.code === n)) n = c.slice(0, 10) + i++;
+  return n;
+}
+async function siteDialog(code){
+  const s = D.sites.find(s => s.code === code);
+  if(!s && !ZONES.length){ try { ZONES = (await call("api/config")).meta.zones || []; } catch(e){} }
+  const groups = `<option value="">Not in a group</option>` + D.groups.map(g => `<option value="${g.id}"${(s ? s.group : (SEL !== "all" && SEL !== "none" ? SEL : "")) === g.id ? " selected" : ""}>${esc(g.name)}</option>`).join("");
+  const first = D.sites.find(x => x.main);
+  const zone = first && first.timezone && ZONES.includes(first.timezone) ? first.timezone : "Europe/London";
+  dialog(`<h2>${s ? `Edit ${esc(s.name)}` : "Add a site"}</h2>
+    <p>${s ? "Change its name or move it to another group. Everything else is in the site's own control panel." : "The new site starts with the first site's settings, without its phones. Change anything in its own control panel."}</p>
+    <div class="field"><label for="sname">Name</label><input type="text" id="sname" maxlength="60" placeholder="Whitechapel Mosque" value="${esc(s ? s.name : "")}"></div>
+    ${s ? "" : `<div class="field"><label for="scode">Site code</label><input type="text" id="scode" maxlength="12" autocapitalize="off" spellcheck="false"><div class="hint">2 to 12 letters or numbers. Phones at this site will sign in with it, like <b id="scodeex">wcp</b>-201. It can't be changed later.</div></div>`}
+    <div class="${s ? "" : "two"}"><div class="field"><label for="sgroup">Group</label><select id="sgroup">${groups}</select></div>
+    ${s ? "" : `<div class="field"><label for="szone">Time zone</label><select id="szone">${ZONES.map(z => `<option${z === zone ? " selected" : ""}>${esc(z)}</option>`).join("")}</select></div>`}</div>`,
+    () => s ? change("api/sites/update", {code, name: $("#sname").value, group: $("#sgroup").value}, "Site saved")
+            : change("api/sites/add", {name: $("#sname").value, code: $("#scode").value, group: $("#sgroup").value, timezone: $("#szone") ? $("#szone").value : ""}, "Site added"));
+  if(!s){
+    let typed = false;
+    $("#scode").addEventListener("input", () => { typed = true; $("#scodeex").textContent = $("#scode").value || "wcp"; });
+    $("#sname").addEventListener("input", () => { if(!typed){ $("#scode").value = codeFrom($("#sname").value); $("#scodeex").textContent = $("#scode").value || "wcp"; } });
+  }
+}
+async function removeSite(code){
+  const s = D.sites.find(s => s.code === code);
+  if(!confirm(`Remove ${s.name}? It stops calling its phones. Its settings and recordings are kept in a folder on the server, in sites/.removed.`)) return;
+  await change("api/sites/remove", {code}, "Site removed");
+}
+
+load().catch(e => $("#main").innerHTML = `<p class="err">${esc(e.message)}</p>`);
+setInterval(() => { if($("#dlg").hidden && $("#lock").hidden) load().catch(() => {}); }, 20000);
+</script>
+</body>
+</html>

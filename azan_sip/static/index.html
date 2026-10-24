@@ -27,6 +27,10 @@ a{color:var(--brand)}
 nav{background:var(--panel);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
 .logo{display:flex;align-items:center;gap:10px;padding:4px 10px 20px;font-weight:700;font-size:18px;letter-spacing:.2px}
 .logo svg{flex:none}
+.sitehead{margin:-8px 0 14px;padding:10px 12px;border-radius:10px;background:var(--panel-2)}
+.sitehead a{font-size:13px;text-decoration:none;font-weight:600}
+.sitehead .n{font-weight:700;margin-top:4px;line-height:1.3}
+.sitehead .g{font-size:13px;color:var(--muted)}
 nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:var(--muted);font-weight:500}
 nav button:hover{background:var(--panel-2);color:var(--ink)}
 nav button.active{background:var(--brand);color:var(--brand-ink)}
@@ -267,6 +271,7 @@ ol.steps .muted{font-size:13px}
       <svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="var(--brand)"/><path d="M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z" fill="#f4e3b5"/></svg>
       AthanBox
     </div>
+    <div class="sitehead" id="sitehead" hidden></div>
     <button data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Today</button>
     <button data-page="times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prayer times</button>
     <button data-page="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Azan sound</button>
@@ -278,9 +283,9 @@ ol.steps .muted{font-size:13px}
     <button data-page="ramadan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Ramadan</button>
     <button data-page="display" title="Theme and layout of the prayer-times screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>Display</button>
     <button data-page="tv" title="Show the prayer times on a TV and play the azan through it, from an iPad, an Android device or a smart TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M7 21h10M9.5 9.5v5l4-2.5z"/></svg>TV app</button>
-    <button id="tvbtn" hidden onclick="openScreen('/display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
-    <button onclick="openScreen('/display?live=1')" title="Makkah live with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Makkah live</button>
-    <button onclick="openScreen('/display?crypto=1')" title="Live crypto prices with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Crypto</button>
+    <button id="tvbtn" hidden onclick="openScreen('display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Prayer times screen</button>
+    <button onclick="openScreen('display?live=1')" title="Makkah live with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Makkah live</button>
+    <button onclick="openScreen('display?crypto=1')" title="Live crypto prices with the prayer times"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Crypto</button>
     <button data-page="security" id="secbtn" hidden title="Fail2ban, whitelist and blacklist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Security</button>
     <!-- Settings is always the last item in the menu: add new pages above it -->
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
@@ -342,7 +347,7 @@ async function api(path, body, raw){
   let r;
   try { r = await fetch(path, opt); } catch(e){ throw new Error(SESSION.box ? "Can't reach AthanBox. Check it's switched on and connected." : "AthanBox isn't running. Double-click 'Azan SIP' to start it."); }
   const j = await r.json().catch(()=>({ok:false,error:"Unexpected reply"}));
-  if(r.status===401 && j.login && !path.startsWith("/api/log")){ await unlock(); return api(path, body, raw); }  // session ended: ask again, then retry
+  if(r.status===401 && j.login && !path.startsWith("api/log")){ await unlock(); return api(path, body, raw); }  // session ended: ask again, then retry
   if(!r.ok || j.ok===false) throw new Error(j.error || ("Error "+r.status));
   return j;
 }
@@ -360,25 +365,36 @@ $("#lockform").addEventListener("submit", async e=>{
   e.preventDefault();
   const b=$("#lockbtn"); b.disabled=true; $("#lockerr").textContent="";
   try{
-    await api("/api/login", {password: $("#lockpw").value});
+    await api("api/login", {password: $("#lockpw").value});
     SESSION.logged_in=true; $("#lock").hidden=true;
     const w=lockWaiters; lockWaiters=[]; w.forEach(f=>f());
   }catch(err){ $("#lockerr").textContent=err.message; $("#lockpw").select(); }
   b.disabled=false;
 });
 async function loadSession(){
-  try{ SESSION = await api("/api/session"); }catch(e){ return; }
+  try{ SESSION = await api("api/session"); }catch(e){ return; }
   if(SESSION.panel) applyPanelLook(SESSION.panel);  // the panel's own colours, even behind the lock
   const code = new URLSearchParams(location.search).get("setup");
   if(code){  // scanned the QR code on AthanBox's screen during first-time setup
     history.replaceState(null, "", location.pathname + location.hash);
     if(SESSION.box && !SESSION.logged_in){
-      try{ await api("/api/login", {setup_code: code}); SESSION.logged_in=true; }catch(e){ toast(e.message, "bad"); }
+      try{ await api("api/login", {setup_code: code}); SESSION.logged_in=true; }catch(e){ toast(e.message, "bad"); }
     }
   }
   if(SESSION.box && !SESSION.logged_in) await unlock();
-  if(SESSION.box){ $("#tvbtn").hidden = false; $("#secbtn").hidden = false; }
+  if(SESSION.box){ $("#tvbtn").hidden = false; $("#secbtn").hidden = !!subSite(); }
+  siteHead();
   if(SESSION.box && SESSION.local) kioskReturn();
+}
+// Group: which site this control panel is for, with a way back to every site. A site other than the first
+// shares the password, updates and security of the whole server, which are changed in the first site.
+function subSite(){ return SESSION.site && !SESSION.site.main ? SESSION.site : null; }
+function siteHead(){
+  const s = SESSION.site, el = $("#sitehead");
+  el.hidden = !s;
+  if(!s) return;
+  el.innerHTML = `<a href="/sites">&larr; All sites</a><div class="n">${esc(s.name)}</div><div class="g">${esc(s.group || "Not in a group")} &middot; code ${esc(s.code)}</div>`;
+  document.title = `${s.name} · AthanBox`;
 }
 // The prayer-times screen: in place on AthanBox's own screen, in a new tab on a phone or PC
 function openScreen(path){ if(SESSION.box && SESSION.local) location.assign(path); else window.open(path, "_blank"); }
@@ -387,27 +403,36 @@ function openScreen(path){ if(SESSION.box && SESSION.local) location.assign(path
 function kioskReturn(){
   let last = Date.now();
   ["pointerdown","keydown","wheel"].forEach(ev=>addEventListener(ev, ()=>last=Date.now(), {passive:true}));
-  setInterval(()=>{ if(Date.now()-last > 300000 && !isDirty()) location.assign("/display"); }, 15000);
+  setInterval(()=>{ if(Date.now()-last > 300000 && !isDirty()) location.assign("display"); }, 15000);
 }
 async function changePassword(){
   const cur=$("#pw-cur"), a=$("#pw-new"), b=$("#pw-again");
   if(a.value.length<8) return toast("The new password must be at least 8 characters","bad");
   if(a.value!==b.value) return toast("The new passwords don't match","bad");
-  await act(async()=>{ await api("/api/password",{current:cur?cur.value:"", new:a.value}); SESSION.custom_password=true; [cur,a,b].forEach(x=>x&&(x.value="")); }, "Password changed. Other devices have been signed out.");
+  await act(async()=>{ await api("api/password",{current:cur?cur.value:"", new:a.value}); SESSION.custom_password=true; [cur,a,b].forEach(x=>x&&(x.value="")); }, "Password changed. Other devices have been signed out.");
 }
 // The step-by-step setup guide: during first-time setup (instead of setting up here), or again later
 async function openGuide(again){
-  if(again) return location.assign("/setup?again=1");
-  await act(async()=>{ await api("/api/setup/state", {client:"panel", state:null}); location.assign("/setup"); });
+  if(again) return location.assign("setup?again=1");
+  await act(async()=>{ await api("api/setup/state", {client:"panel", state:null}); location.assign("setup"); });
 }
-async function signOut(){ try{ await api("/api/logout",{}); }catch(e){} location.reload(); }
+async function signOut(){ try{ await api("api/logout",{}); }catch(e){} location.reload(); }
 async function factoryReset(){
   const t = prompt("This removes all settings, recordings and your own password. AthanBox goes back to first-time setup and the password on the sticker works again.\n\nType RESET to confirm:");
   if(t===null) return;
-  await act(async()=>{ await api("/api/factory-reset",{confirm:t.trim().toUpperCase()}); location.reload(); });
+  await act(async()=>{ await api("api/factory-reset",{confirm:t.trim().toUpperCase()}); location.reload(); });
+}
+function sitesCardHTML(){
+  if(subSite()) return "";
+  const group = !!SESSION.site;
+  return `<div class="card"><div class="toggle-row" style="border:0;padding:0"><div><div class="t">Sites</div><div class="d">${group
+    ? "This server runs several sites in Group mode. Each has its own settings, time zone and phones."
+    : "Enterprise: this server runs one site. Switch to Group to run more mosques or homes, each with its own settings and time zone, filed under groups like London or Manchester."}</div></div>
+    <a class="btn small" href="/sites">Open Sites</a></div></div>`;
 }
 function boxCardHTML(){
   if(!SESSION.box) return "";
+  if(subSite()) return `<div class="card"><h2>Password, updates and security</h2><p class="muted" style="margin:0">These are the same for every site on this server. Change them in the first site's control panel, from <a href="/sites">All sites</a>.</p></div>`;
   return `<div class="card"><h2>Password and reset</h2>
     <p class="muted" style="margin-top:-6px">Anyone on your network can open this page at <b>http://azan.local</b>. Viewing the prayer times is open; changing settings needs the password.
     ${SESSION.custom_password?"You're using your own password.":"You're using the password on the sticker."}</p>
@@ -462,7 +487,7 @@ let provTick = 0, S = null, stateAt = 0, CFG = null, SAVED = "", META = null, pa
 let editing = null, previewTimer = null, previewData = null, logSeen = 0, offline = false, restartingUI = false;
 
 async function loadConfig(){
-  const r = await api("/api/config");
+  const r = await api("api/config");
   CFG = r.config; META = r.meta; SAVED = JSON.stringify(CFG);
   normalize(CFG); SAVED = JSON.stringify(CFG);
   dirty(); applyPanelLook(CFG.panel);
@@ -481,7 +506,7 @@ function isDirty(){ return CFG && JSON.stringify(CFG) !== SAVED; }
 function dirty(){ $("#savebar").hidden = !isDirty(); }
 async function save(){
   const b=$("#savebtn"); b.disabled=true;
-  try{ const r = await api("/api/config", {config: CFG}); CFG=r.config; normalize(CFG); SAVED=JSON.stringify(CFG); dirty(); toast("Saved - the new settings are active."); await poll(); render(); }
+  try{ const r = await api("api/config", {config: CFG}); CFG=r.config; normalize(CFG); SAVED=JSON.stringify(CFG); dirty(); toast("Saved - the new settings are active."); await poll(); render(); }
   catch(e){ toast(e.message,"bad"); }
   b.disabled=false;
 }
@@ -491,7 +516,7 @@ function applySaved(path, value){ const s=JSON.parse(SAVED); setPath(s,path,valu
 
 async function poll(){
   try{
-    S = await api("/api/state"); stateAt = Date.now();
+    S = await api("api/state"); stateAt = Date.now();
     if(offline){ offline=false; }
   }catch(e){
     if(!offline && !restartingUI){ offline=true; renderMini(); if(page==="overview") render(); }
@@ -502,7 +527,7 @@ async function poll(){
   if(page==="overview") renderOverviewLive();
   if(page==="settings") renderLog();
   if(page==="phones" && CFG) refreshRegPills();
-  if(page==="provisioning" && CFG && PROV && !PROV.error && ++provTick % 5 === 0) api("/api/provisioning").then(r=>{ PROV=r; provListOnly(); }).catch(()=>{});
+  if(page==="provisioning" && CFG && PROV && !PROV.error && ++provTick % 5 === 0) api("api/provisioning").then(r=>{ PROV=r; provListOnly(); }).catch(()=>{});
   if(page==="tv"){ const el=$("#tvlist"); if(el) el.innerHTML = tvListHTML(); }
   if(page==="security" && SEC && ++secTick % 3 === 0) loadSecurity().then(secLive);
   }catch(e){ console.error(e); }
@@ -551,7 +576,7 @@ function render(){
   document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
   const inPhones = page==="phones"||page==="provisioning";
   $("#phonesbtn").classList.toggle("active", inPhones); $("#phonesbtn").setAttribute("aria-expanded", String(inPhones && SESSION.box));
-  $("#phonesub").hidden = !(inPhones && SESSION.box);
+  $("#phonesub").hidden = !(inPhones && SESSION.box && !subSite());
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
   ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, provisioning:pageProvisioning, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, security:pageSecurity, settings:pageSettings}[page]||pageOverview)();
 }
@@ -603,11 +628,11 @@ function renderOverviewLive(){
 function azanTestLabel(){ const n=+((CFG&&CFG.general&&CFG.general.test_azan_seconds)??20); return n>0 ? `${n} s of the azan` : "the whole azan"; }
 function logHTML(lines){ return lines.map(l=>`<div class="${esc(l.level)}"><span class="ts">${esc(l.t.slice(11))}</span> ${esc(l.msg)}</div>`).join("") || '<span class="muted">No messages yet.</span>'; }
 async function togglePrayer(p, on){
-  await act(async()=>{ await api("/api/prayer",{prayer:p,enabled:on}); const list=JSON.parse(SAVED).prayers?.enabled||PRAYERS.slice(); const nl=PRAYERS.filter(x=> x===p ? on : list.includes(x)); applySaved("prayers.enabled", nl); await poll(); }, `${TITLE[p]} azan ${on?"on":"off"}`);
+  await act(async()=>{ await api("api/prayer",{prayer:p,enabled:on}); const list=JSON.parse(SAVED).prayers?.enabled||PRAYERS.slice(); const nl=PRAYERS.filter(x=> x===p ? on : list.includes(x)); applySaved("prayers.enabled", nl); await poll(); }, `${TITLE[p]} azan ${on?"on":"off"}`);
 }
-async function setScheduler(on){ await act(async()=>{ await api("/api/scheduler",{enabled:on}); applySaved("general.scheduler_enabled", on); await poll(); render(); }, on?"Automatic azan switched on":"Automatic azan paused"); }
-async function test(req){ await act(async()=>{ await api("/api/test", req); setTimeout(poll,400); }, "Playing on the phones…"); }
-async function stopAudio(){ await act(()=>api("/api/stop",{}), "Stopped"); setTimeout(poll,300); }
+async function setScheduler(on){ await act(async()=>{ await api("api/scheduler",{enabled:on}); applySaved("general.scheduler_enabled", on); await poll(); render(); }, on?"Automatic azan switched on":"Automatic azan paused"); }
+async function test(req){ await act(async()=>{ await api("api/test", req); setTimeout(poll,400); }, "Playing on the phones…"); }
+async function stopAudio(){ await act(()=>api("api/stop",{}), "Stopped"); setTimeout(poll,300); }
 
 // ---- Prayer times
 function pageTimes(){
@@ -658,7 +683,7 @@ function pageTimes(){
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Preview - next 7 days</h2><span class="muted" id="tzname"></span></div><div id="preview" style="margin-top:10px"></div></div>`;
   renderPreview();
 }
-function schedulePreview(delay=350){ if(page!=="times") return; clearTimeout(previewTimer); previewTimer=setTimeout(async()=>{ try{ previewData = await api("/api/preview",{config:CFG}); previewData.error=null; }catch(e){ previewData={error:e.message}; } renderPreview(); }, delay); }
+function schedulePreview(delay=350){ if(page!=="times") return; clearTimeout(previewTimer); previewTimer=setTimeout(async()=>{ try{ previewData = await api("api/preview",{config:CFG}); previewData.error=null; }catch(e){ previewData={error:e.message}; } renderPreview(); }, delay); }
 function renderPreview(){
   const el=$("#preview"); if(!el) return;
   if(!previewData){ el.innerHTML='<p class="muted">Calculating…</p>'; return; }
@@ -684,14 +709,14 @@ function pickCity(i){
 }
 function setTimetable(on){ if(on){ CFG.calculation.timetable = "timetable.csv"; } else { delete CFG.calculation.timetable; } dirty(); render(); schedulePreview(0); }
 async function uploadTimetable(f){
-  if(!f) return; await act(async()=>{ await api("/api/upload?kind=timetable&name=timetable.csv", await f.arrayBuffer(), true); CFG.calculation.timetable="timetable.csv"; dirty(); schedulePreview(0); }, "Timetable uploaded - press Save to use it.");
+  if(!f) return; await act(async()=>{ await api("api/upload?kind=timetable&name=timetable.csv", await f.arrayBuffer(), true); CFG.calculation.timetable="timetable.csv"; dirty(); schedulePreview(0); }, "Timetable uploaded - press Save to use it.");
 }
 async function downloadTemplate(){
   await act(async()=>{
     const cfg=clone(CFG); delete cfg.calculation.timetable;
     const rows=[]; const start=new Date(); start.setMonth(0,1);
     // ask the server for the whole year using the current calculation
-    const r = await api("/api/preview?days=366",{config:cfg, days:366, start:`${start.getFullYear()}-01-01`});
+    const r = await api("api/preview?days=366",{config:cfg, days:366, start:`${start.getFullYear()}-01-01`});
     rows.push("date,fajr,sunrise,dhuhr,asr,maghrib,isha");
     r.week.forEach(x=>rows.push([x.iso,x.fajr,x.sunrise,x.dhuhr,x.asr,x.maghrib,x.isha].join(",")));
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([rows.join("\r\n")+"\r\n"],{type:"text/csv"})); a.download=`timetable-${start.getFullYear()}.csv`; a.click();
@@ -751,7 +776,7 @@ async function uploadAudio(fileList){
     catch(e){ body = await f.arrayBuffer(); name = f.name; toast(`Couldn't convert ${f.name} in the browser - uploading as is.`,"bad"); }
     box.innerHTML=`<p class="muted">Saving ${esc(name)}…</p>`;
     try{
-      const r = await api("/api/upload?kind=audio&name="+encodeURIComponent(name), body, true);
+      const r = await api("api/upload?kind=audio&name="+encodeURIComponent(name), body, true);
       META.audio_files = r.files;
       if(!CFG.audio.azan || CFG.audio.azan==="tone" || !(META.audio_files||[]).some(x=>"audio/"+x===CFG.audio.azan)){ CFG.audio.azan="audio/"+r.name; dirty(); toast(`Added ${r.name} and set it as the azan - press Save.`); }
       else toast(`Added ${r.name}. Choose where to use it below.`);
@@ -785,7 +810,7 @@ function previewAudio(btn, f){
   const a = PREVIEW_AUDIO, same = a && a.dataset.f === f;
   if(a){ a.ontimeupdate = a.onended = a.onerror = null; a.pause(); a.btn.innerHTML = ICON.play; a.btn.title = "Listen here"; a.dur.textContent = ""; PREVIEW_AUDIO = null; }
   if(same) return;
-  const n = new Audio("/audio/" + encodeURIComponent(f)), dur = btn.parentElement.querySelector(".dur");
+  const n = new Audio("audio/" + encodeURIComponent(f)), dur = btn.parentElement.querySelector(".dur");
   const mmss = s => isFinite(s) ? `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}` : "-:--";
   Object.assign(n, {btn, dur}); n.dataset.f = f; PREVIEW_AUDIO = n;
   n.ontimeupdate = () => { if(dur.isConnected) dur.textContent = `${mmss(n.currentTime)} / ${mmss(n.duration)}`; else n.pause(); };
@@ -793,7 +818,7 @@ function previewAudio(btn, f){
   btn.innerHTML = ICON.stop; btn.title = "Stop"; dur.textContent = "…";
   n.play().catch(() => {});
 }
-async function delAudio(f){ if(!confirm(`Remove ${f}?`)) return; await act(async()=>{ const r=await api("/api/delete-audio",{name:f}); META.audio_files=r.files; render(); }, "Removed"); }
+async function delAudio(f){ if(!confirm(`Remove ${f}?`)) return; await act(async()=>{ const r=await api("api/delete-audio",{name:f}); META.audio_files=r.files; render(); }, "Removed"); }
 
 // ---- Phones
 const KINDS = {
@@ -896,10 +921,12 @@ function pagePhones(){
       </div>${quranCardHTML()}${guideHTML()}`;
   }
   $("#main").innerHTML = html;
-  if(SESSION.box && !editing && !PROV) provLoad();
+  if(SESSION.box && !subSite() && !editing && !PROV) provLoad();
 }
 // ---- Quran by phone: extensions on AthanBox's own SIP server that play the live recitation or a playlist
 function quranCardHTML(){
+  // Group: phones signing in with the site code (and Quran by phone with them) arrive in the next stage
+  if(subSite()) return `<div class="card"><h2>Phones that sign in to this site</h2><p class="muted" style="margin:0">Coming next: phones will sign in to AthanBox with this site's code in their username, like <b>${esc(subSite().code)}-201</b>, and Quran by phone will work here too. Until then this site calls phones on a phone system, or by multicast.</p></div>`;
   const Q = CFG.quran_line, files = META.audio_files || [], has = f => Q.playlist.includes(f);
   const lines = CFG.targets.some(t => t.type === "phones" || t.type === "server");
   const inp = (path, v, id) => `<input type="text" id="${id}" inputmode="tel" maxlength="12" style="max-width:140px" data-path="${path}" value="${esc(v)}">`;
@@ -926,7 +953,7 @@ function toggleQuran(f){
 // on the network or from anywhere. One list of phones by MAC address; open one to choose its extensions.
 let PROV = null;
 const PV = {q:"", filter:"all", sel:"", draft:null, modal:false, linkset:false};   // the page's own state
-async function provLoad(){ try{ PROV = await api("/api/provisioning"); }catch(e){ PROV = {error:e.message}; } provFill(); }
+async function provLoad(){ try{ PROV = await api("api/provisioning"); }catch(e){ PROV = {error:e.message}; } provFill(); }
 const provAgo = s=>s<90?"just now":s<3600?`${Math.round(s/60)} min ago`:s<86400?`${Math.round(s/3600)} h ago`:`${Math.round(s/86400)} days ago`;
 function provDesk(){ return (CFG.targets.find(t=>t.type==="phones")||{}).accounts||[]; }
 // Every phone on the page: the ones with extensions, then any that asked for their settings but aren't added yet
@@ -1087,7 +1114,7 @@ async function provSave(){
   if(isDirty()) return toast("Save or discard your other changes first, then save the phone.","bad");
   const d=PV.draft, slot=d.cordless?"handset":"line";
   const req={mac:d.mac, old_mac:d.old, name:d.name, cordless:d.cordless, keep:d.cordless?d.keep:"", rows:d.rows.filter(x=>x.username).map(x=>({[slot]:+x.n, username:x.username}))};
-  await act(async()=>{ const r=await api("/api/provisioning/phone", req); PROV=r; provApplyConfig(r);
+  await act(async()=>{ const r=await api("api/provisioning/phone", req); PROV=r; provApplyConfig(r);
     const m=String(d.mac).replace(/[\s:.\-]/g,"").toLowerCase();
     const wasNew=PV.modal; PV.modal=false; PV.sel=m; const row=provRows().find(x=>x.key===m); PV.draft=row?provDraftFrom(row):null; if(!row) PV.sel=""; provFill();
     toast(r.added.length?`Saved. New extension${r.added.length>1?"s":""} ${r.added.map(a=>a.username).join(", ")}. ${wasNew?`Now give the ${d.cordless?"base":"phone"} the link.`:"Press Update now so the phone gets it."}`:wasNew?`Saved. Now give the ${d.cordless?"base":"phone"} the link.`:"Saved. Press Update now so the phone gets it straight away."); });
@@ -1095,10 +1122,10 @@ async function provSave(){
 async function provRemove(){
   const d=PV.draft; if(!confirm(`Take ${d.name||d.mac} off remote provisioning? Its extensions stay under Your phones, and the phone keeps its current settings until it's reset.`)) return;
   if(isDirty()) return toast("Save or discard your other changes first.","bad");
-  await act(async()=>{ const r=await api("/api/provisioning/phone", {mac:d.old||d.mac, remove:true}); PROV=r; provApplyConfig(r); PV.sel=""; PV.draft=null; provFill(); }, "Removed");
+  await act(async()=>{ const r=await api("api/provisioning/phone", {mac:d.old||d.mac, remove:true}); PROV=r; provApplyConfig(r); PV.sel=""; PV.draft=null; provFill(); }, "Removed");
 }
 async function provUpdate(m){
-  await act(async()=>{ const r=await api("/api/provisioning/update", {mac:m}); PROV=r; provList();
+  await act(async()=>{ const r=await api("api/provisioning/update", {mac:m}); PROV=r; provList();
     const ok=r.results.filter(x=>x.ok).length;
     toast(ok===r.results.length?`Asked ${ok} phone${ok===1?"":"s"} to update. It takes a few seconds.`:`${ok} of ${r.results.length} phones accepted. The others didn't answer: press Auto Provision Now on them.`, ok?"ok":"bad"); });
 }
@@ -1109,7 +1136,7 @@ async function provTest(k){
 }
 function provCopy(u){ (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Copied")).catch(()=>prompt("Copy the link:", u)); }
 async function provSet(change){
-  await act(async()=>{ const r=await api("/api/provisioning", change); PROV=r;
+  await act(async()=>{ const r=await api("api/provisioning", change); PROV=r;
     if(r.config){ CFG.provisioning=r.config.provisioning; const sv=JSON.parse(SAVED); sv.provisioning=r.config.provisioning; SAVED=JSON.stringify(sv); dirty(); }
     provFill(); }, "Saved");
 }
@@ -1288,18 +1315,18 @@ function tvListHTML(){
       ${kidsOn ? "Switch on <b>Kids</b> for the screens in a child's room." : `For a child's room, switch on Kids mode on the <a href="#display" onclick="go('display');return false">Display</a> page.`}</p>` : ""}`;
 }
 async function setKidsScreen(id, on){
-  await act(async()=>{ const r = await api("/api/kids/screen", {id, on}); applySaved("kids.screens", r.screens); await poll(); render(); },
+  await act(async()=>{ const r = await api("api/kids/screen", {id, on}); applySaved("kids.screens", r.screens); await poll(); render(); },
     on ? "Kids screen on. It changes in a few seconds." : "Kids screen off");
 }
 async function testTV(what){
-  await act(async()=>{ await api("/api/test", what === "tone" ? {source:"tone", label:"TV test chime", screens_only:true}
+  await act(async()=>{ await api("api/test", what === "tone" ? {source:"tone", label:"TV test chime", screens_only:true}
                                                        : {source:"azan", seconds:"default", label:"TV azan test", screens_only:true}); setTimeout(poll,400); }, "Playing on the TV screens…");
 }
 // Addresses and QR codes for TV screens (the page this was opened on first, say azan.local)
 let TVL = null;
-async function loadTVLinks(){ try{ TVL = await api("/api/tv-links"); }catch(e){ TVL = TVL || {}; } }
+async function loadTVLinks(){ try{ TVL = await api("api/tv-links"); }catch(e){ TVL = TVL || {}; } }
 async function setTV(on){
-  await act(async()=>{ TVL = await api("/api/screens", {on}); applySaved("general.screens", on); await poll(); render(); },
+  await act(async()=>{ TVL = await api("api/screens", {on}); applySaved("general.screens", on); await poll(); render(); },
     on ? "TV screens can connect" : "TV screens switched off");
 }
 function pageTV(){
@@ -1361,8 +1388,8 @@ function secSpan(s){
   return `${Math.round(s/60)} minutes`;
 }
 async function loadSecurity(refresh){
-  try{ SEC = await api("/api/security"); }catch(e){ SEC = SEC || {error:e.message}; }
-  if(refresh && SEC && SEC.helper) api("/api/security/refresh", {}).then(()=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, 2500)).catch(()=>{});
+  try{ SEC = await api("api/security"); }catch(e){ SEC = SEC || {error:e.message}; }
+  if(refresh && SEC && SEC.helper) api("api/security/refresh", {}).then(()=>setTimeout(()=>{ if(page==="security") loadSecurity().then(secLive); }, 2500)).catch(()=>{});
 }
 function pageSecurity(){
   if(!SEC){ $("#main").innerHTML = '<h1>Security</h1><p class="muted">Loading…</p>'; loadSecurity(true).then(()=>{ if(page==="security") render(); }); return; }
@@ -1443,19 +1470,19 @@ function secAddForm(k, mine){
     <div class="hint" style="margin-top:8px">One address, such as 203.0.113.7, or a range, such as 203.0.113.0/24. IPv6 works too.</div>`;
 }
 async function secF2b(change){
-  await act(async()=>{ SEC = await api("/api/security/fail2ban", change); secLive(); secSoon(); }, "Saved");
+  await act(async()=>{ SEC = await api("api/security/fail2ban", change); secLive(); secSoon(); }, "Saved");
 }
 async function secAdd(k, ip, note){
   const which = k==="wl" ? "whitelist" : "blacklist";
   ip = ip ?? $(`#sec-${k}-ip`).value; note = note ?? $(`#sec-${k}-note`).value;
-  await act(async()=>{ SEC = await api("/api/security/add", {list:which, ip, note}); secLists(); secLive(); secSoon(); },
+  await act(async()=>{ SEC = await api("api/security/add", {list:which, ip, note}); secLists(); secLive(); secSoon(); },
     which==="whitelist" ? "Added to the whitelist" : "Blocked");
 }
 async function secRemove(which, ip, mine){
   if(mine && !confirm(`You're connected from inside ${ip}. Without it on the whitelist, fail2ban can ban this device after too many wrong passwords. Remove it anyway?`)) return;
-  await act(async()=>{ SEC = await api("/api/security/remove", {list:which, ip}); secLists(); secLive(); secSoon(); }, `Removed from the ${which}`);
+  await act(async()=>{ SEC = await api("api/security/remove", {list:which, ip}); secLists(); secLive(); secSoon(); }, `Removed from the ${which}`);
 }
-async function secUnban(ip){ await act(async()=>{ await api("/api/security/unban", {ip}); secSoon(); }, `Unbanning ${ip}…`); }
+async function secUnban(ip){ await act(async()=>{ await api("api/security/unban", {ip}); secSoon(); }, `Unbanning ${ip}…`); }
 async function secBlockBanned(ip){
   if(!confirm(`Block ${ip} for good? It goes on the blacklist and stays blocked after its ban runs out.`)) return;
   await secAdd("bl", ip, "Banned by fail2ban");
@@ -1534,7 +1561,7 @@ function pageRamadan(){
       ${R.isha_mode === "after" ? `${num("ramadan.isha_after", R.isha_after, "Minutes after Maghrib")}<span class="muted">min after Maghrib</span>` : ""}</div></div>
 
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Prayer-times display</h2>
-      <button class="btn small" onclick="openScreen('/display?ramadan=demo')">${ICON.screen.replace("<svg",'<svg style="width:15px;height:15px"')} Preview on the display</button></div>
+      <button class="btn small" onclick="openScreen('display?ramadan=demo')">${ICON.screen.replace("<svg",'<svg style="width:15px;height:15px"')} Preview on the display</button></div>
     ${row("Ramadan theme", "Night sky, lanterns and a gold highlight for the month.", "", "ramadan.theme_on", R.theme_on)}
     ${row("Iftar and Suhoor countdowns", "The big countdown shows Iftar in the day and Suhoor overnight.", "", "ramadan.countdown_on", R.countdown_on)}
     ${row("Dua at Iftar", "The dua for breaking the fast, in Arabic and English, for 15 minutes from Maghrib.", "", "ramadan.dua_on", R.dua_on)}
@@ -1550,7 +1577,7 @@ function pageRamadan(){
       `<span class="muted">from</span>${num("ramadan.takbeer_minutes", R.takbeer_minutes, "Minutes before the 1st Eid prayer")}<span class="muted">min before</span>${sel("ramadan.takbeer_sound", R.takbeer_sound, "Takbeer recording", false, "Choose a recording…")}`, "ramadan.takbeer_on", R.takbeer_on)}
   </div>
 
-  <div class="row" style="gap:10px"><button class="btn primary" onclick="window.open('/ramadan/timetable','_blank')">Print the Ramadan timetable</button>
+  <div class="row" style="gap:10px"><button class="btn primary" onclick="window.open('ramadan/timetable','_blank')">Print the Ramadan timetable</button>
     <button class="btn" onclick="testSound(rset().suhoor_sound,'Suhoor ends test')">${ICON.play} Test the Suhoor alert</button>
     <span class="muted" style="font-size:13px">Recordings are added on the Azan sound page.</span></div>`;
 }
@@ -1583,13 +1610,14 @@ function pageSettings(){
     <div class="field"><label>Network card to use</label><select data-path="network.local_ip">${opt("","Automatic",CFG.network.local_ip)}${(META.ips||[]).map(ip=>opt(ip,ip,CFG.network.local_ip)).join("")}${CFG.network.local_ip&&!(META.ips||[]).includes(CFG.network.local_ip)?opt(CFG.network.local_ip,CFG.network.local_ip+" (not found)",CFG.network.local_ip):""}</select><div class="hint">Choose the one on the phones' network if this PC has more than one (e.g. Wi-Fi and cable).</div></div>
     <div class="field"><label>Multicast hops (TTL)</label><input type="number" min="1" max="32" data-path="network.multicast_ttl" data-kind="int" value="${val("network.multicast_ttl")||4}"><div class="hint">Raise only if phones are on other routed subnets.</div></div>
   </div></div>
+  ${sitesCardHTML()}
   ${boxCardHTML()}
-  <div class="card" id="upd"><h2>Updates</h2><p class="muted">Loading…</p></div>
+  ${subSite() ? "" : `<div class="card" id="upd"><h2>Updates</h2><p class="muted">Loading…</p></div>`}
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Activity log</h2><span class="muted">Also saved to azan.log</span></div><div class="log" id="fulllog" style="margin-top:12px"></div></div>
   <div class="card"><h2>About</h2><p class="muted">AthanBox ${esc(S&&S.version||"")} · Settings file: <span class="mono">${esc(META.config_path)}</span><br>${SESSION.box?"Control panel: open <b>http://azan.local</b> on any computer or phone on this network.</p></div>":`Control panel: this page only works on this PC. Bookmark it, or double-click <b>Azan SIP</b> to open it.</p>
     <button class="btn danger" onclick="quitApp()">Quit AthanBox</button> <span class="muted" style="margin-left:8px">The azan will stop playing until it's started again.</span></div>`}`;
   renderLog(true);
-  loadUpdate();
+  if(!subSite()) loadUpdate();
 }
 function appearanceCardHTML(){
   const P = Object.assign({mode:"auto", accent:"green", color:"#146356"}, CFG.panel);
@@ -1645,12 +1673,12 @@ function pageDisplay(){
   const r = (name, path, v, cur, label) => `<label><input type="radio" name="${name}" data-path="${path}" value="${v}" ${String(cur)===String(v)?"checked":""}>${label}</label>`;
   const icon = svg => svg.replace("<svg", '<svg style="width:16px;height:16px"');
   $("#main").innerHTML = `<h1>Display</h1><p class="sub">How the prayer-times screen looks, on AthanBox's own screen and on any TV or tablet that opens it. Changes show in the preview straight away. Press Save changes to update every screen.</p>
-  <div class="row" style="margin-bottom:16px"><button class="btn primary" onclick="openScreen('/display')">${icon(ICON.screen)} Open the prayer-times screen</button>
-    <button class="btn" onclick="openScreen('/display?live=1')">${icon(ICON.broadcast)} Open with Makkah live</button>
-    <button class="btn" onclick="openScreen('/display?crypto=1')">${icon(ICON.trend)} Open with crypto</button></div>
+  <div class="row" style="margin-bottom:16px"><button class="btn primary" onclick="openScreen('display')">${icon(ICON.screen)} Open the prayer-times screen</button>
+    <button class="btn" onclick="openScreen('display?live=1')">${icon(ICON.broadcast)} Open with Makkah live</button>
+    <button class="btn" onclick="openScreen('display?crypto=1')">${icon(ICON.trend)} Open with crypto</button></div>
   <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Preview</h2>
       <div class="seg"><label><input type="radio" name="pv" ${DP.live||DP.kids?"":"checked"} onchange="DP.live=false;DP.kids=false;postLook()">Prayer times</label><label><input type="radio" name="pv" ${DP.live&&!DP.kids?"checked":""} onchange="DP.live=true;DP.kids=false;postLook()">With Makkah live</label><label><input type="radio" name="pv" ${DP.kids?"checked":""} onchange="DP.live=false;DP.kids=true;postLook()">Kids screen</label></div></div>
-    <div class="dprev"><iframe id="dprev" src="/display?preview=1" title="Preview of the prayer-times screen" tabindex="-1" aria-hidden="true"></iframe></div></div>
+    <div class="dprev"><iframe id="dprev" src="display?preview=1" title="Preview of the prayer-times screen" tabindex="-1" aria-hidden="true"></iframe></div></div>
   <div class="card"><h2>Theme</h2>
     <div class="themes">${DTHEMES.map(([id,name,bg,ac]) => `<label><input type="radio" name="dtheme" data-path="display.theme" value="${id}" ${L.theme===id?"checked":""}>
       <span class="swatch" ${id==="custom"?'id="sw-custom"':""} style="background:${bg||L.background}"><i style="background:${ac||L.accent}"></i><i style="background:${ac||L.accent}"></i><i style="background:${ac||L.accent}"></i></span>${name}</label>`).join("")}</div>
@@ -1714,7 +1742,7 @@ function toggleCoin(id){
 }
 async function findCoin(){
   const q = ($("#c-q").value || "").trim(); if(!q) return;
-  try{ const r = await api("/api/crypto/search?q=" + encodeURIComponent(q)); CRYPTO_FOUND = r.coins; r.coins.forEach(c => COIN_NAMES[c.id] = c); }
+  try{ const r = await api("api/crypto/search?q=" + encodeURIComponent(q)); CRYPTO_FOUND = r.coins; r.coins.forEach(c => COIN_NAMES[c.id] = c); }
   catch(e){ CRYPTO_FOUND = {error: e.message}; }
   redrawCrypto(); const el = $("#c-q"); if(el){ el.value = q; el.focus(); }
 }
@@ -1730,14 +1758,14 @@ function kidsCardHTML(r){
     <div class="field" style="margin-top:12px"><label>At azan time, kids screens play</label><div class="seg">${r("ksnd","kids.sound","azan",K.sound,"The full azan")}${r("ksnd","kids.sound","chime",K.sound,"A gentle chime")}${r("ksnd","kids.sound","none",K.sound,"Nothing, just the screen")}</div></div>
     <div class="field"><label for="k-vol">Loudest a kids screen plays: <span id="kvol">${Math.round(+K.volume)}%</span></label><input type="range" id="k-vol" min="0" max="100" step="5" data-path="kids.volume" data-kind="num" value="${Math.round(+K.volume)}" oninput="$('#kvol').textContent=this.value+'%'"><div class="hint">A share of the screen's own volume. Test chime on the TV app page plays at this volume too.</div></div>
     <div class="toggle-row"><div><div class="t">Keep Fajr quiet</div><div class="d">No sound at Fajr or the Suhoor alert on kids screens, so nobody is woken. The screen still shows them.</div></div>${sw("kids.quiet_fajr", K.quiet_fajr)}</div>
-    <div class="toggle-row"><div><div class="t">In Ramadan</div><div class="d">Kids screens count down to Iftar and Suhoor, ask “Did you fast today?” at Iftar and fill a star chart for the month. Half fasts count too. On Eid they say Eid Mubarak.</div></div><button class="btn small" onclick="openScreen('/display?ramadan=demo&kids=1&palette=${esc(K.palette)}')">Preview</button></div>
+    <div class="toggle-row"><div><div class="t">In Ramadan</div><div class="d">Kids screens count down to Iftar and Suhoor, ask “Did you fast today?” at Iftar and fill a star chart for the month. Half fasts count too. On Eid they say Eid Mubarak.</div></div><button class="btn small" onclick="openScreen('display?ramadan=demo&kids=1&palette=${esc(K.palette)}')">Preview</button></div>
     <p class="muted" style="margin:10px 0 0;font-size:13px">Kids screens keep Makkah live's sound off. Press Save changes, and kids screens change within a few seconds.</p>` : ""}</div>`;
 }
 async function checkLive(){
   const b = $("#live-check"), out = $("#live-result"), url = ($("#live-url").value || "").trim();
   b.disabled = true; out.innerHTML = "Checking…";
   try{
-    const r = await api("/api/live/test", {url});
+    const r = await api("api/live/test", {url});
     out.innerHTML = `<span class="pill ${r.working ? "ok" : "bad"}">${r.working ? "OK" : "Not working"}</span> ${esc(r.summary)}`
       + (r.working ? ` · ${r.direct ? "Screens can fetch it themselves" : CFG.live.direct !== false && CFG.live.fallback === false
           ? "Screens can't fetch it themselves, and going through AthanBox is off, so most screens won't show it"
@@ -1756,7 +1784,7 @@ function renderLog(force){
 let UPD = null, updBusy = false;
 // "version 0.3.1", or "test build 1a2b3c4" for a Docker test image
 const vname = v => /^\d/.test(String(v||"")) ? "version "+v : String(v||"");
-async function loadUpdate(){ try{ UPD = await api("/api/update"); }catch(e){ UPD = {error:e.message}; } renderUpdate(); }
+async function loadUpdate(){ try{ UPD = await api("api/update"); }catch(e){ UPD = {error:e.message}; } renderUpdate(); }
 function renderUpdate(){
   const el=$("#upd"); if(!el||!UPD) return;
   const short = c => c ? String(c).slice(0,7) : "";
@@ -1782,16 +1810,16 @@ function renderUpdate(){
     ${bk.length?`<div class="toggle-row"><div><div class="t">Go back to the previous version</div><div class="d">If an update causes a problem. Saved copies: ${bk.map(b=>"v"+esc(b.version)).join(", ")}</div></div>
       <button class="btn small" onclick="rollbackUpdate('${esc(bk[0].name)}','${esc(bk[0].version)}')">Restore v${esc(bk[0].version)}</button></div>`:""}`;
 }
-async function checkUpdate(){ updBusy=true; renderUpdate(); try{ UPD = await api("/api/update/check",{}); UPD.error=null; toast(UPD.available?`${vname(UPD.latest_version).replace(/^./, c=>c.toUpperCase())} is available`:"You're on the latest version"); }catch(e){ UPD = {...(UPD||{}), error:e.message}; } updBusy=false; renderUpdate(); }
-async function setAutoUpdate(on){ await act(async()=>{ await api("/api/update/auto",{enabled:on}); applySaved("general.check_updates", on); UPD.auto=on; }, on?"Will check for updates daily":"Automatic update checks off"); }
+async function checkUpdate(){ updBusy=true; renderUpdate(); try{ UPD = await api("api/update/check",{}); UPD.error=null; toast(UPD.available?`${vname(UPD.latest_version).replace(/^./, c=>c.toUpperCase())} is available`:"You're on the latest version"); }catch(e){ UPD = {...(UPD||{}), error:e.message}; } updBusy=false; renderUpdate(); }
+async function setAutoUpdate(on){ await act(async()=>{ await api("api/update/auto",{enabled:on}); applySaved("general.check_updates", on); UPD.auto=on; }, on?"Will check for updates daily":"Automatic update checks off"); }
 async function installUpdate(reinstall){
   if(isDirty() && !confirm("You have unsaved changes. They will be lost if you update now. Continue?")) return;
   if(!confirm(reinstall?"Download and reinstall the latest version? AthanBox will restart.":`Update to ${vname(UPD.latest_version)}? AthanBox will restart, which takes a few seconds.`)) return;
-  await runInstall("/api/update/apply", {}, "Updating AthanBox…", UPD.mode==="docker" ? "Restarting the container with the new version. Your settings are kept." : "Downloading and checking the new version. Your settings are kept.");
+  await runInstall("api/update/apply", {}, "Updating AthanBox…", UPD.mode==="docker" ? "Restarting the container with the new version. Your settings are kept." : "Downloading and checking the new version. Your settings are kept.");
 }
 async function rollbackUpdate(name, version){
   if(!confirm(`Go back to version ${version}? AthanBox will restart.`)) return;
-  await runInstall("/api/update/rollback", {name}, "Restoring the previous version…", "AthanBox will restart in a moment.");
+  await runInstall("api/update/rollback", {name}, "Restoring the previous version…", "AthanBox will restart in a moment.");
 }
 async function runInstall(path, body, title, text){
   const ov=$("#overlay"); $("#ov-title").textContent=title; $("#ov-text").textContent=text; ov.hidden=false;
@@ -1801,7 +1829,7 @@ async function runInstall(path, body, title, text){
   const t0 = Date.now(); let sawDown = false;
   while(Date.now()-t0 < 120000){
     await new Promise(r=>setTimeout(r,1000));
-    try{ const p = await fetch("/api/ping",{cache:"no-store"}); if(p.ok && sawDown){ location.reload(); return; } if(!p.ok) sawDown=true; }
+    try{ const p = await fetch("api/ping",{cache:"no-store"}); if(p.ok && sawDown){ location.reload(); return; } if(!p.ok) sawDown=true; }
     catch(e){ sawDown = true; }
   }
   $("#ov-title").textContent="This is taking longer than expected"; $("#ov-text").innerHTML = SESSION.docker ? "Refresh this page in a minute. If it still doesn't open, run <b>docker compose up -d</b> on the computer running AthanBox."
@@ -1811,7 +1839,7 @@ async function runInstall(path, body, title, text){
 
 async function quitApp(){
   if(!confirm("Quit AthanBox? The azan will not play until you start it again.")) return;
-  try{ await api("/api/quit",{}); }catch(e){}
+  try{ await api("api/quit",{}); }catch(e){}
   offline=true; S=null; renderMini(); $("#main").innerHTML = stoppedHTML();
 }
 
@@ -1827,7 +1855,7 @@ window.addEventListener("hashchange", ()=>{ const p=location.hash.slice(1); if(p
   setInterval(async()=>{ if(offline) return; if(!CFG){ try{ await loadConfig(); render(); }catch(e){} } }, 3000);
 })();
 // reconnect: when the service comes back after being stopped, reload settings
-setInterval(async()=>{ if(offline){ try{ await api("/api/ping"); offline=false; await loadConfig(); await poll(); render(); }catch(e){} } }, 3000);
+setInterval(async()=>{ if(offline){ try{ await api("api/ping"); offline=false; await loadConfig(); await poll(); render(); }catch(e){} } }, 3000);
 </script>
 </body>
 </html>
