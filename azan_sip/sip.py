@@ -172,6 +172,8 @@ class SipCall:
         self.route_set: list[str] = []
         self.ended_by_remote = threading.Event()
         self.stop_stream = threading.Event()
+        self.settled = threading.Event()   # the phone answered, refused or stopped ringing
+        self.answered = False
         self._watching = False
 
     # ------------------------------------------------------------- messages
@@ -318,6 +320,7 @@ class SipCall:
             log.exception("%s: call failed", self.t.uri)
             return False
         finally:
+            self.settled.set()
             if self.sock:
                 self.sock.close()
             if self.transport:
@@ -343,6 +346,8 @@ class SipCall:
             tried_auth = True
             resp, branch, _ = self._transaction("INVITE", body, extra + [f"{ah}: {cred}"],
                                                 final_timeout=self.t.ring_timeout)
+        self.answered = resp is not None and resp.status < 300
+        self.settled.set()
         if resp is None:
             log.warning("%s: no answer", self.t.uri)
             return False
