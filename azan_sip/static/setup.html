@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AthanBox · First-time setup</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23146356'/%3E%3Cpath d='M19 8a8 8 0 1 0 5 14 9 9 0 1 1-5-14z' fill='%23f4e3b5'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/box.css">
+<link rel="stylesheet" href="static/box.css">
 <style>
 /* Designed at 1280x720 (AthanBox's screen); phones get one column with Back/Next at the bottom. */
 .top{height:72px;background:var(--head);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 42px;position:sticky;top:0;z-index:5}
@@ -187,7 +187,7 @@ h1{font-size:34px;line-height:1.2;font-weight:800;margin:0 0 14px;letter-spacing
 <main id="main"><p class="muted" style="text-align:center;margin-top:80px">Loading…</p></main>
 <footer class="foot" id="foot" hidden></footer>
 
-<script src="/static/box.js"></script>
+<script src="static/box.js"></script>
 <script>
 // ------------------------------------------------------------------ icons
 const I = {
@@ -268,7 +268,7 @@ function push(now){
   clearTimeout(pushTimer);
   pushTimer = setTimeout(async () => {
     pushTimer = null;
-    try{ const r = await api("/api/setup/state", {client:CLIENT, state:W}); REV = Math.max(REV, r.rev); LOCAL.driver = CLIENT; }catch(e){ handleLost(e); }
+    try{ const r = await api("api/setup/state", {client:CLIENT, state:W}); REV = Math.max(REV, r.rev); LOCAL.driver = CLIENT; }catch(e){ handleLost(e); }
   }, now ? 0 : 300);
 }
 function set(fn, rerender = true){ fn(W); if(rerender) render(); push(); }
@@ -282,12 +282,12 @@ function enter(){ if(W.step === 4 && !W.usb) checkUsb(false); }
 async function poll(){
   if(pushTimer) return;  // our own change is on its way
   try{
-    const r = await api("/api/setup/state");
+    const r = await api("api/setup/state");
     if(r.rev > REV){
       REV = r.rev; LOCAL.driver = r.driver;
       if(r.driver !== CLIENT && r.state){
         if(r.state.finished) return leave();
-        if(r.state.manual) return location.replace(KIOSK ? "/display" : "/");  // being set up in the control panel
+        if(r.state.manual) return location.replace(KIOSK ? "display" : "./");  // being set up in the control panel
         W = r.state; render();
       }
     }
@@ -295,13 +295,13 @@ async function poll(){
 }
 async function handleLost(e){
   if(e.status !== 401) return;
-  try{ SESSION = await api("/api/session"); }catch(_){ return; }
+  try{ SESSION = await api("api/session"); }catch(_){ return; }
   if(SESSION.configured && !AGAIN) return leave();
   showLogin();
 }
 // AthanBox's screen, and anyone who was only following along, see the prayer times; whoever pressed
 // Finish on a phone or PC goes on to the control panel.
-function leave(finisher){ location.replace(finisher && !KIOSK ? "/" : "/display"); }
+function leave(finisher){ location.replace(finisher && !KIOSK ? "./" : "display"); }
 
 // ------------------------------------------------------------------ helpers
 const phoneW = () => matchMedia("(max-width:640px)").matches;
@@ -385,7 +385,7 @@ function wantPreview(){
   LOCAL.previewKey = key;
   clearTimeout(previewTimer);
   previewTimer = setTimeout(async () => {
-    try{ LOCAL.preview = await api("/api/preview", {config:cfg, days:1}); }
+    try{ LOCAL.preview = await api("api/preview", {config:cfg, days:1}); }
     catch(e){ LOCAL.preview = {error:e.message}; }
     if(W.step === 3 || W.step === 6) render();
   }, 150);
@@ -405,7 +405,7 @@ function footer(o){
   if(!o){ f.hidden = true; return; }
   const elsewhere = KIOSK && LOCAL.driver && LOCAL.driver !== CLIENT;
   const left = o.left !== undefined ? o.left : (KIOSK || !phoneW()) && SESSION.setup ?
-    `<div class="qrmini"><img src="/api/setup-qr.svg" alt=""><div>${elsewhere ? "Being set up from a phone.<br>You can carry on here too." : "Easier on your phone?<br>Scan to carry on there."}</div></div>` : "<span></span>";
+    `<div class="qrmini"><img src="api/setup-qr.svg" alt=""><div>${elsewhere ? "Being set up from a phone.<br>You can carry on here too." : "Easier on your phone?<br>Scan to carry on there."}</div></div>` : "<span></span>";
   f.innerHTML = `${left}<div class="nav">${o.back !== false ? `<button class="btn" onclick="go(${W.step - 1})">Back</button>` : ""}
     <button class="btn primary" id="next" onclick="${o.action || `go(${W.step + 1})`}" ${o.disabled || LOCAL.busy ? "disabled" : ""}>${o.next || "Next"}</button></div>`;
   f.hidden = false;
@@ -431,7 +431,7 @@ function stepWelcome(){
     [I.pin, "Your town or city"],
     [I.music, SESSION.docker ? "Your azan recording (MP3), on this computer or your phone" : "Your azan recording (MP3), on a USB stick or your phone"],
     [I.server, "Your phone system's address, an extension number and its password"]];
-  const qr = SESSION.setup && !phoneW() ? `<div class="qrcard"><img class="qr" src="/api/setup-qr.svg" alt="QR code to set up from your phone">
+  const qr = SESSION.setup && !phoneW() ? `<div class="qrcard"><img class="qr" src="api/setup-qr.svg" alt="QR code to set up from your phone">
       <h3>Or set up from your phone</h3>
       <p>Point your phone's camera at the code. ${KIOSK ? "This screen" : "This page"} follows along as you go.</p>
       ${KIOSK ? `<hr><p>On a PC, open <b>http://azan.local</b><br>The password is on the sticker under AthanBox.</p>` : ""}</div>` : "";
@@ -442,7 +442,7 @@ function stepWelcome(){
       <ul class="have">${[[I.pin, "Location and prayer times"], [I.music, "Azan recordings"], [I.server, "Phone system, with a test chime at the end"]]
         .map(([i, t]) => `<li><span class="icbox">${i}</span>${t}</li>`).join("")}</ul>
       <div class="start"><button class="btn primary" onclick="go(1)">Start ${I.arrow}</button>
-        <button class="link" onclick="location.assign('/')">Back to Settings</button></div>
+        <button class="link" onclick="location.assign('./')">Back to Settings</button></div>
     </div></div>`;
   return `<div class="welcome" ${qr ? "" : 'style="grid-template-columns:1fr;max-width:760px"'}><div>
       <span class="pill">${I.check} Connected to the network · ${esc(SESSION.ip || "")}</span>
@@ -456,7 +456,7 @@ function stepWelcome(){
 }
 // Skip the guide and set everything up in the control panel (the guide can be opened from there)
 async function setUpMyself(){
-  try{ await api("/api/setup/state", {client:CLIENT, state:{manual:true}}); location.assign("/"); }
+  try{ await api("api/setup/state", {client:CLIENT, state:{manual:true}}); location.assign("./"); }
   catch(e){ handleLost(e); }
 }
 
@@ -496,8 +496,8 @@ async function savePassword(){
   if(own && W.pw.done === "own" && !LOCAL.pwEdit) return go(2);
   LOCAL.busy = "pw"; LOCAL.err = "";
   try{
-    if(AGAIN){ if(own){ await api("/api/password", {current:LOCAL.pw0, new:LOCAL.pw1}); SESSION.custom_password = true; } }
-    else await api("/api/setup/password", own ? {new:LOCAL.pw1} : {sticker:true});
+    if(AGAIN){ if(own){ await api("api/password", {current:LOCAL.pw0, new:LOCAL.pw1}); SESSION.custom_password = true; } }
+    else await api("api/setup/password", own ? {new:LOCAL.pw1} : {sticker:true});
     W.pw.done = own ? "own" : "sticker"; LOCAL.pw0 = LOCAL.pw1 = LOCAL.pw2 = ""; LOCAL.pwEdit = false; LOCAL.busy = "";
     go(2);
   }catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
@@ -606,13 +606,13 @@ function todayCard(){
 async function uploadTimetable(f){
   if(!f) return;
   LOCAL.err = "";
-  try{ await api("/api/upload?kind=timetable&name=timetable.csv", await f.arrayBuffer(), true); LOCAL.previewKey = ""; set(w => { w.calc.timetable = true; w.calc.ttOpen = false; }); }
+  try{ await api("api/upload?kind=timetable&name=timetable.csv", await f.arrayBuffer(), true); LOCAL.previewKey = ""; set(w => { w.calc.timetable = true; w.calc.ttOpen = false; }); }
   catch(e){ LOCAL.err = e.message; render(); }
 }
 async function downloadTemplate(){
   const cfg = buildConfig(false); delete cfg.calculation.timetable;
   const y = new Date().getFullYear();
-  const r = await api("/api/preview", {config:cfg, days:366, start:`${y}-01-01`});
+  const r = await api("api/preview", {config:cfg, days:366, start:`${y}-01-01`});
   const rows = ["date,fajr,sunrise,dhuhr,asr,maghrib,isha", ...r.week.map(x => [x.iso, x.fajr, x.sunrise, x.dhuhr, x.asr, x.maghrib, x.isha].join(","))];
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.join("\r\n") + "\r\n"], {type:"text/csv"})); a.download = `timetable-${y}.csv`; a.click();
 }
@@ -659,7 +659,7 @@ async function openPicker(key){
   if(key === "reminder" && !W.audio.minutes && LOCAL.picker) set(w => w.audio.minutes = 10);
   render();
   const pk = $(".picker"); if(pk) pk.scrollIntoView({block:"nearest", behavior:"smooth"});
-  try{ const r = await api("/api/config"); META = r.meta; if(LOCAL.picker) render(); }catch(e){}
+  try{ const r = await api("api/config"); META = r.meta; if(LOCAL.picker) render(); }catch(e){}
 }
 function choose(key, v){ set(w => { if(key === "reminder") w.audio.reminder = v === "tone" ? "" : v; else w.audio[key] = v; }); }
 async function uploadAudio(key, f){
@@ -669,14 +669,14 @@ async function uploadAudio(key, f){
   try{ body = await toPhoneWav(f); name = f.name.replace(/\.[^.]+$/, "") + ".wav"; }
   catch(e){ body = await f.arrayBuffer(); name = f.name; }
   try{
-    const r = await api("/api/upload?kind=audio&name=" + encodeURIComponent(name), body, true);
+    const r = await api("api/upload?kind=audio&name=" + encodeURIComponent(name), body, true);
     META.audio_files = r.files; LOCAL.busy = "";
     choose(key, "audio/" + r.name);
   }catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
 }
 async function checkUsb(manual){
   try{
-    const r = await api("/api/setup/usb", {});
+    const r = await api("api/setup/usb", {});
     if(r.files) META.audio_files = r.files;
     const copied = r.copied || [];
     set(w => {
@@ -694,7 +694,7 @@ async function playSound(key, src){
   stopSound(); LOCAL.err = "";
   if(W.test && W.test.ok){  // phones are set up: play it on them
     try{
-      await api("/api/test", {source:src === "tone" ? "tone" : "file:" + fileName(src), seconds:20, target:W.test.target, label:"Recording test"});
+      await api("api/test", {source:src === "tone" ? "tone" : "file:" + fileName(src), seconds:20, target:W.test.target, label:"Recording test"});
       LOCAL.playing = key; render(); setTimeout(() => { if(LOCAL.playing === key){ LOCAL.playing = null; render(); } }, 20000);
     }catch(e){ LOCAL.err = e.message; render(); }
     return;
@@ -707,14 +707,14 @@ async function playSound(key, src){
       o.connect(g); g.connect(toneCtx.destination); o.start(toneCtx.currentTime + t); o.stop(toneCtx.currentTime + t + 0.6); });
     setTimeout(stopSound, 2000); return;
   }
-  audioEl = new Audio("/audio/" + encodeURIComponent(fileName(src)));
+  audioEl = new Audio("audio/" + encodeURIComponent(fileName(src)));
   audioEl.onended = stopSound;
   audioEl.play().catch(() => { LOCAL.err = "This browser can't play that file. It will still play on the phones."; stopSound(); });
 }
 function stopSound(){
   if(audioEl){ audioEl.pause(); audioEl = null; }
   if(toneCtx){ toneCtx.close(); toneCtx = null; }
-  if(LOCAL.playing && W.test && W.test.ok) api("/api/stop", {}).catch(() => {});
+  if(LOCAL.playing && W.test && W.test.ok) api("api/stop", {}).catch(() => {});
   if(LOCAL.playing){ LOCAL.playing = null; render(); }
 }
 
@@ -793,7 +793,7 @@ async function connect(){
   try{ t = phoneTarget(); }catch(e){ LOCAL.err = e.message; return render(); }
   LOCAL.busy = "connect"; render();
   try{
-    const r = await api("/api/setup/connect", {target:t});
+    const r = await api("api/setup/connect", {target:t});
     LOCAL.busy = "";
     W.test = {ok:true, target:t, registration:r.registration || null};
     go(6);
@@ -865,12 +865,12 @@ function trouble(t){
 }
 async function playAgain(){
   LOCAL.err = "";
-  try{ await api("/api/test", {source:"tone", target:phoneTarget(), label:"Test chime"}); }catch(e){ LOCAL.err = e.message; render(); }
+  try{ await api("api/test", {source:"tone", target:phoneTarget(), label:"Test chime"}); }catch(e){ LOCAL.err = e.message; render(); }
 }
 async function otherCodec(){ set(w => { w.phone.codec = w.phone.codec === "PCMA" ? "PCMU" : "PCMA"; if(w.test) w.test.target = phoneTarget(); }); await playAgain(); }
 async function finish(){
   LOCAL.busy = "finish"; LOCAL.err = ""; render();
-  try{ await api("/api/setup/finish", {config:buildConfig(), again:AGAIN}); leave(true); }
+  try{ await api("api/setup/finish", {config:buildConfig(), again:AGAIN}); leave(true); }
   catch(e){ LOCAL.busy = ""; LOCAL.err = e.message; render(); }
 }
 
@@ -884,18 +884,18 @@ function showLogin(){
     ${SESSION.docker || AGAIN ? "" : '<p class="hint" style="margin-bottom:0">Or scan the QR code on AthanBox\'s screen with your phone.</p>'}</form>`;
   $("#loginform").addEventListener("submit", async e => {
     e.preventDefault();
-    try{ await api("/api/login", {password:$("#lpw").value}); start(); }
+    try{ await api("api/login", {password:$("#lpw").value}); start(); }
     catch(err){ $("#lerr").textContent = err.message; }
   });
   setTimeout(() => $("#lpw").focus(), 50);
 }
 
 async function start(){
-  SESSION = await api("/api/session");
-  if((SESSION.configured && !AGAIN) || !SESSION.box) return location.replace("/");
+  SESSION = await api("api/session");
+  if((SESSION.configured && !AGAIN) || !SESSION.box) return location.replace("./");
   if(!SESSION.logged_in) return showLogin();
-  const r = await api("/api/config"); CFG0 = r.config; META = r.meta;
-  const s = await api("/api/setup/state");
+  const r = await api("api/config"); CFG0 = r.config; META = r.meta;
+  const s = await api("api/setup/state");
   REV = s.rev; LOCAL.driver = s.driver;
   const st = s.state && !s.state.finished && !s.state.manual && !!s.state.again === AGAIN ? s.state : null;
   W = st || (AGAIN ? stateFromConfig(CFG0) : freshState());
@@ -907,15 +907,15 @@ async function start(){
 
 (async () => {
   try{
-    SESSION = await api("/api/session");
+    SESSION = await api("api/session");
     const code = new URLSearchParams(location.search).get("setup");
     if(code){
-      history.replaceState(null, "", "/setup");
+      history.replaceState(null, "", "setup");
       VIA_QR = true;
-      if(!SESSION.logged_in) try{ await api("/api/login", {setup_code:code}); }catch(e){}
+      if(!SESSION.logged_in) try{ await api("api/login", {setup_code:code}); }catch(e){}
     } else if(SESSION.local && SESSION.box){
       KIOSK = true;  // AthanBox's own screen signs itself in for setup
-      if(!SESSION.logged_in && SESSION.setup) try{ const c = await api("/api/setup-code"); await api("/api/login", {setup_code:c.code}); }catch(e){}
+      if(!SESSION.logged_in && SESSION.setup) try{ const c = await api("api/setup-code"); await api("api/login", {setup_code:c.code}); }catch(e){}
     }
     await start();
   }catch(e){
