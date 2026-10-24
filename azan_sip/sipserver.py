@@ -605,8 +605,39 @@ def check_targets(targets: list) -> None:
         raise ValueError("Desk phones and SIP trunks sign in to the same SIP server, so give both the same SIP port")
 
 
-SAME_DEVICE_GAP = 1.5   # seconds between calls to lines on the same device (address and port)
+ANSWER_WAIT = 5.0   # seconds a line on a shared address may ring before the next line there is called
+QUICK_ANSWER = 3.0  # a line that answers this fast auto-answers, so it is called first next time
+AUTO_ANSWERS: set[str] = set()   # usernames that auto-answered an azan or Test call, kept in .auto_answer.json
+_auto_loaded = False
 
+
+def _auto_file() -> Path | None:
+    f = MANAGER.state_file
+    return f.with_name(".auto_answer.json") if f else None
+
+
+def _load_auto():
+    global _auto_loaded
+    f = _auto_file()
+    if _auto_loaded or not f:
+        return
+    _auto_loaded = True
+    try:
+        AUTO_ANSWERS.update(str(u) for u in json.loads(f.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        pass
+
+
+def _note_auto(username: str, auto: bool):
+    if (username in AUTO_ANSWERS) == auto:
+        return
+    (AUTO_ANSWERS.add if auto else AUTO_ANSWERS.discard)(username)
+    f = _auto_file()
+    if f:
+        try:
+            f.write_text(json.dumps(sorted(AUTO_ANSWERS)), encoding="utf-8")
+        except OSError as exc:
+            log.warning("Couldn't save %s: %s", f.name, exc)
 
 @dataclass
 class ServerTarget:
@@ -643,28 +674,49 @@ class ServerTarget:
         from concurrent.futures import ThreadPoolExecutor
         codecs = [self.codec] + [c for c in ("PCMU", "PCMA") if c != self.codec]
 
-        # Several lines on one device (say DECT handsets on one base, which all sign in from the base's
-        # address and port) are called a moment apart: a base that gets them in the same instant
-        # auto-answers the first and only rings the others. Phone systems are called all at once.
-        order, seen = [], {}
+        # Lines behind one address (say DECT handsets on one base, or phones behind one router) are called
+        # one at a time: a base that is still ringing one line won't auto-answer another. The next line is
+        # called once the last one answers, or after ANSWER_WAIT, and lines known to auto-answer go first.
+        # Phone systems are called all at once.
+        if self.kind == "phone":
+            _load_auto()
+            jobs.sort(key=lambda j: (j[1].addr[0], j[0].username not in AUTO_ANSWERS))
+        order, last = [], {}
         for acct, b in jobs:
-            n = seen.get(b.addr, 0)
-            seen[b.addr] = n + 1
-            order.append((acct, b, n * SAME_DEVICE_GAP if self.kind == "phone" else 0))
+            mine = (threading.Event(), threading.Event())   # called, settled
+            order.append((acct, b, last.get(b.addr[0]) if self.kind == "phone" else None, mine))
+            last[b.addr[0]] = mine
         jobs = order
 
         def call(job):
-            acct, b, delay = job
-            if delay and stop.wait(delay):
-                return False
-            _, host, port = _contact_hostport(b.contact)
-            user = acct.dial or _contact_user(b.contact) or acct.username   # no number: call the device itself
-            target = SipTarget(uri=f"sip:{user}@{host}:{port}", username=acct.username, password=acct.password,
-                               from_user="azan", display_name="Azan", auto_answer=True,   # phone systems ignore it
-                               codecs=codecs, ring_timeout=self.ring_timeout,
-                               local_ip=self.local_ip or rtp.local_ip_for(b.addr[0]))
-            transport = ServerCallTransport(server, b.addr)
-            return SipCall(target, clip.get, stop, transport=transport).run()
+            acct, b, before, (called, settled) = job
+            try:
+                if before is not None:
+                    before[0].wait()   # the line before this one has been called
+                    before[1].wait(ANSWER_WAIT)
+                if stop.is_set():
+                    return False
+                _, host, port = _contact_hostport(b.contact)
+                user = acct.dial or _contact_user(b.contact) or acct.username   # no number: call the device itself
+                target = SipTarget(uri=f"sip:{user}@{host}:{port}", username=acct.username, password=acct.password,
+                                   from_user="azan", display_name="Azan", auto_answer=True,   # phone systems ignore it
+                                   codecs=codecs, ring_timeout=self.ring_timeout,
+                                   local_ip=self.local_ip or rtp.local_ip_for(b.addr[0]))
+                transport = ServerCallTransport(server, b.addr)
+                sc = SipCall(target, clip.get, stop, transport=transport)
+                started = time.monotonic()
+
+                def on_settled():
+                    sc.settled.wait()
+                    if self.kind == "phone" and not stop.is_set():
+                        _note_auto(acct.username, sc.answered and time.monotonic() - started <= QUICK_ANSWER)
+                    settled.set()
+                threading.Thread(target=on_settled, daemon=True).start()
+                called.set()
+                return sc.run()
+            finally:
+                called.set()
+                settled.set()
 
         with ThreadPoolExecutor(max_workers=min(32, len(jobs))) as ex:
             results = list(ex.map(call, jobs))

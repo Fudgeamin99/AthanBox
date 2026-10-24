@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.11.4 - Lines on one base ring in turn
+
+- **Desk phones that share a base or router are rung one at a time:** a DECT base that was still ringing one line wouldn't auto-answer the azan on another, so a W53H on line 4 only rang. Now AthanBox rings the lines behind one address in turn: the next line rings as soon as the last one answers, or after 5 seconds. Lines that auto-answer go first, so they pick up the azan straight away; AthanBox learns which ones they are from each azan and Test call, and remembers them after a restart. SIP trunks are still all called at once.
+
 ## 0.11.3 - Turn one line off
 
 - **An on/off switch on each line:** each desk phone and SIP trunk line on the Phones page has its own switch. A line that's off stays signed in, so its phone shows as registered and Quran by phone still works, but the azan doesn't ring it. Its Test button still rings it, so you can check it while it's off.
