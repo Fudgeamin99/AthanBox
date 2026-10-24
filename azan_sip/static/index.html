@@ -910,11 +910,12 @@ function quranCardHTML(){
     ${Q.enabled ? `<div class="row" style="gap:16px;margin-top:12px;flex-wrap:wrap">
       <div class="field" style="margin:0"><label for="q-live">Live from Makkah</label>${inp("quran_line.live_ext", Q.live_ext, "q-live")}</div>
       <div class="field" style="margin:0"><label for="q-pl">Quran playlist</label>${inp("quran_line.playlist_ext", Q.playlist_ext, "q-pl")}</div></div>
+    <p class="muted" style="margin:12px 0 0">The playlist plays all the time, like a radio station. Callers join wherever it has got to, so calling back carries on rather than starting again.${S && S.quran_now ? ` <span class="pill ok" id="quran-now"><span class="dot"></span>Now playing: ${esc(S.quran_now)}</span>` : ""}</p>
     <div class="field" style="margin-top:14px"><label>Playlist (${Q.playlist.length ? `${Q.playlist.length} chosen, in this order` : "none chosen"})</label>
-      ${Q.playlist.length ? "" : `<p class="muted" style="margin:0 0 8px">With none chosen, it plays ${esc(META.quran_online || "the whole Quran from the internet")}, surah by surah.</p>`}
+      ${Q.playlist.length ? "" : `<p class="muted" style="margin:0 0 8px">With none chosen, it plays ${esc(META.quran_online || "the whole Quran from the internet")}, surah by surah. As it plays all the time, that uses about 1 to 1.5 GB of internet data a day. Choose recordings of your own to use none.</p>`}
       ${files.length ? `<div class="row" style="gap:8px;flex-wrap:wrap">${files.map(f => `<button class="chip ${has(f)?"on":""}" aria-pressed="${has(f)}" onclick="toggleQuran(${esc(JSON.stringify(f))})">${has(f) ? `${Q.playlist.indexOf(f)+1}. ` : ""}${esc(f)}</button>`).join("")}</div>` : ""}
       <div class="hint">Recordings come from the audio folder. Add recitations on the <a href="#audio" onclick="go('audio');return false">Azan sound</a> page with <b>Add recording…</b></div></div>
-    ${Q.playlist.length > 1 ? `<div class="toggle-row"><div><div class="t">Shuffle</div><div class="d">Play the chosen recordings in a different order each call.</div></div>${sw("quran_line.shuffle", Q.shuffle)}</div>` : ""}` : ""}</div>`;
+    ${Q.playlist.length > 1 ? `<div class="toggle-row"><div><div class="t">Shuffle</div><div class="d">Play the chosen recordings in a different order each time round.</div></div>${sw("quran_line.shuffle", Q.shuffle)}</div>` : ""}` : ""}</div>`;
 }
 function toggleQuran(f){
   const P = CFG.quran_line.playlist, i = P.indexOf(f);

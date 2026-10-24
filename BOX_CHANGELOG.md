@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.10.1 - The Quran playlist plays like a radio station
+
+- **Like a radio:** extension 701 now plays all the time, from when AthanBox starts. Callers join wherever it has got to, so hanging up and calling back carries on instead of starting the playlist again, and everyone calling hears the same thing. The Phones page shows what is playing.
+- **Live from Makkah:** everyone calling 700 at the same time now shares one download of the stream. AthanBox stops it 30 seconds after the last caller hangs up. If the stream can't be reached, the call ends after a few tries instead of staying silent.
+- With no recordings chosen, the playlist streams the whole Quran from the internet all the time, about 1 to 1.5 GB of data a day. Choose recordings of your own to avoid it.
+
 ## 0.10.0 - Quran by phone
 
 - **Quran by phone:** dial **700** on a phone's AthanBox line to hear the live recitation from Masjid al-Haram (the sound of Makkah live), or **701** for a Quran playlist. It plays until you hang up. Choose the extensions and the playlist on the Phones page, under Quran by phone. The playlist plays the recordings you choose from the audio folder, in order or shuffled. With none chosen, it plays the whole Quran recited by Mishary Alafasy, surah by surah, from the internet.
