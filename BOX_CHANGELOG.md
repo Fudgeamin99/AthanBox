@@ -6,6 +6,11 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.11.2 - DECT handsets auto-answer the azan
+
+- **Lines on one base are called a moment apart:** when several handsets on one DECT base (like Yealink W53H handsets) sign in to AthanBox, the azan used to call them all in the same instant. The base auto-answered only the first, and the others just rang. Now each further line on the same base is called 1.5 seconds after the one before, so every handset can auto-answer. Phones on their own addresses are still called all at once.
+- **One call per device:** a phone that signed in more than once from the same address is called once, not twice.
+
 ## 0.11.1 - The Sites page opens first, in dark mode
 
 - **Sites first:** in Group, opening AthanBox (http://azan.local or the server's address) goes straight to the Sites page. The first site's own control panel is now at /s/main/, like every other site's.

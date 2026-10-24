@@ -603,6 +603,9 @@ def check_targets(targets: list) -> None:
         raise ValueError("Desk phones and SIP trunks sign in to the same SIP server, so give both the same SIP port")
 
 
+SAME_DEVICE_GAP = 1.5   # seconds between calls to lines on the same device (address and port)
+
+
 @dataclass
 class ServerTarget:
     """The "Register to AthanBox" (kind trunk) or "Desk phones sign in to AthanBox" (kind phone) method:
@@ -626,7 +629,10 @@ class ServerTarget:
             acct = server.accounts.get(u)
             if acct and acct.enabled and acct.kind == self.kind and self.only in (None, u) \
                     and (self.only_any is None or u in self.only_any):
-                jobs += [(acct, b) for b in bs]   # every device / phone system signed in with the account
+                # every device / phone system signed in with the account, once each: a device that signed
+                # in more than once from the same address gets only its newest sign-in
+                newest = {b.addr: b for b in bs}   # bs is oldest first
+                jobs += [(acct, b) for b in newest.values()]
         if not jobs:
             log.warning("[%s] no %s is signed in to AthanBox", self.name,
                         "desk phone" if self.kind == "phone" else "phone system")
@@ -634,8 +640,20 @@ class ServerTarget:
         from concurrent.futures import ThreadPoolExecutor
         codecs = [self.codec] + [c for c in ("PCMU", "PCMA") if c != self.codec]
 
+        # Several lines on one device (say DECT handsets on one base, which all sign in from the base's
+        # address and port) are called a moment apart: a base that gets them in the same instant
+        # auto-answers the first and only rings the others. Phone systems are called all at once.
+        order, seen = [], {}
+        for acct, b in jobs:
+            n = seen.get(b.addr, 0)
+            seen[b.addr] = n + 1
+            order.append((acct, b, n * SAME_DEVICE_GAP if self.kind == "phone" else 0))
+        jobs = order
+
         def call(job):
-            acct, b = job
+            acct, b, delay = job
+            if delay and stop.wait(delay):
+                return False
             _, host, port = _contact_hostport(b.contact)
             user = acct.dial or _contact_user(b.contact) or acct.username   # no number: call the device itself
             target = SipTarget(uri=f"sip:{user}@{host}:{port}", username=acct.username, password=acct.password,
