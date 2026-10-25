@@ -6,6 +6,10 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.11.5 - Lines ring together again
+
+- **Back to how 0.11.3 called desk phones:** 0.11.4 rang the lines behind one base or router one at a time, which stopped other handsets, such as W56H handsets, from ringing. AthanBox calls every line together again. If a W53H that should auto-answer only rings, switch off the lines it doesn't need for the azan on the Phones page.
+
 ## 0.11.4 - Lines on one base ring in turn
 
 - **Desk phones that share a base or router are rung one at a time:** a DECT base that was still ringing one line wouldn't auto-answer the azan on another, so a W53H on line 4 only rang. Now AthanBox rings the lines behind one address in turn: the next line rings as soon as the last one answers, or after 5 seconds. Lines that auto-answer go first, so they pick up the azan straight away; AthanBox learns which ones they are from each azan and Test call, and remembers them after a restart. SIP trunks are still all called at once.
