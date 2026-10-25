@@ -552,25 +552,13 @@ def wayland_info() -> str:
 
 
 def display_wanted() -> dict:
-    """What the client wants of the screens (asleep for the night, turned): {} when it doesn't answer."""
+    """What the client wants of the screens (how they're turned): {} when it doesn't answer."""
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/client/api/display", timeout=3) as r:
             j = json.loads(r.read(10000))
             return j if isinstance(j, dict) else {}
     except (OSError, ValueError, http.client.HTTPException):
         return {}
-
-
-def screen_power(on: bool) -> str | None:
-    """Switches the screens on or off (the TV sees no picture and goes to standby): None when done,
-    or why not. Needs wlopm and a cage that lets it (cage 0.2, in Debian 13)."""
-    if not shutil.which("wlopm"):
-        return "wlopm isn't installed"
-    try:
-        r = subprocess.run(["wlopm", "--on" if on else "--off", "*"], capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.SubprocessError) as e:
-        return str(e)
-    return None if r.returncode == 0 else ((r.stderr or r.stdout).strip()[:200] or "wlopm didn't work")
 
 
 def rotate_screens(outputs: list[dict], degrees: int) -> str | None:
@@ -596,7 +584,7 @@ def display_file() -> Path:
 
 
 def watch_screens(every: float = 2, read=wayland_info, restart=restart_browser, rounds: int | None = None,
-                  wanted=display_wanted, power=screen_power, rotate=rotate_screens):
+                  wanted=display_wanted, rotate=rotate_screens):
     """Run by the kiosk inside cage: keeps screens.json up to date as screens are plugged in and out
     (and a laptop's lid is opened and closed).
 
@@ -605,18 +593,11 @@ def watch_screens(every: float = 2, read=wayland_info, restart=restart_browser, 
     now (cage before 0.2, in Debian 12, leaves the window the old size when a screen is unplugged:
     the prayer times would be cut off).
 
-    It also switches the screens off and on for Night sleep, and turns the picture, as the client
-    asks (display.json says how that went, for Screen settings). While the screens are off, and for
-    a little while after, screens coming and going aren't taken as plugged in or out."""
-    last, names, off, woke, turned, done = None, None, False, 0.0, None, {}
+    It also turns the picture as the client asks (display.json says how that went, for Screen
+    settings)."""
+    last, names, turned = None, None, None
     while rounds is None or rounds > 0:
         want = wanted()
-        if want and bool(want.get("screen_off")) != off:
-            err = power(off)   # (off is still what it was: switch to the other)
-            log(("Night sleep: the screen is " + ("on again" if off else "off")) + (f" (only dark: {err})" if err else ""))
-            off, woke = not off, time.time()
-            done = {**done, "power": err}
-            write_json(display_file(), done)
         try:
             outputs = parse_wayland_info(read())
         except (OSError, subprocess.SubprocessError):
@@ -627,8 +608,7 @@ def watch_screens(every: float = 2, read=wayland_info, restart=restart_browser, 
             log("Screens: " + (", ".join(f"{s['name'] or '?'} {s['w']}x{s['h']} at {s['x']},{s['y']}"
                                          + ("" if s in now["screens"] else " (lid closed)") for s in outputs) or "not known"))
             last = now
-        settled = not off and time.time() - woke > 15
-        if outputs and settled:   # (nothing read: wayland-info failed, so nothing is known to have changed)
+        if outputs:   # (nothing read: wayland-info failed, so nothing is known to have changed)
             seen = sorted(o["name"] for o in outputs)
             if names is not None and seen != names:
                 log("A screen was plugged in or out: restarting the browser, so it fits the screens and the sound follows the TV")
@@ -639,8 +619,7 @@ def watch_screens(every: float = 2, read=wayland_info, restart=restart_browser, 
                 err = rotate(outputs, degrees)
                 log(f"Picture turned {degrees} degrees" if err is None else f"The picture can't be turned here: {err}")
                 turned = (degrees, seen)
-                done = {**done, "rotate": degrees, "rotate_error": err}
-                write_json(display_file(), done)
+                write_json(display_file(), {"rotate": degrees, "rotate_error": err})
         if rounds is not None:
             rounds -= 1
         time.sleep(every)
@@ -1262,8 +1241,8 @@ def night_file() -> Path:
 
 
 class Night:
-    """Night sleep. With "screen", the TV goes dark for the night (web/screen.js, and watch-screens
-    switches the screen off). With "computer", the client asks for the computer to be switched off
+    """Night sleep. With "screen", the TV shows black for the night (web/screen.js): it stays on, so
+    the azan still plays through it. With "computer", the client asks for the computer to be switched off
     as the night begins (azan-sip-client-shutdown.service sets its clock to switch it back on). The
     screen wakes for anything AthanBox plays at night, and when someone presses a key."""
 
@@ -1474,7 +1453,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._wifi())
         if p == "/client/api/display" and not self.REMOTE:   # for watch-screens, in the kiosk
             c = load_config()
-            return self._json({"screen_off": NIGHT.screen_off(c), "rotate": picture(c)["rotate"]})
+            return self._json({"rotate": picture(c)["rotate"]})
         if p == "/client/chime.wav" and not self.REMOTE:
             return self._send(200, chime_wav(), "audio/wav")
         return self._send(404, b"Not found")

@@ -65,9 +65,9 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
   regular file, not a link), and reads nothing in it.
 - **Night sleep** (`"night"` in `client.json`) takes AthanBox's prayer times from its `/api/state`
   every ten minutes. *TV screen*: from a while after Isha to a while before Fajr, `/client/api/status`
-  says `night.asleep`, and `screen.js` covers the prayer times in black; `watch-screens` (asking
-  `/client/api/display`) switches the screens off with `wlopm` (cage 0.2, Debian 13). Anything
-  AthanBox plays, or plays within a minute and a half, keeps it awake, and a key or the mouse wakes
+  says `night.asleep`, and `screen.js` covers the prayer times in black. The screens stay on
+  (cage doesn't let them be switched off, and a TV that goes to standby may not wake for the azan
+  it plays). Anything AthanBox plays, or plays within a minute and a half, keeps it awake, and a key or the mouse wakes
   it for 10 minutes. *Whole computer*: as the night begins (once a night) the client writes
   `sleep-now` with the time to come back on, and the same root service checks that time (no more than 18
   hours ahead), sets the computer's clock alarm (`/sys/class/rtc/rtc0/wakealarm`, in local time when
@@ -77,7 +77,7 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
 - **Sound for each prayer** (`"prayer_sounds"`): in `/api/tv` the client sets the volume to 0 for a
   prayer set to Quiet (its azan and its reminder), and swaps the sound for `/client/chime.wav` (the
   test chime's four notes) for a prayer set to Chime. Other sounds pass through as AthanBox sent them.
-- **Picture** (`"picture"`): *rotate* is done by `watch-screens` with `wlr-randr --transform` on
+- **Picture** (`"picture"`): *rotate* is done by `watch-screens` (asking `/client/api/display`) with `wlr-randr --transform` on
   every screen but a laptop's own (cage 0.2, Debian 13; `display.json` says how it went, for Screen
   settings), *margin* makes `/` open `/client/wall`, which keeps each copy that far off the edges on
   black, and *text* multiplies the `look.scale` AthanBox's `/api/state` sends.

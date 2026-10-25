@@ -117,11 +117,9 @@ sleep 25
 shot screens-after-restart
 grep -i 'screens:' "$out/cage.log" || true
 
-# Night sleep and Picture in Screen settings switch the screens off (wlopm) and turn them
-# (wlr-randr). Both need cage 0.2 (Debian 13): with an older cage, Screen settings says so.
-dpkg-query -W -f '${Package} ${Version}\n' wlopm wlr-randr iw wpasupplicant 2>&1 | tee -a "$out/versions.txt" || true
-wl wlopm > "$out/wlopm.txt" 2>&1 || true
-echo "wlopm:"; cat "$out/wlopm.txt"
+# Picture in Screen settings turns the screens (wlr-randr). It needs cage 0.2 (Debian 13): with an
+# older cage, Screen settings says so.
+dpkg-query -W -f '${Package} ${Version}\n' wlr-randr iw wpasupplicant 2>&1 | tee -a "$out/versions.txt" || true
 python3 -c '
 import json, urllib.request
 req = urllib.request.Request("http://127.0.0.1:8771/client/api/settings", json.dumps({"picture": {"rotate": 90}}).encode(),

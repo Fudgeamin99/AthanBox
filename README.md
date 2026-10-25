@@ -120,7 +120,7 @@ The Wyse shows on AthanBox's **TV app** page under its name, where *Test chime* 
 **More in Screen settings** (0.6.0):
 
 - **The Wyse's address** shows small in the bottom-left corner of the prayer times. *Show its address on the prayer times* under **This screen** hides it. This screen also shows its temperature, storage, memory, how long it's been on, and the last sound AthanBox sent.
-- **Night sleep** makes the screen go dark a while after Isha and come back before Fajr. Anything AthanBox plays in the night wakes it, and so does a key. **Whole computer** switches the Wyse off for the night and its clock switches it back on: try it once with *Try it: off for 3 minutes*, since some need *Wake on RTC* switched on in the BIOS.
+- **Night sleep** makes the screen go dark a while after Isha and come back before Fajr. Anything AthanBox plays in the night wakes it, and so does a key. **Whole computer** switches the Wyse off for the night and its clock switches it back on: try it once with *Try it: off for 3 minutes*, since some need *Wake on RTC* switched on in the BIOS, and check the TV comes back on with it.
 - **Sound for each prayer** plays the azan, a short chime or nothing for each prayer, on this screen only.
 - **Picture** turns it for a TV on its side (Debian 13), keeps it off the TV's edges, and sets this screen's own text size.
 - **Wi-Fi** finds the networks nearby and joins one, so the Wyse doesn't need a network cable.

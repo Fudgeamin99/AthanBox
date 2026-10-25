@@ -99,7 +99,7 @@ input[type=password]{width:100%;box-sizing:border-box;font:inherit;font-size:20p
   <section>
     <h2>Night sleep</h2>
     <label class="switch"><input type="checkbox" id="non"> Sleep at night</label>
-    <p>The screen goes dark a while after Isha and comes back before Fajr. Anything AthanBox plays in the night wakes it, and so do a key and the mouse.</p>
+    <p>The screen goes dark a while after Isha and comes back before Fajr. The TV stays on, so anything AthanBox plays in the night is heard and wakes the screen, and so do a key and the mouse.</p>
     <div id="nset">
       <div class="line"><span>What sleeps</span><span class="seg" id="nwhat"><button data-v="screen">TV screen</button><button data-v="computer">Whole computer</button></span></div>
       <div class="line"><label for="nafter" style="margin:0">Off after Isha</label>
@@ -110,7 +110,7 @@ input[type=password]{width:100%;box-sizing:border-box;font:inherit;font-size:20p
       <div class="ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
       <p id="nwhen" style="margin-top:10px"></p>
       <div id="ncomp">
-        <p>The computer switches off, and its own clock switches it back on before Fajr. Try it once: it switches off now for 3 minutes. If it doesn't come back by itself, switch on "Wake on RTC" or "Auto power on" in its BIOS, or let only the TV screen sleep.</p>
+        <p>The computer switches off, and its own clock switches it back on before Fajr. Try it once: it switches off now for 3 minutes. If it doesn't come back by itself, switch on "Wake on RTC" or "Auto power on" in its BIOS. If the TV stays off when it does, let only the TV screen sleep, so the azan isn't missed.</p>
         <div class="row"><button id="ntry">Try it: off for 3 minutes</button></div>
         <div class="msg" id="nmsg"></div>
       </div>

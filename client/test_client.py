@@ -636,22 +636,20 @@ class ClientTest(unittest.TestCase):
         self.get("/client/api/settings", "POST", json.dumps({"picture": {"margin": 0, "rotate": 90}}))
         r, _ = self.get("/")
         self.assertTrue(r.getheader("Location").startswith("/tv?"))
-        self.assertEqual(json.loads(self.get("/client/api/display")[1]), {"screen_off": False, "rotate": 90})
+        self.assertEqual(json.loads(self.get("/client/api/display")[1]), {"rotate": 90})
         self.assertEqual(self.phone("/client/api/display")[0].status, 404)   # the kiosk's own
 
-    def test_screens_turned_and_switched_off(self):
-        wanted = iter([{"rotate": 90}, {"rotate": 90}, {"rotate": 90, "screen_off": True}, {"rotate": 90, "screen_off": True},
-                       {"rotate": 90}, {}])
-        powers, turns, restarts = [], [], []
+    def test_screens_turned(self):
+        wanted = iter([{"rotate": 90}, {"rotate": 90}, {}, {"rotate": 0}, {"rotate": 0}])
+        turns, restarts = [], []
         ac.time.sleep, sleep = (lambda t: None), ac.time.sleep
         try:
-            ac.watch_screens(every=0, read=lambda: WAYLAND_INFO, restart=lambda: restarts.append(1), rounds=6,
-                             wanted=lambda: next(wanted), power=lambda on: powers.append(on),
+            ac.watch_screens(every=0, read=lambda: WAYLAND_INFO, restart=lambda: restarts.append(1), rounds=5,
+                             wanted=lambda: next(wanted),
                              rotate=lambda outs, d: turns.append(d) or "no wlr-output-management")
         finally:
             ac.time.sleep = sleep
-        self.assertEqual(turns, [90])           # once, not every round
-        self.assertEqual(powers, [False, True])   # off for the night, on again
+        self.assertEqual(turns, [90, 0])        # once each, not every round, and not while the client is quiet
         self.assertEqual(restarts, [])
         self.assertEqual(ac.read_json(ac.display_file())["rotate_error"], "no wlr-output-management")
 
