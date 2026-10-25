@@ -1,0 +1,11 @@
+[Unit]
+Description=AthanBox Client - Wi-Fi from Screen settings
+
+[Path]
+# The client (an unprivileged user) writes this file when Wi-Fi in Screen settings looks for
+# networks, joins one or forgets it
+PathModified=/var/lib/azan-sip-client/wifi-now
+Unit=azan-sip-client-wifi.service
+
+[Install]
+WantedBy=multi-user.target

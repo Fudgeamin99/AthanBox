@@ -4,7 +4,10 @@ if [ "$1" = remove ] || [ "$1" = purge ]; then
     rm -f /etc/systemd/logind.conf.d/azan-sip-client.conf   # a laptop sleeps with its lid closed again
 fi
 if [ "$1" = purge ]; then
-    rm -rf /var/lib/azan-sip-client /var/lib/azan-sip-client-update /var/cache/azan-sip-client-update
+    rm -rf /var/lib/azan-sip-client /var/lib/azan-sip-client-update /var/cache/azan-sip-client-update /var/lib/azan-sip-client-power
+    # The Wi-Fi joined in Screen settings
+    rm -f /etc/network/interfaces.d/azan-sip-client-wifi /etc/wpa_supplicant/azan-sip-client-wifi.conf \
+        /etc/NetworkManager/system-connections/athanbox-wifi.nmconnection
     userdel azan-client >/dev/null 2>&1 || true
 fi
 if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || true; fi

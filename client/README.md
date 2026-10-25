@@ -58,17 +58,48 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
   version, and installs it with apt, which restarts the client and the screen. It takes nothing but
   the trigger from the client's own (unprivileged) files. Progress is in
   `/var/lib/azan-sip-client-update/state.json`.
-- **Shut down** in Screen settings (on the TV or from a phone) writes
-  `/var/lib/azan-sip-client/shutdown-now`; `azan-sip-client-shutdown.path` sees it and starts
-  `azan-sip-client-shutdown.service`, which runs `azan_client.py shutdown` as root. That runs
-  `systemctl poweroff` if the file was written in the last two minutes, and reads nothing in it.
+- **Restart and Shut down** in Screen settings (on the TV or from a phone) write
+  `/var/lib/azan-sip-client/restart-now` or `shutdown-now`; `azan-sip-client-shutdown.path` sees
+  it and starts `azan-sip-client-shutdown.service`, which runs `azan_client.py power` as root. That
+  runs `systemctl reboot` or `poweroff` for the newest file written in the last two minutes (a
+  regular file, not a link), and reads nothing in it.
+- **Night sleep** (`"night"` in `client.json`) takes AthanBox's prayer times from its `/api/state`
+  every ten minutes. *TV screen*: from a while after Isha to a while before Fajr, `/client/api/status`
+  says `night.asleep`, and `screen.js` covers the prayer times in black; `watch-screens` (asking
+  `/client/api/display`) switches the screens off with `wlopm` (cage 0.2, Debian 13). Anything
+  AthanBox plays, or plays within a minute and a half, keeps it awake, and a key or the mouse wakes
+  it for 10 minutes. *Whole computer*: as the night begins (once a night) the client writes
+  `sleep-now` with the time to come back on, and the same root service checks that time (no more than 18
+  hours ahead), sets the computer's clock alarm (`/sys/class/rtc/rtc0/wakealarm`, in local time when
+  `/etc/adjtime` says so), notes it in `/var/lib/azan-sip-client-power/state.json`, and switches it
+  off. A computer with no clock alarm, or one that failed, only lets its screen sleep. *Try it* in
+  Screen settings does the same for 3 minutes.
+- **Sound for each prayer** (`"prayer_sounds"`): in `/api/tv` the client sets the volume to 0 for a
+  prayer set to Quiet (its azan and its reminder), and swaps the sound for `/client/chime.wav` (the
+  test chime's four notes) for a prayer set to Chime. Other sounds pass through as AthanBox sent them.
+- **Picture** (`"picture"`): *rotate* is done by `watch-screens` with `wlr-randr --transform` on
+  every screen but a laptop's own (cage 0.2, Debian 13; `display.json` says how it went, for Screen
+  settings), *margin* makes `/` open `/client/wall`, which keeps each copy that far off the edges on
+  black, and *text* multiplies the `look.scale` AthanBox's `/api/state` sends.
+- **Wi-Fi:** Screen settings writes its request (scan, connect or forget, and the network's name and
+  password) to `/var/lib/azan-sip-client/wifi-now`, mode 0600; `azan-sip-client-wifi.path` starts
+  `azan-sip-client-wifi.service`, which runs `azan_client.py wifi` as root, deletes the file, and
+  writes the answer to `/var/lib/azan-sip-client-power/wifi.json`. With NetworkManager running, it
+  writes `/etc/NetworkManager/system-connections/athanbox-wifi.nmconnection`; otherwise
+  `/etc/network/interfaces.d/azan-sip-client-wifi` and
+  `/etc/wpa_supplicant/azan-sip-client-wifi.conf` (ifupdown and wpa_supplicant). Only the
+  key derived from the password is kept (WPA's PBKDF2). If the network can't be joined, the old
+  files are put back. Forget removes only these files.
+- **This screen** (`/client/api/health`): the addresses (`ip addr`), temperature
+  (`/sys/class/thermal`), storage, memory, uptime and the last sound AthanBox sent. `"show_ip"`
+  (on unless switched off) shows the first address in the corner of the prayer times.
 - **Laptops** keep running with the lid closed (`/etc/systemd/logind.conf.d/azan-sip-client.conf`,
   removed again when the package is removed).
 - **32-bit:** the package is `Architecture: all` (Python and shell only), so the same .deb installs on
   64-bit and 32-bit Debian. CI installs it on Debian 12 and 13 (amd64) and Debian 12 (i386).
 - **Screen settings** (`/client/`, or press **S** on a keyboard) chooses AthanBox (by address or by
-  searching the network), the screen's name on AthanBox's TV app page, the volume, Makkah live's
-  sound, updates and shutting down. With
+  searching the network), the screen's name on AthanBox's TV app page, the volume, each prayer's
+  sound, Night sleep, the picture, Wi-Fi, Makkah live's sound, updates, and This screen. With
   several screens it opens on the first one.
 - AthanBox sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the
   screen is listed on the TV app page under its name.

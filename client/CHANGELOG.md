@@ -6,6 +6,19 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.6.0 - Night sleep, a sound for each prayer, Wi-Fi, the picture, and This screen
+
+- **The Wyse's address on the prayer times:** its network address (such as `192.168.1.31`) shows small in the bottom-left corner of the TV, so it's easy to find for SSH or for Screen settings from a phone. *Show its address on the prayer times* under **This screen** in Screen settings hides it.
+- **Night sleep:** the TV screen goes dark a while after Isha (60 minutes unless you change it) and comes back a while before Fajr (20 minutes), from AthanBox's own prayer times. Anything AthanBox plays in the night (Ramadan's Qiyam or Suhoor wake-up, a test chime) wakes it, and so does a key or the mouse, for 10 minutes. On Debian 13 the TV gets no picture and goes to standby; on Debian 12 the screen shows black. **Whole computer** switches the Wyse off instead, and its own clock switches it back on before Fajr: *Try it: off for 3 minutes* checks this works, and if it doesn't come back by itself, switch on *Wake on RTC* (or *Auto power on*) in its BIOS. A computer that can't switch itself back on only lets its screen sleep.
+- **Sound for each prayer:** each of the five prayers plays the **Azan**, a short **Chime** instead, or nothing (**Quiet**, its reminder too), on this screen only. The phones and the other screens keep the azan. Ramadan's sounds and test chimes always play.
+- **Picture:** turn it for a TV on its side (90, 180 or 270 degrees, Debian 13), keep it off the TV's edges for a TV that cuts them off (up to 10 % on each side), and make the text bigger or smaller on this screen only (70 to 160 %, on top of AthanBox's own text size).
+- **Wi-Fi:** **Look for networks** lists the Wi-Fi networks nearby, with their strength; choose one, type its password and it joins (and stays joined after a restart). **Forget this network** goes back to the network cable. It uses NetworkManager if the Wyse has it, or Debian's own network settings (`/etc/network/interfaces.d/azan-sip-client-wifi`) if not. Only Wi-Fi it set up itself is changed or forgotten.
+- **This screen:** the Wyse's address (cable or Wi-Fi), temperature, storage, memory, how long it's been on, and the last sound AthanBox sent and whether it played here, with **Restart** and **Shut down** (moved here from their own section). Restart asks *Restart now?* first.
+- How it works: Restart and Whole computer sleep use the Shut down service (`azan-sip-client-shutdown.path` now also watches `restart-now` and `sleep-now`). Wi-Fi has its own root service, `azan-sip-client-wifi.path` and `.service`, started by `/var/lib/azan-sip-client/wifi-now`. Both read only what they need from those files and act only on a request from the last two minutes. The client itself still runs as `azan-client` and only proxies AthanBox.
+- **Screens with 0.5.2 or newer** get it from **Update now** in Screen settings.
+- **Debian package:** new `azan-sip-client-wifi.path` and `.service`; it now recommends `wlopm` (the TV's standby), `wlr-randr` (turning the picture), `iw` and `wpasupplicant` (Wi-Fi), which apt installs with it. Removing it with `purge` also removes the Wi-Fi it set up.
+- **Box and Docker:** nothing changes.
+
 ## 0.5.4 - Stars for kids mode
 
 - AthanBox 0.8.0's **kids mode** works on the Wyse: when a kids screen asks "Did you pray?", pressing **Yes** (a tap, or OK on the remote) now reaches AthanBox and earns the star. The client passes on only that, so the screen still can't change AthanBox's settings.
