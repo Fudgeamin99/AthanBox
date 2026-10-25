@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.0 - Phones, Quran by phone and TV for each site
+
+- **Each site's phones sign in to their own site:** in Group, a desk phone or phone system at another site signs in with the site code in front of its username, like wcp-201 for extension 201 at the site with code wcp. The Phones page shows what to type under each extension. All sites share one SIP server and one port, and each site's azan and Test buttons ring only its own phones. Sign-ins are kept through a restart.
+- **Quran by phone for every site:** each site has its own extensions and playlist on its Phones page, and its phones hear its own.
+- **TV screens for every site:** a site's TV page (/s/wcp/tv) adds to an iPad's Home Screen as that site's app, and the Android TV app (1.2.0) keeps the site when you type its TV address.
+- **A web address for a server in the cloud:** on the Sites page, under Web address, type the name you open AthanBox with (like azan.example.com). AthanBox opens by that name as well as by its IP address, and keeps it after a factory reset.
+
 ## 0.11.5 - Lines ring together again
 
 - **Back to how 0.11.3 called desk phones:** 0.11.4 rang the lines behind one base or router one at a time, which stopped other handsets, such as W56H handsets, from ringing. AthanBox calls every line together again. If a W53H that should auto-answer only rings, switch off the lines it doesn't need for the azan on the Phones page.

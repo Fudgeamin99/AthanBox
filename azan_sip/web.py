@@ -61,24 +61,25 @@ TV_PATHS = {"/tv", "/tv.webmanifest", "/api/tv", "/api/tv/star", "/apk"}
 TV_PREFIXES = ("/tv/sound/", "/icons/")
 
 # Added to the display when it is opened as the TV app (/tv): what an iPad needs to add it to the
-# Home Screen as a full-screen app with its own icon.
+# Home Screen as a full-screen app with its own icon. Addresses are relative, so a site's own TV page
+# (/s/wcp/tv) installs as that site's app.
 TV_HEAD = b"""<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="manifest" href="/tv.webmanifest">
+<link rel="manifest" href="tv.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Azan TV">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0e4a40">
-<link rel="apple-touch-icon" href="/icons/tv-180.png">"""
+<link rel="apple-touch-icon" href="icons/tv-180.png">"""
 # The Android TV app (android/, built by each release). AthanBox's Docker image carries a copy
 # (static/AzanTV.apk); otherwise it comes from the copy attached to AthanBox's latest release.
 APK_FILE = STATIC / "AzanTV.apk"
 APK_URL = "https://github.com/Fudgeamin99/azan-sip-box/releases/latest/download/AzanTV.apk"
-TV_MANIFEST = {"name": "Azan SIP TV", "short_name": "Azan TV", "start_url": "/tv", "scope": "/tv",
+TV_MANIFEST = {"name": "Azan SIP TV", "short_name": "Azan TV", "start_url": "tv", "scope": "tv",
                "display": "fullscreen", "orientation": "landscape", "background_color": "#0e4a40",
                "theme_color": "#0e4a40", "description": "Prayer times and the azan on a TV",
-               "icons": [{"src": "/icons/tv-192.png", "sizes": "192x192", "type": "image/png"},
-                         {"src": "/icons/tv-512.png", "sizes": "512x512", "type": "image/png"}]}
+               "icons": [{"src": "icons/tv-192.png", "sizes": "192x192", "type": "image/png"},
+                         {"src": "icons/tv-512.png", "sizes": "512x512", "type": "image/png"}]}
 
 DEFAULT_CONFIG = {
     "general": {"configured": False, "scheduler_enabled": True, "port": DEFAULT_PORT},
@@ -375,18 +376,23 @@ class Service:
         kids.check(cfg)
         ramadan.check(cfg.get("ramadan"))
         sipserver.check_targets(cfg.get("targets", []))
+        sipserver.MANAGER.check_site(cfg, self.code)
         provision.check(cfg)
         with self.lock:
             app = AzanApp(self.config_path, cfg, require_targets=False, shared=self.shared)  # raises if invalid
             if save:
                 self.write(cfg)
             self._stop_scheduler(halt_audio=False)  # an azan that is playing carries on
+            for x in app.targets:   # desk phones and phone systems: this site's own
+                if isinstance(x, sipserver.ServerTarget):
+                    x.site = self.code
             self.app, self.cfg, self.error = app, cfg, None
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
             g = cfg.get("general", {})
+            quranline.line(self.code).configure(cfg.get("quran_line"), self.audio_dir, lambda: self.live_url)  # Quran by phone
+            # phones and phone systems that sign in to AthanBox (one server for every site)
+            sipserver.MANAGER.sync(cfg, self.base if self.primary else None, self.code)
             if self.primary:
-                quranline.LINE.configure(cfg.get("quran_line"), self.audio_dir, lambda: self.live_url)  # Quran by phone
-                sipserver.MANAGER.sync(cfg, self.base)  # phones and phone systems that sign in to AthanBox
                 self._host_volume(g.get("tv_volume", 100))
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name=f"scheduler-{self.code}", daemon=True)
@@ -657,6 +663,11 @@ class Service:
             self.thread.join(timeout=3)
         self.thread = None
 
+    def removed(self):
+        """The site is removed: its phones can't sign in and its Quran by phone stops."""
+        sipserver.MANAGER.drop(self.code)
+        quranline.drop(self.code)
+
     def shutdown(self):
         if not self.primary:   # a site that is being removed, or the server stopping
             self._stop_scheduler()
@@ -900,10 +911,10 @@ class Service:
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "live": self.live_screen(),
                   "crypto_button": crypto.clean(self.cfg.get("crypto"))["button"],   # the Crypto button on screens
-                  "quran_now": quranline.LINE.now_playing() if self.primary else None,   # Quran by phone: what the playlist station is playing
+                  "quran_now": quranline.line(self.code).now_playing(),   # Quran by phone: what the playlist station is playing
                   "location": self.cfg.get("location", {}).get("name") or "", "log": self.log_lines()[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
-                  "sipserver": sipserver.MANAGER.info() if self.primary else None,   # phones and phone systems that sign in to AthanBox
+                  "sipserver": sipserver.MANAGER.info(self.code),   # phones and phone systems that sign in to AthanBox
                   "screens": {"on": self.screens_on, "list": [dict(s, kids=s["id"] in kid_ids) for s in self.tvs.info()]}}
             if app is None:
                 return st
@@ -1125,7 +1136,11 @@ class Service:
         elif req.get("target") is not None:  # test one phone entry (possibly unsaved)
             t = dict(req["target"], enabled=True)
             targets = build_targets({"network": self.cfg.get("network", {}), "targets": [t]})
-            user = str(req.get("account") or "").strip().lower()
+            for x in targets:
+                if isinstance(x, sipserver.ServerTarget):
+                    x.site = self.code
+            user = str(req.get("account") or "").strip()
+            user = sipserver.login(self.code, user).lower() if user else ""
             if user:   # the Test button on one desk phone or SIP trunk account: ring only its sign-ins
                 server = sipserver.MANAGER.server
                 acct = server.accounts.get(user) if server else None
@@ -1240,7 +1255,11 @@ class Handler(BaseHTTPRequestHandler):
             return True
         except ValueError:
             pass
-        return host.endswith(".local") or host == socket.gethostname().lower()
+        if host.endswith(".local") or host == socket.gethostname().lower():
+            return True
+        # a server in the cloud: the web addresses set on the Sites page (chosen by whoever runs it)
+        reg = self.service.sites
+        return bool(reg) and host in reg.domains
 
     def _token(self) -> str | None:
         try:
@@ -1736,6 +1755,8 @@ class Handler(BaseHTTPRequestHandler):
             reg.update(req)
         elif p == "/api/sites/remove":
             reg.remove(str(req.get("code") or ""))
+        elif p == "/api/sites/domains":
+            reg.set_domains(req.get("domains"))
         else:
             raise ValueError("Unknown request")
         return reg.info()

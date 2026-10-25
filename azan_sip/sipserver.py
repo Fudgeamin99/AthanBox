@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import __version__, quranline, rtp, security
+from . import __version__, quranline, rtp, security, sites
 from .sip import SipCall, SipMessage, SipTarget, _digest, _rand
 
 log = logging.getLogger("azan-sip")
@@ -48,6 +48,14 @@ class Account:
     enabled: bool = True
     max_signins: int = 1         # how many devices / phone systems may be signed in with it at once
     azan: bool = True            # off: it stays signed in, but the azan doesn't call it (its Test button still does)
+    site: str = sites.MAIN       # Group: the site it belongs to (other sites' phones sign in as code-username)
+
+
+def login(site: str, username: str) -> str:
+    """The username a phone signs in with: the first site's as it is, any other site's with its code in front
+    (wcp-201), so one SIP server serves every site and each phone reaches its own."""
+    u = str(username).strip()
+    return u if site == sites.MAIN else f"{site}-{u}"
 
 
 @dataclass
@@ -104,6 +112,7 @@ class SipServer(threading.Thread):
         self.state_file = state_file
         self.lock = threading.Lock()
         self.bindings: dict[str, dict[str, Binding]] = {}   # username -> contact -> sign-in
+        self.parked: dict[str, dict[str, Binding]] = {}     # saved sign-ins of accounts not loaded yet (other sites start later)
         self.calls: dict[str, queue.Queue] = {}
         self.secret = secrets.token_bytes(16)
         self.failures: dict[str, list[float]] = {}
@@ -166,6 +175,8 @@ class SipServer(threading.Thread):
     def update_accounts(self, accounts: list[Account]):
         with self.lock:
             self.accounts = {a.username.lower(): a for a in accounts}
+            for u in [u for u in self.parked if u in self.accounts]:
+                self.bindings.setdefault(u, {}).update(self.parked.pop(u))
             for u in list(self.bindings):
                 a = self.accounts.get(u)
                 if a is None or not a.enabled:
@@ -183,7 +194,7 @@ class SipServer(threading.Thread):
         with self.lock:
             data = {u: [{"contact": b.contact, "addr": list(b.addr), "expires_at": b.expires_at,
                          "user_agent": b.user_agent, "since": b.since} for b in bs.values()]
-                    for u, bs in self.bindings.items() if bs}
+                    for u, bs in list(self.bindings.items()) + list(self.parked.items()) if bs}
         try:
             tmp = self.state_file.with_suffix(".tmp")
             tmp.write_text(json.dumps(data), encoding="utf-8")
@@ -202,11 +213,10 @@ class SipServer(threading.Thread):
         now = time.time()
         with self.lock:
             for u, items in data.items():
-                if u not in self.accounts:
-                    continue
+                into = self.bindings if u in self.accounts else self.parked
                 for b in (items if isinstance(items, list) else [items]):   # 1.9.0 saved one per account
                     if b.get("expires_at", 0) > now:
-                        self.bindings.setdefault(u, {})[_contact_key(b["contact"])] = Binding(
+                        into.setdefault(u, {})[_contact_key(b["contact"])] = Binding(
                             u, b["contact"], tuple(b["addr"]), b["expires_at"], b.get("user_agent", ""), b.get("since", now))
 
     def _expire(self):
@@ -217,6 +227,8 @@ class SipServer(threading.Thread):
                     if b.expires_at < now:
                         gone.append((u, b.addr[0]))
                         del bs[k]
+            for u in [u for u, bs in self.parked.items() if all(b.expires_at < now for b in bs.values())]:
+                del self.parked[u]   # a site's sign-in that ran out before the site started (or the site has gone)
         for u, ip in gone:
             log.info("SIP account %s is no longer signed in from %s (its registration ran out)", u, ip)
         if gone:
@@ -397,7 +409,6 @@ class SipServer(threading.Thread):
         account's password, or (phone systems that don't send one) from the address it signed in from."""
         ip = addr[0]
         m = re.match(r"sips?:([^@;>]+)@", req.first.split(" ")[1] if " " in req.first else "")
-        kind = quranline.LINE.which(m.group(1) if m else "")
         if self._blocked(ip):
             self._reply(req, addr, "403 Forbidden")
             return
@@ -418,12 +429,14 @@ class SipServer(threading.Thread):
                 self._reply(req, addr, "403 Forbidden")
                 return
             who = acct
+        line = quranline.line(who.site)   # each site has its own extensions and playlist
+        kind = line.which(m.group(1) if m else "")
         if kind is None:
             log.info("%s dialled %s on AthanBox, which isn't a Quran by phone extension", who.name or who.username,
                      m.group(1) if m else "?")
             self._reply(req, addr, "404 Not Found")
             return
-        quranline.InboundCall(self, req, addr, kind, who.name or who.username).start()
+        quranline.InboundCall(self, req, addr, kind, who.name or who.username, line).start()
 
     # ------------------------------------------------------------ remote provisioning: "Update now"
     def check_sync(self, usernames: set[str], timeout: float = 4.0) -> list[dict]:
@@ -488,14 +501,19 @@ class SipServer(threading.Thread):
                    for u, bs in self.bindings.items()}
         return {u: bs for u, bs in out.items() if bs}
 
-    def info(self) -> dict:
+    def info(self, site: str = sites.MAIN) -> dict:
+        """The server and one site's accounts, by the username in that site's settings (login: what the phone
+        signs in with)."""
         act, now = self.active(), time.time()
         accounts = []
+        cut = 0 if site == sites.MAIN else len(site) + 1
         for u, a in self.accounts.items():
+            if a.site != site:
+                continue
             bs = act.get(u, [])
             signins = [{"from": f"{b.addr[0]}:{b.addr[1]}", "device": b.user_agent,
                         "expires_in": int(b.expires_at - now)} for b in bs]
-            accounts.append({"username": a.username, "name": a.name, "kind": a.kind, "registered": bool(bs),
+            accounts.append({"username": a.username[cut:], "login": a.username, "name": a.name, "kind": a.kind, "registered": bool(bs),
                              "max": a.max_signins, "signins": signins,
                              "from": signins[0]["from"] if signins else "", "device": signins[0]["device"] if signins else ""})
         return {"status": self.status, "detail": self.detail, "port": self.port, "accounts": accounts}
@@ -528,47 +546,78 @@ class ServerCallTransport:
 
 
 class ServerManager:
-    """Runs the server to match the settings (one per AthanBox, on one port)."""
+    """Runs the server to match the settings (one per AthanBox, on one port). Group: every site's phones sign
+    in to the same server, other sites' with the site code in front of their username."""
 
     def __init__(self):
         self.server: SipServer | None = None
         self.lock = threading.Lock()
         self.state_file: Path | None = None
+        self.cfgs: dict[str, dict] = {}   # site -> its settings
 
-    def sync(self, cfg: dict, base: Path | None = None):
+    def check_site(self, cfg: dict, site: str):
+        """Settings a site can't use while the other sites use theirs, with a message for the person saving them."""
+        if site == sites.MAIN:
+            return
+        ts = [t for t in cfg.get("targets", []) if t.get("type") in KINDS]
+        port = self._port(dict(self.cfgs, **{site: {}}))
+        for t in ts:
+            if port and int(t.get("port", 5060) or 5060) != port:
+                raise ValueError(f"Phones sign in to AthanBox on SIP port {port} for every site, so use port {port} here too")
+
+    @staticmethod
+    def _port(cfgs: dict) -> int | None:
+        for code in sorted(cfgs, key=lambda c: c != sites.MAIN):   # the first site's port, else any site's
+            for t in cfgs[code].get("targets", []):
+                if t.get("type") in KINDS:
+                    return int(t.get("port", 5060) or 5060)
+        return None
+
+    def sync(self, cfg: dict, base: Path | None = None, site: str = sites.MAIN):
         if base is not None:
             self.state_file = Path(base) / ".sip_bindings.json"
+        with self.lock:
+            self.cfgs[site] = cfg
+            self._apply()
+
+    def drop(self, site: str):
+        """A site that is removed: its phones can't sign in any more."""
+        with self.lock:
+            if self.cfgs.pop(site, None) is not None:
+                self._apply()
+
+    def _apply(self):
         # entries switched off still let their phones and phone systems sign in (so a phone system doesn't keep
         # retrying, or get banned, while it is off): only the azan calls stop, as off entries aren't played to
-        ts = [t for t in cfg.get("targets", []) if t.get("type") in KINDS]
-        local_ip = cfg.get("network", {}).get("local_ip") or None
-        with self.lock:
-            if not ts:
-                if self.server:
-                    self.server.stop()
-                    self.server = None
-                    log.info("AthanBox phone server stopped")
-                return
-            accounts = [Account(str(a.get("username", "")).strip(), str(a.get("password", "")), a.get("name", ""),
-                                KINDS[t["type"]], str(a.get("dial", "")).strip() if t["type"] == "server" else "",
-                                a.get("enabled", True), max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))),
-                                a.get("azan", True) is not False)
-                        for t in ts for a in t.get("accounts", []) if isinstance(a, dict)]
-            port = int(ts[0].get("port", 5060) or 5060)   # both methods use the same port (checked on saving)
-            s = self.server
-            if s and s.port == port and s.local_ip_cfg == local_ip and s.is_alive():
-                s.update_accounts(accounts)
-                return
-            if s:
-                s.stop()
-                s.join(timeout=3)
-            self.server = SipServer(port, local_ip, accounts, self.state_file)
-            self.server.start()
-            self.server.started.wait(2)
-
-    def info(self) -> dict | None:
+        accounts = [Account(login(code, a.get("username", "")), str(a.get("password", "")), a.get("name", ""),
+                            KINDS[t["type"]], str(a.get("dial", "")).strip() if t["type"] == "server" else "",
+                            a.get("enabled", True), max(1, min(MAX_SIGNINS, int(a.get("max_signins", 1) or 1))),
+                            a.get("azan", True) is not False, code)
+                    for code, cfg in self.cfgs.items()
+                    for t in cfg.get("targets", []) if t.get("type") in KINDS
+                    for a in t.get("accounts", []) if isinstance(a, dict)]
+        port = self._port(self.cfgs)
+        local_ip = (self.cfgs.get(sites.MAIN) or {}).get("network", {}).get("local_ip") or None
+        if port is None:
+            if self.server:
+                self.server.stop()
+                self.server = None
+                log.info("AthanBox phone server stopped")
+            return
         s = self.server
-        return s.info() if s else None
+        if s and s.port == port and s.local_ip_cfg == local_ip and s.is_alive():
+            s.update_accounts(accounts)
+            return
+        if s:
+            s.stop()
+            s.join(timeout=3)
+        self.server = SipServer(port, local_ip, accounts, self.state_file)
+        self.server.start()
+        self.server.started.wait(2)
+
+    def info(self, site: str = sites.MAIN) -> dict | None:
+        s = self.server
+        return s.info(site) if s else None
 
     def stop(self):
         with self.lock:
@@ -619,6 +668,7 @@ class ServerTarget:
     kind: str = "trunk"
     only: str | None = None   # a Test button on one account: call only that username's sign-ins
     only_any: frozenset[str] | None = None   # the Test button on one provisioned phone: only its usernames
+    site: str | None = None   # the site whose phones it calls (None: the site the running thread works for)
 
     def play(self, clip, stop: threading.Event) -> bool:
         server = MANAGER.server
@@ -627,8 +677,11 @@ class ServerTarget:
                         f": {server.detail}" if server else " - press Save changes first")
             return False
         jobs = []
+        site = self.site or sites.current() or sites.MAIN
         for u, bs in server.active().items():
             acct = server.accounts.get(u)
+            if not acct or acct.site != site:
+                continue
             # a Test button rings its own line even when that line is off for the azan
             picked = self.only == u if self.only else u in self.only_any if self.only_any is not None else acct and acct.azan
             if acct and acct.enabled and acct.kind == self.kind and picked:
