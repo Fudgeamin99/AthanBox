@@ -27,6 +27,8 @@ RESERVED = {MAIN, "api", "static", "sites", "tv", "admin", "all"}
 MAX_SITES = 200
 MAX_GROUPS = 50
 NAME_MAX = 60
+MAX_DOMAINS = 10
+DOMAIN_RE = re.compile(r"^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 
 
 # -- whose log line is it: each site's control panel shows its own activity log
@@ -117,7 +119,8 @@ class Sites:
             sites.append({"code": code, "name": str(s.get("name") or code), "group": s.get("group") if s.get("group") in ids else ""})
         if MAIN not in seen:
             sites.insert(0, {"code": MAIN, "name": "Main site", "group": ""})
-        return {"mode": mode, "groups": groups, "sites": sites[:MAX_SITES]}
+        domains = [d for d in data.get("domains") or [] if isinstance(d, str) and DOMAIN_RE.fullmatch(d)][:MAX_DOMAINS]
+        return {"mode": mode, "groups": groups, "sites": sites[:MAX_SITES], "domains": domains}
 
     def _save(self):
         tmp = self.file.with_suffix(".tmp")
@@ -160,7 +163,7 @@ class Sites:
         """The Sites page: groups, and each site with how it is doing."""
         with self.lock:
             sites = [dict(s) for s in self.data["sites"]]
-            data = {"mode": self.mode, "groups": [dict(g) for g in self.data["groups"]]}
+            data = {"mode": self.mode, "groups": [dict(g) for g in self.data["groups"]], "domains": list(self.domains)}
         for s in sites:
             svc = self.get(s["code"])
             s["main"] = s["code"] == MAIN
@@ -168,7 +171,30 @@ class Sites:
         data["sites"] = sites
         return data
 
+    @property
+    def domains(self) -> list[str]:
+        """Web addresses that open AthanBox in a browser (a server in the cloud), as well as its IP addresses."""
+        return self.data["domains"]
+
     # -- changing
+    def set_domains(self, value):
+        items = value if isinstance(value, list) else re.split(r"[\s,]+", str(value or ""))
+        out = []
+        for d in items:
+            d = re.sub(r"^https?://", "", str(d).strip().lower()).split("/")[0].split(":")[0].rstrip(".")
+            if not d:
+                continue
+            if not DOMAIN_RE.fullmatch(d):
+                raise SiteError(f"{d} isn't a web address AthanBox can use: type a name like azan.example.com")
+            if d not in out:
+                out.append(d)
+        if len(out) > MAX_DOMAINS:
+            raise SiteError(f"AthanBox takes up to {MAX_DOMAINS} web addresses")
+        with self.lock:
+            self.data["domains"] = out
+            self._save()
+        log.info("Web addresses: %s", ", ".join(out) or "none (only AthanBox's IP addresses)")
+
     def set_mode(self, mode: str):
         if mode not in MODES:
             raise SiteError("Choose Enterprise or Group")
@@ -276,6 +302,7 @@ class Sites:
             self._save()
         if svc:
             svc.shutdown()
+            svc.removed()
         folder = self.dir / code
         if folder.exists():
             shutil.move(str(folder), str(self._removed_path(code)))
@@ -285,9 +312,13 @@ class Sites:
         """Factory reset: every other site is put aside, and it is Enterprise with no groups again."""
         for code in [s["code"] for s in self.data["sites"] if s["code"] != MAIN]:
             self.remove(code)
-        with self.lock:
-            self.data = {"mode": "enterprise", "groups": [], "sites": [{"code": MAIN, "name": "Main site", "group": ""}]}
-            self.file.unlink(missing_ok=True)
+        with self.lock:   # its web addresses stay, so a server in the cloud can still be reached by its name
+            self.data = {"mode": "enterprise", "groups": [], "sites": [{"code": MAIN, "name": "Main site", "group": ""}],
+                         "domains": self.data["domains"]}
+            if self.domains:
+                self._save()
+            else:
+                self.file.unlink(missing_ok=True)
 
     def shutdown(self):
         for code, svc in list(self.services.items()):

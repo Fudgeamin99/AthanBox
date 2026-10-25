@@ -191,7 +191,8 @@ function renderSide(){
     if(count("none")) h += item("none", "Not in a group", count("none"));
     h += `<button class="newg" onclick="groupDialog()">+ New group</button>`;
   }
-  h += `<div class="foot"><a href="${D.mode === "group" ? "/s/main/" : "/"}#settings">Server settings</a><div class="hint" style="margin-top:4px">Password, updates and security, in the first site's control panel.</div></div>`;
+  h += `<div class="foot"><a href="${D.mode === "group" ? "/s/main/" : "/"}#settings">Server settings</a><div class="hint" style="margin-top:4px">Password, updates and security, in the first site's control panel.</div>
+    <div style="margin-top:14px"><button class="link" onclick="domainDialog()">Web address</button><div class="hint" style="margin-top:4px">${D.domains.length ? D.domains.map(esc).join(", ") : "None yet: AthanBox opens by its IP address"}</div></div></div>`;
   $("#side").innerHTML = h;
 }
 function pick(id){ SEL = id; render(); }
@@ -285,6 +286,11 @@ async function siteDialog(code){
     $("#scode").addEventListener("input", () => { typed = true; $("#scodeex").textContent = $("#scode").value || "wcp"; });
     $("#sname").addEventListener("input", () => { if(!typed){ $("#scode").value = codeFrom($("#sname").value); $("#scodeex").textContent = $("#scode").value || "wcp"; } });
   }
+}
+function domainDialog(){
+  dialog(`<h2>Web address</h2><p>On a server in the cloud, type the web address you open AthanBox with, like <b>azan.example.com</b>. Point that name at this server first. AthanBox opens by its IP address as well.</p>
+    <div class="field"><label for="dnames">Web addresses</label><input type="text" id="dnames" autocapitalize="off" spellcheck="false" placeholder="azan.example.com" value="${esc(D.domains.join(", "))}"><div class="hint">Separate more than one with commas. Leave it empty to use only the IP address.</div></div>`,
+    () => change("api/sites/domains", {domains: $("#dnames").value}, "Web address saved"));
 }
 async function removeSite(code){
   const s = D.sites.find(s => s.code === code);

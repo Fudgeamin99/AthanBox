@@ -62,7 +62,8 @@ def clean(cfg: dict | None) -> dict:
 class QuranLine:
     """What the extensions play; AthanBox's web service keeps it up to date with the settings."""
 
-    def __init__(self):
+    def __init__(self, site: str = "main"):
+        self.site = site   # Group: each site has its own extensions, playlist and stations
         self.cfg = dict(DEFAULT)
         self.audio_dir: Path | None = None
         self.live_url: Callable[[], str] = lambda: ""
@@ -94,9 +95,15 @@ class QuranLine:
                 s.stop.set()
                 s = None
             if s is None:
-                s = self.stations[kind] = Station(kind, self.live_url() if kind == "live" else "")
+                s = self.stations[kind] = Station(self, kind, self.live_url() if kind == "live" else "")
                 s.start()
             return s
+
+    def close(self):
+        with self.lock:
+            for s in self.stations.values():
+                s.stop.set()
+            self.stations.clear()
 
     def now_playing(self) -> str:
         s = self.stations.get("playlist")
@@ -215,9 +222,10 @@ class Station(threading.Thread):
     takes the 20 ms pieces as they go out, joining wherever the station has got to."""
     IDLE_STOP = 30.0   # the live station stops this long after its last listener leaves
 
-    def __init__(self, kind: str, url: str = ""):
-        super().__init__(name=f"quran-station-{kind}", daemon=True)
-        self.kind, self.url = kind, url
+    def __init__(self, line: QuranLine, kind: str, url: str = ""):
+        super().__init__(name=f"quran-station-{line.site}-{kind}", daemon=True)
+        self.azan_site = line.site   # its log lines go to its site's activity log
+        self.line, self.kind, self.url = line, kind, url
         self.stop = threading.Event()
         self.listeners: set[queue.Queue] = set()
         self.lock = threading.Lock()
@@ -246,9 +254,9 @@ class Station(threading.Thread):
                 break                  # nobody listening, or the live stream can't be reached: callers hang up
             self.stop.wait(5 if self.kind == "live" else 60)   # the stream dropped, or nothing could be played: try again
         self.stop.set()
-        with LINE.lock:
-            if LINE.stations.get(self.kind) is self:
-                del LINE.stations[self.kind]
+        with self.line.lock:
+            if self.line.stations.get(self.kind) is self:
+                del self.line.stations[self.kind]
 
     def _play(self) -> bool:
         """Play until the source ends. Returns whether any sound came."""
@@ -259,7 +267,7 @@ class Station(threading.Thread):
         def feed():
             rest = b""
             try:
-                for piece in LINE.frames(self.kind, "PCMU", self.stop, lambda name: setattr(self, "now", name)):
+                for piece in self.line.frames(self.kind, "PCMU", self.stop, lambda name: setattr(self, "now", name)):
                     rest += piece
                     while len(rest) >= rtp.FRAME and not self.stop.is_set():
                         frame, rest = rest[:rtp.FRAME], rest[rtp.FRAME:]
@@ -305,7 +313,21 @@ class Station(threading.Thread):
         return played
 
 
-LINE = QuranLine()
+LINE = QuranLine()   # the first site's
+LINES = {LINE.site: LINE}
+
+
+def line(site: str) -> QuranLine:
+    """A site's Quran by phone (made when it is first needed)."""
+    if site not in LINES:
+        LINES[site] = QuranLine(site)
+    return LINES[site]
+
+
+def drop(site: str):
+    """A site that is removed: its stations stop."""
+    if site != LINE.site and site in LINES:
+        LINES.pop(site).close()
 
 
 def _sdp_offer(sdp: str) -> tuple[tuple[str, int] | None, list[int]]:
@@ -324,9 +346,10 @@ def _sdp_offer(sdp: str) -> tuple[tuple[str, int] | None, list[int]]:
 class InboundCall(threading.Thread):
     """One call to a Quran extension, through AthanBox's SIP server socket: answer, play, hang up."""
 
-    def __init__(self, server, invite: SipMessage, addr: tuple[str, int], kind: str, who: str):
+    def __init__(self, server, invite: SipMessage, addr: tuple[str, int], kind: str, who: str, line: QuranLine = LINE):
         super().__init__(name=f"quran-{kind}", daemon=True)
-        self.server, self.invite, self.addr, self.kind, self.who = server, invite, addr, kind, who
+        self.azan_site = line.site
+        self.server, self.invite, self.addr, self.kind, self.who, self.line = server, invite, addr, kind, who, line
         self.call_id = invite.get("call-id")
         self.q: queue.Queue = queue.Queue()
         server.calls[self.call_id] = self.q
@@ -421,13 +444,13 @@ class InboundCall(threading.Thread):
 
     # ------------------------------------------------------------ call
     def run(self):
-        LINE.active += 1
+        self.line.active += 1
         try:
             self._run()
         except Exception:
             log.exception("Quran by phone: the call from %s failed", self.who)
         finally:
-            LINE.active -= 1
+            self.line.active -= 1
             self.stop.set()
             self.server.calls.pop(self.call_id, None)
             self.rtp_sock.close()
@@ -490,7 +513,7 @@ class InboundCall(threading.Thread):
 
     def _play(self):
         """Send the station's sound to the phone every 20 ms, with silence while it waits for more."""
-        station = LINE.station(self.kind)
+        station = self.line.station(self.kind)
         q = station.join_listener()
         silence, alaw = audio.silence(rtp.PTIME_MS, self.codec), self.codec == "PCMA"
         pt, seq, ts, ssrc = CODECS[self.codec], random.randint(0, 0xFFFF), random.randint(0, 0xFFFFFFFF), random.getrandbits(32)
@@ -522,7 +545,7 @@ class InboundCall(threading.Thread):
                 if station.stop.is_set() and q.empty():
                     if self.kind == "live":
                         break              # the live stream couldn't be played: hang up
-                    station = LINE.station(self.kind)   # the playlist was changed: listen to the new one
+                    station = self.line.station(self.kind)   # the playlist was changed: listen to the new one
                     q = station.join_listener()
         finally:
             station.leave(q)
