@@ -6,11 +6,6 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
-## 0.12.1 - TV screens on an old iPad
-
-- **The TV app works on iPads that stop at iOS 12**, such as the first iPad Air and the iPad mini 2 and 3. Their Safari stopped at a few newer bits of the TV page, so it never showed the prayer times or played the azan. Now it shows them, plays the azan after the first tap, and lays out the times and Makkah live as on newer screens. Keep the iPad plugged in, and set **Settings > Display & Brightness > Auto-Lock** to **Never**, since iOS 12 can't keep the screen on by itself.
-- **Docker:** the new image has the same fix. Nothing else changes.
-
 ## 0.12.0 - Phones, Quran by phone and TV for each site
 
 - **Each site's phones sign in to their own site:** in Group, a desk phone or phone system at another site signs in with the site code in front of its username, like wcp-201 for extension 201 at the site with code wcp. The Phones page shows what to type under each extension. All sites share one SIP server and one port, and each site's azan and Test buttons ring only its own phones. Sign-ins are kept through a restart.
