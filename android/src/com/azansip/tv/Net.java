@@ -58,13 +58,20 @@ final class Net {
     }
 
     // ---------------------------------------------------------------- addresses
-    /** "192.168.1.20", "192.168.1.20:8765" or "http://pc-name:8765/tv" -> "http://192.168.1.20:8765" (null if unusable). */
+    /** "192.168.1.20", "192.168.1.20:8765" or "http://pc-name:8765/tv" -> "http://192.168.1.20:8765" (null if unusable).
+     *  A site's own TV page on a server with several sites ("http://server:8765/s/wcp/tv") keeps its site:
+     *  "http://server:8765/s/wcp". */
     static String normalize(String text) {
         if (text == null) return null;
         String s = text.trim();
         s = s.replaceFirst("(?i)^https?://", "");
+        String site = "";
         int slash = s.indexOf('/');
-        if (slash >= 0) s = s.substring(0, slash);
+        if (slash >= 0) {
+            Matcher m = Pattern.compile("^/s/([a-z][a-z0-9]{1,11})(/.*)?$").matcher(s.substring(slash).toLowerCase());
+            if (m.matches()) site = "/s/" + m.group(1);
+            s = s.substring(0, slash);
+        }
         if (s.isEmpty()) return null;
         String host = s;
         int port = PORT;
@@ -79,14 +86,14 @@ final class Net {
             if (port < 1 || port > 65535) return null;
         }
         if (!host.matches("[A-Za-z0-9.\\-]+")) return null;
-        return "http://" + host + ":" + port;
+        return "http://" + host + ":" + port + site;
     }
 
     /** "http://192.168.1.20:8765" -> "192.168.1.20" (the port is left out when it's the usual one). */
     static String display(String base) {
         if (base == null) return "";
         String s = base.replaceFirst("^http://", "");
-        return s.endsWith(":" + PORT) ? s.substring(0, s.length() - (":" + PORT).length()) : s;
+        return s.replaceFirst(":" + PORT + "(?=/|$)", "");
     }
 
     // ---------------------------------------------------------------- checking

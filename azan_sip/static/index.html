@@ -901,7 +901,9 @@ function fromEdit(e){
   const p=lines(e.phones); if(!p.length) throw new Error("Enter at least one phone IP address"); return {...base,type:"sip",mode:"direct",uris:p.map(x=>x.startsWith("sip:")?x:"sip:"+x),auto_answer:true};
 }
 // Desk phones and SIP trunks sign in to the same server: one port, and each username used once
-function sipPort(){ const t=CFG.targets.find(t=>SIPKIND[t.type]); return t&&t.port||5060; }
+function sipPort(){ const t=CFG.targets.find(t=>SIPKIND[t.type]), srv=S&&S.sipserver; return t&&t.port||(subSite()&&srv&&srv.port)||5060; }
+// Group: another site's phones sign in with its code in front of the username (wcp-201), so each reaches its own site
+function loginHint(u){ return subSite()&&u?`<div class="hint">Signs in as <b class="mono">${esc(subSite().code)}-${esc(u)}</b></div>`:""; }
 function sipOthers(e, accts, port){
   const others=CFG.targets.filter((t,i)=>SIPKIND[t.type]&&i!==e.index&&t.type!==(e.kind==="phones"?"phones":"server"));
   for(const t of others) for(const a of (t.accounts||[]))
@@ -925,8 +927,6 @@ function pagePhones(){
 }
 // ---- Quran by phone: extensions on AthanBox's own SIP server that play the live recitation or a playlist
 function quranCardHTML(){
-  // Group: phones signing in with the site code (and Quran by phone with them) arrive in the next stage
-  if(subSite()) return `<div class="card"><h2>Phones that sign in to this site</h2><p class="muted" style="margin:0">Coming next: phones will sign in to AthanBox with this site's code in their username, like <b>${esc(subSite().code)}-201</b>, and Quran by phone will work here too. Until then this site calls phones on a phone system, or by multicast.</p></div>`;
   const Q = CFG.quran_line, files = META.audio_files || [], has = f => Q.playlist.includes(f);
   const lines = CFG.targets.some(t => t.type === "phones" || t.type === "server");
   const inp = (path, v, id) => `<input type="text" id="${id}" inputmode="tel" maxlength="12" style="max-width:140px" data-path="${path}" value="${esc(v)}">`;
@@ -1197,7 +1197,7 @@ function editorHTML(){
       <div class="lbl" style="margin:6px 0 8px">SIP trunk accounts</div>
       ${e.accounts.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||a.username||"SIP trunk")}</b><span class="row" style="gap:8px">${st(a.username)}${lineSwitch("accounts",i,a)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('accounts',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.accounts.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid5"><div class="field"><label for="ac${i}n">Name</label><input type="text" id="ac${i}n" data-path="edit.accounts.${i}.name" placeholder="Office UCM" value="${esc(a.name||"")}"></div>
-          <div class="field"><label for="ac${i}u">Username</label><input type="text" id="ac${i}u" data-path="edit.accounts.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
+          <div class="field"><label for="ac${i}u">Username</label><input type="text" id="ac${i}u" data-path="edit.accounts.${i}.username" value="${esc(a.username||"")}" spellcheck="false">${loginHint(a.username)}</div>
           <div class="field"><label for="ac${i}p">Password</label><input type="text" id="ac${i}p" data-path="edit.accounts.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
           <div class="field"><label for="ac${i}d">Number to call</label><input type="text" id="ac${i}d" data-path="edit.accounts.${i}.dial" placeholder="e.g. 7000" value="${esc(a.dial||"")}"><div class="hint">The paging group on the phone system.</div></div>
           <div class="field"><label for="ac${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="ac${i}m" data-path="edit.accounts.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phone systems can sign in with it at once.</div></div></div></div>`).join("")}
@@ -1219,10 +1219,10 @@ function editorHTML(){
       <div class="lbl" style="margin:6px 0 8px">Desk phones</div>
       ${e.desk.map((a,i)=>`<div class="acct"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(a.name||"Extension "+(a.username||""))}</b><span class="row" style="gap:8px">${st(a.username)}${lineSwitch("desk",i,a)}${signedIn(a.username)?`<button class="btn small" title="Ring only this one" onclick="testAccount('desk',${i})">${ICON.play} Test</button>`:""}<button class="btn small" onclick="editing.desk.splice(${i},1);render()">Remove</button></span></div>
         <div class="grid4"><div class="field"><label for="dp${i}n">Name</label><input type="text" id="dp${i}n" data-path="edit.desk.${i}.name" placeholder="Main hall" value="${esc(a.name||"")}"></div>
-          <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false"></div>
+          <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false">${loginHint(a.username)}</div>
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
           <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div>
-        ${SESSION.box?`<div class="hint" style="margin-top:8px">${a.mac?`On phone <span class="mono">${esc(a.mac)}</span>${a.phone?" ("+esc(a.phone)+")":""}, ${a.handset?"handset "+esc(a.handset):"line "+esc(a.line||"next free")}. `:""}Which phone and line it's on is set on <button class="linkbtn" onclick="go('provisioning')">Remote provisioning</button>.</div>`:""}</div>`).join("")}
+        ${SESSION.box&&!subSite()?`<div class="hint" style="margin-top:8px">${a.mac?`On phone <span class="mono">${esc(a.mac)}</span>${a.phone?" ("+esc(a.phone)+")":""}, ${a.handset?"handset "+esc(a.handset):"line "+esc(a.line||"next free")}. `:""}Which phone and line it's on is set on <button class="linkbtn" onclick="go('provisioning')">Remote provisioning</button>.</div>`:""}</div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
       <div class="hint">For the azan, AthanBox rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into AthanBox are always refused, and repeated wrong passwords are blocked.</div>`;
   }
