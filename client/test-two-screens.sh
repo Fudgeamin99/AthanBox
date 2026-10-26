@@ -116,3 +116,30 @@ echo "ok: the browser started again"
 sleep 25
 shot screens-after-restart
 grep -i 'screens:' "$out/cage.log" || true
+
+# Picture in Screen settings turns the screens (wlr-randr). It needs cage 0.2 (Debian 13): with an
+# older cage, Screen settings says so.
+dpkg-query -W -f '${Package} ${Version}\n' wlr-randr iw wpasupplicant 2>&1 | tee -a "$out/versions.txt" || true
+python3 -c '
+import json, urllib.request
+req = urllib.request.Request("http://127.0.0.1:8771/client/api/settings", json.dumps({"picture": {"rotate": 90}}).encode(),
+                             {"Content-Type": "application/json"})
+print(urllib.request.urlopen(req, timeout=10).read().decode())'
+for i in $(seq 1 30); do
+    sleep 2
+    grep -q '"rotate": 90' /var/lib/azan-sip-client/display.json 2>/dev/null && break
+done
+sleep 4
+echo "display.json:"; cat /var/lib/azan-sip-client/display.json || true
+cp /var/lib/azan-sip-client/screens.json "$out/screens-turned.json" 2>/dev/null || true
+cat "$out/screens-turned.json" || true
+if dpkg --compare-versions "$(dpkg-query -W -f '${Version}' cage)" ge 0.2 && command -v wlr-randr > /dev/null; then
+    grep -q '"rotate_error": null' /var/lib/azan-sip-client/display.json \
+        || { echo "FAIL: the picture wasn't turned"; quiet_log; tail -n 40 "$out/client.log"; exit 1; }
+    grep -q '"h": 1280' "$out/screens-turned.json" \
+        || { echo "FAIL: the screens aren't 720x1280 after turning them"; exit 1; }
+    echo "ok: the picture turned"
+    wl grim - > "$out/screens-turned.png" || true
+else
+    echo "(cage $(dpkg-query -W -f '${Version}' cage) can't turn the picture: Screen settings says it needs Debian 13)"
+fi

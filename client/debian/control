@@ -6,7 +6,7 @@ Homepage: https://github.com/Fudgeamin99/azan-sip-box
 Section: misc
 Priority: optional
 Depends: python3 (>= 3.9), cage, xwayland, seatd, chromium, libgl1-mesa-dri, fonts-dejavu-core, alsa-utils, dbus, libpam-systemd, iproute2, libnss-mdns, wayland-utils, ca-certificates
-Recommends: avahi-daemon, alsa-ucm-conf, firmware-intel-sound
+Recommends: avahi-daemon, alsa-ucm-conf, firmware-intel-sound, wlr-randr, iw, wpasupplicant
 Description: AthanBox prayer times and azan on a TV, a Wyse or a laptop
  Turns a small Debian computer, such as a Dell Wyse thin client or an old
  laptop, 64-bit or 32-bit, into a TV screen for AthanBox. It shows

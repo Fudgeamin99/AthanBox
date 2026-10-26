@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AthanBox Client</title>
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#0d4a3f}
+html,body{margin:0;height:100%;overflow:hidden;background:#000}
 iframe{position:absolute;border:0;display:block}
 </style>
 </head>
@@ -14,13 +14,16 @@ iframe{position:absolute;border:0;display:block}
 // More than one screen is plugged in (two TVs, or a laptop and a TV): cage spreads this page over
 // all of them, so it puts one copy of AthanBox's TV app where each screen is (a closed laptop's own
 // screen gets none). The first copy plays the azan; the others are silent copies (mirror=1), so the
-// azan isn't heard twice.
+// azan isn't heard twice. With the picture kept off the TV's edges (Screen settings), each copy
+// leaves that margin round it, with one screen too.
 const frames = [];
 let ST = null;
 function layout(){
   if (!ST.box) return location.replace("/client/");
-  const sc = ST.screens || [], all = ST.outputs || [];
-  if (all.length < 2 || !sc.length) return location.replace("/");   // one screen again: the prayer times on it alone
+  let sc = ST.screens || [], all = ST.outputs || [];
+  const m = ((ST.picture || {}).margin || 0) / 100;
+  if (m && !sc.length) sc = all = [{x: 0, y: 0, w: innerWidth, h: innerHeight}];   // (the screens aren't known: the whole window)
+  if ((all.length < 2 && !m) || !sc.length) return location.replace("/");   // one screen again: the prayer times on it alone
   const x0 = Math.min(...all.map(s => s.x)), y0 = Math.min(...all.map(s => s.y));
   const W = Math.max(...all.map(s => s.x + s.w)) - x0, H = Math.max(...all.map(s => s.y + s.h)) - y0;
   const kx = innerWidth / W, ky = innerHeight / H;   // in case the browser's pixels aren't the screens'
@@ -35,8 +38,9 @@ function layout(){
       frames.push(f);
     }
     const left = Math.round((s.x - x0) * kx), top = Math.round((s.y - y0) * ky);
-    Object.assign(f.style, {left: left + "px", top: top + "px",
-      width: Math.round((s.x - x0 + s.w) * kx) - left + "px", height: Math.round((s.y - y0 + s.h) * ky) - top + "px"});
+    const w = Math.round((s.x - x0 + s.w) * kx) - left, h = Math.round((s.y - y0 + s.h) * ky) - top;
+    const dx = Math.round(w * m), dy = Math.round(h * m);
+    Object.assign(f.style, {left: left + dx + "px", top: top + dy + "px", width: w - 2 * dx + "px", height: h - 2 * dy + "px"});
   });
   while (frames.length > sc.length) frames.pop().remove();   // a screen unplugged
 }
