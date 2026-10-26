@@ -15,7 +15,7 @@
 :root{--t-bg:#0d4a3f;--t-ink:#ffffff;--t-soft:#e6f0ec;--t-muted:#cfe3dc;--t-accent:#f3e2b4;--t-on:#14312a;--t-tint:255 255 255;--t-logo:#176356;--t-moon:#f3e2b4;
       --s:1;--vw:75%}
 html,body{background:var(--t-bg);color:var(--t-ink);height:100%;overflow:hidden;transition:background-color .3s}
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:5.6vh 4vw 3.4vh}
+.screen{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;padding:5.6vh 4vw 3.4vh}
 .pattern{position:absolute;width:92vh;height:92vh;right:calc(12.5vw - 46vh);top:calc(25vh - 46vh);pointer-events:none;opacity:.9}
 .pattern *{fill:none;stroke:rgb(var(--t-tint) / .075);stroke-width:2}
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:2vw;position:relative}
@@ -66,7 +66,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:2vw
 .panel{border-radius:1.8vh;background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1)}
 .l-list .daylabel,.l-list .cards{display:none}
 .l-list:not(.live) .side{flex-direction:row;gap:3vw;margin-top:2.4vh}
-.l-list:not(.live) .slist{display:flex;flex-direction:column;justify-content:space-evenly;width:clamp(300px,40vw,760px);padding:2.6vh 1.6vw}
+.l-list:not(.live) .slist{display:flex;flex-direction:column;justify-content:space-evenly;width:40vw;width:clamp(300px,40vw,760px);padding:2.6vh 1.6vw}
 .l-list:not(.live) .slist .r{padding:calc(1.3vh*var(--f,1)) 1.4vw}
 .l-list:not(.live) .slist .r .n{font-size:calc(4vh*var(--s)*var(--f,1))}
 .l-list:not(.live) .slist .r .ar{font-size:calc(3.6vh*var(--s)*var(--f,1))}
@@ -101,10 +101,10 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 
 /* ---- Makkah live */
 .player{display:none;position:relative;min-width:0;min-height:0;border-radius:1.8vh;overflow:hidden;background:#000;box-shadow:0 1vh 4vh rgba(0,0,0,.3)}
-.player video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.player video{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;object-fit:contain;background:#000}
 .badge{position:absolute;left:1.6vh;top:1.6vh;display:flex;align-items:center;gap:1vh;padding:.8vh 1.6vh;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:1.9vh;font-weight:700;letter-spacing:.06vh}
 .badge .rec{width:1.2vh;height:1.2vh;border-radius:50%;background:#e5484d;animation:pulse 1.6s infinite}
-.pmsg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4vh;text-align:center;padding:3vh;
+.pmsg{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4vh;text-align:center;padding:3vh;background:#0a1512;
   background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--t-bg) 70%,#000) 0,color-mix(in srgb,var(--t-bg) 25%,#000) 75%);color:#e6ece9}
 .pmsg h2{margin:0;font-size:3.4vh;color:#fff}
 .pmsg p{margin:0;max-width:34em;font-size:2.1vh;color:#c9d4cf}
@@ -113,7 +113,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .sound{all:unset;position:absolute;right:1.6vh;bottom:1.6vh;display:flex;align-items:center;gap:1vh;padding:1.2vh 1.8vh;border-radius:1.2vh;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.55);color:#fff;font-size:1.9vh;font-weight:600;cursor:pointer;transition:opacity .3s}
 .sound:hover,.sound:focus-visible{background:rgba(0,0,0,.75)}
 .sound svg{width:2.4vh;height:2.4vh}
-.preview-pic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1vh;background:linear-gradient(160deg,#2b2f33,#0d0f10);color:#cfd6d3;font-size:2.6vh;font-weight:600}
+.preview-pic{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1vh;background:linear-gradient(160deg,#2b2f33,#0d0f10);color:#cfd6d3;font-size:2.6vh;font-weight:600}
 .preview-pic svg{width:18%;max-width:120px;opacity:.85}
 .live .screen .pattern{display:none}
 .live .stage{gap:1.6vw;margin-top:2.6vh}
@@ -207,7 +207,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .tvtap svg{width:1.4em;height:1.4em;flex:none}
 .tvtap small{display:block;font-size:.62em;font-weight:600;opacity:.8}
 @keyframes tvp{50%{transform:translateX(-50%) scale(1.035)}}
-.tvoff{position:fixed;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;text-align:center;padding:6vh 8vw;background:var(--t-bg)}
+.tvoff{position:fixed;top:0;right:0;bottom:0;left:0;z-index:7;display:flex;align-items:center;justify-content:center;text-align:center;padding:6vh 8vw;background:var(--t-bg)}
 .tvoff h1{margin:0 0 1.4vh;font-size:5vh}
 .tvoff p{margin:0 auto;max-width:40em;color:var(--t-muted);font-size:2.6vh}
 
@@ -268,7 +268,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
 .kt>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kdone{flex:none;width:4.2vh;height:4.2vh}
 .kids .sound{display:none}
-.kover{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:5vh 5vw;background:var(--k-bg);color:var(--k-ink)}
+.kover{position:fixed;top:0;right:0;bottom:0;left:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:5vh 5vw;background:var(--k-bg);color:var(--k-ink)}
 .kpanel{position:relative;width:100%;height:100%;box-sizing:border-box;background:var(--k-card);border-radius:5vh;box-shadow:0 1vh 0 var(--k-line);padding:6vh 5vw;display:flex;align-items:center;justify-content:center;gap:4vw;overflow:hidden}
 .kpanel.col{flex-direction:column;text-align:center;gap:3vh}
 .kpanel .kart{width:34vh;height:40vh;flex:none}
@@ -287,7 +287,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
 .kbtn.plain{padding:2vh 6vh}
 .kbtn:focus-visible,.kbtn2:focus-visible{outline:.6vh solid var(--k-ink);outline-offset:.6vh}
 .kbtn2{all:unset;cursor:pointer;padding:1.4vh 3.4vh;border-radius:99px;border:.3vh solid var(--k-line);color:var(--k-soft);font-size:2.6vh;font-weight:700}
-.kconf{position:absolute;inset:0;pointer-events:none}
+.kconf{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none}
 .kids .hero{position:relative}
 .ksub{font-size:calc(2.2vh*var(--s));color:var(--k-soft);font-weight:700;margin-top:-.6vh}
 .kfast{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.8vh .5vw}
@@ -300,7 +300,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
 .krow{display:flex;gap:2vw}
 
 /* splash while starting up */
-#splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#splash{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #splash svg.logo-big{width:18vh;height:18vh}
 #splash h1{font-size:6.6vh;margin:3.4vh 0 1.4vh;line-height:1}
 #splash p{color:var(--t-accent);font-size:3vh;margin:0;font-weight:500}
@@ -364,6 +364,30 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
   .kids .card{padding:10px;gap:10px;border-radius:18px}.kids .card .n{font-size:18px}.kids .card .ar{font-size:13px}.kic{width:40px;height:40px;border-radius:12px}
   .kpanel{flex-direction:column;text-align:center;padding:24px;border-radius:24px}.kpanel .kart{width:120px;height:140px}.kh{font-size:40px}.kp{font-size:17px}
   .kpill{align-self:center;font-size:15px}.ksteps{justify-content:center}.ksteps span{font-size:14px}.kbtn{font-size:22px}.kbtn2{font-size:15px}
+}
+/* iOS 12's Safari (an iPad Air, or an iPad mini 2 or 3, can't go further): no gaps in flex boxes, so
+   the main ones get margins instead (.nogap, set by the script), and no aspect-ratio for Makkah live */
+.nogap header>*+*,.nogap footer>*+*{margin-left:2vw}
+.nogap .place>*+*{margin-left:2.2vh}
+.nogap .fbtns>*+*,.nogap .dots>*+*{margin-left:1.4vh}
+.nogap .status .dot{margin-right:1.4vh}
+.nogap .fbtn>svg{margin-right:1.2vh}
+.nogap .badge>.rec,.nogap .sound>svg{margin-right:1vh}
+.nogap .tvtap>*+*{margin-left:1.4vw}
+.nogap .slist .r>*+*:not(.t){margin-left:1.2vw}
+.nogap .l-list:not(.live) .side>*+*{margin-left:3vw}
+.nogap .live .stage>.side{margin-left:1.6vw}
+.nogap .vid-right .stage>.side{margin-left:0;margin-right:1.6vw}
+.nogap .live.l-list .slist>*+*{margin-top:.4vh}
+.nogap .pmsg>*+*{margin-top:1.4vh}
+.nogap .dua>*+*{margin-top:.9vh}
+.nogap .tile>*+*{margin-top:.2vh}
+.nogap .tiles>*{margin:.4vh .8vw}
+@supports not (aspect-ratio:16/9){.live .player{width:min(var(--vw),calc(100% - 250px - 1.6vw))}}
+@media (max-aspect-ratio:1/1){
+  .nogap header>*+*,.nogap .place>*+*{margin-left:12px}
+  .nogap footer>*+*{margin-left:0;margin-top:14px}
+  .nogap .live .stage>.side,.nogap .vid-right .stage>.side{margin:14px 0 0}
 }
 </style>
 </head>
@@ -441,6 +465,13 @@ Object.assign(TITLE, {sehri:"Sehri ends", iftar:"Iftar · Maghrib"});
 Object.assign(ARABIC, {sehri:"السحور", iftar:"الإفطار"});
 const store = {get(k){ if(PREVIEW) return null; try{ return localStorage.getItem(k); }catch(e){ return null; } },
                set(k, v){ if(PREVIEW) return; try{ localStorage.setItem(k, v); }catch(e){} }};
+// iOS 12's Safari leaves out the gaps in flex boxes (see .nogap)
+(() => { const d = document.createElement("div");
+  d.style.cssText = "display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden";
+  d.appendChild(document.createElement("div")); d.appendChild(document.createElement("div"));
+  document.body.appendChild(d);
+  if (d.scrollHeight !== 1) document.documentElement.classList.add("nogap");
+  d.remove(); })();
 let KIDS = null;   // kids mode for this TV screen (from /api/tv), or null
 let S = null, SESSION = {}, got = 0, failures = 0, firstLoad = true, LOOK = null, previewLook = null, lookKey = "";
 $("#logo").innerHTML = LOGO;
@@ -461,12 +492,17 @@ function lum(hex){
   const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
   return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
 }
+// p % of colour a and the rest of b, as CSS's color-mix (which iOS 12's Safari doesn't know)
+function mixHex(a, b, p){
+  const x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16);
+  return "#" + [16, 8, 0].map(s => Math.round(((x >> s) & 255) * p / 100 + ((y >> s) & 255) * (100 - p) / 100).toString(16).padStart(2, "0")).join("");
+}
 function themeVars(L){
   if(L.theme !== "custom") return THEMES[L.theme] || THEMES.green;
   const bg = L.background, light = lum(bg) > .4, ink = light ? "#1d2622" : "#ffffff";
-  const mix = p => `color-mix(in srgb,${ink} ${p}%,${bg})`;  // the text colour is picked to stay readable
+  const mix = p => mixHex(ink, bg, p);  // the text colour is picked to stay readable
   return {bg, ink, soft: mix(90), muted: mix(74), accent: L.accent, on: lum(L.accent) > .35 ? "#1d2622" : "#ffffff",
-          tint: light ? "0 0 0" : "255 255 255", logo: `color-mix(in srgb,${bg} 72%,${ink})`};
+          tint: light ? "0 0 0" : "255 255 255", logo: mixHex(bg, ink, 72)};
 }
 function look(){ return previewLook || LOOK || {}; }
 // in Ramadan the screen can switch to the Ramadan theme by itself (Ramadan page in the control panel)
@@ -940,7 +976,7 @@ function kidsRule(label){
   if (KIDS.quiet_fajr && /^(fajr|suhoor|sehri)/i.test(label || "")) return "none";
   return KIDS.sound || "azan";
 }
-const tvGain = () => TVA.vol * (KIDS ? (KIDS.volume ?? 100) / 100 : 1);
+const tvGain = () => TVA.vol * (KIDS ? (KIDS.volume != null ? KIDS.volume : 100) / 100 : 1);
 function playChime(vol){   // the phones' chime, made here: four soft notes
   if (!TV || !TVA.on || !audioOK() || vol <= 0) return null;
   try{
@@ -1293,7 +1329,7 @@ async function keepAwake(){
     TVA.lock.addEventListener("release", () => { TVA.lock = null; });
   } }catch(e){}
 }
-const serverNow = () => Date.now() + (TVA.offset ?? 0);
+const serverNow = () => Date.now() + (TVA.offset || 0);
 function fetchDecode(url){
   return fetch(url).then(r => { if (!r.ok) throw new Error(`error ${r.status}`); return r.arrayBuffer(); })
     .then(ab => new Promise((ok, bad) => audioCtx().decodeAudioData(ab, ok, e => bad(e || new Error("can't read it")))));

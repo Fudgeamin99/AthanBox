@@ -1,6 +1,6 @@
 // AthanBox: shared helpers for the setup wizard (setup.html) and the prayer-times screen (display.html).
 const $ = (s, el=document) => el.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const TITLE = {fajr:"Fajr", sunrise:"Sunrise", dhuhr:"Dhuhr", asr:"Asr", maghrib:"Maghrib", isha:"Isha", jumuah:"Jumu'ah"};
 const ARABIC = {fajr:"الفجر", sunrise:"الشروق", dhuhr:"الظهر", asr:"العصر", maghrib:"المغرب", isha:"العشاء", jumuah:"الجمعة"};
 const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#146356"/><path fill="#f4e3b5" d="M18.6 8.3a8 8 0 1 0 5.2 13.6A6.6 6.6 0 0 1 18.6 8.3z"/><path fill="#f4e3b5" d="M21.3 11.6l.62 1.28 1.41.2-1.02.99.24 1.4-1.25-.66-1.25.66.24-1.4-1.02-.99 1.41-.2z"/></svg>`;
