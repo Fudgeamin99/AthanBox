@@ -330,6 +330,20 @@ def remove_phone(cfg: dict, phone_mac: str) -> int:
     return n
 
 
+def delete_phone(cfg: dict, phone_mac: str) -> int:
+    """Remove a phone and the desk phone extensions on it (All sites › Find a phone). Returns how many went.
+    A desk phones entry left with no extensions goes too, as it can't be saved empty."""
+    m = mac(phone_mac)
+    n = 0
+    for t in [t for t in cfg.get("targets", []) if t.get("type") == "phones"]:
+        keep = [a for a in t.get("accounts", []) if _mac_or_none(a.get("mac")) != m]
+        n += len(t.get("accounts", [])) - len(keep)
+        t["accounts"] = keep
+        if not keep:
+            cfg["targets"].remove(t)
+    return n
+
+
 def _mac_or_none(text) -> str | None:
     try:
         return mac(text) or None

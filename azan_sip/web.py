@@ -579,6 +579,45 @@ class Service:
                              "Auto Provision Now (Settings → Auto Provision), or wait for its daily check")
         return {**self.provisioning(), "results": results}
 
+    # -- All sites › Find a phone: a phone by its MAC address (or name) on any site, and removing it from there
+    def find_phones(self, q: str) -> list[dict]:
+        text = str(q or "").strip().lower()
+        hexq = re.sub(r"[\s:.\-]", "", text)
+        if len(text) < 2:
+            return []
+        hexq = hexq if re.fullmatch(r"[0-9a-f]{2,12}", hexq) else ""
+        reg, out = self._prov_root.sites, []
+        for svc in (reg.all_services() if reg else [self._prov_root]):
+            site = (reg.site(svc.code) if reg else None) or {}
+            seen = {x["key"]: x for x in provision.PROVISIONER.recent(200, svc.code)}
+            for m, accts in provision.phones(svc.cfg).items():
+                name = provision.phone_name(accts)
+                words = " ".join([name, *(f"{a.get('name', '')} {a.get('username', '')}" for a in accts)]).lower()
+                if not ((hexq and hexq in m) or text in words):
+                    continue
+                lines = {a.get("username"): n for n, a, _ in provision.lines_for(svc.cfg, m)}
+                out.append({"site": svc.code, "site_name": site.get("name") or svc.code, "main": svc.primary,
+                            "mac": provision.pretty(m), "key": m, "name": name, "fetched": seen.get(m, {}).get("ago"),
+                            "lines": [{"username": a.get("username"), "name": a.get("name", ""),
+                                       "line": lines.get(a.get("username"))} for a in accts]})
+        return sorted(out, key=lambda x: (x["mac"], x["site_name"]))[:100]
+
+    def remove_phone_on(self, code: str, phone_mac: str, delete: bool) -> int:
+        """Take a phone off a site's remote provisioning (its extensions stay), or remove it with its extensions."""
+        reg = self._prov_root.sites
+        svc = reg.get(code) if reg else (self._prov_root if code == sites.MAIN else None)
+        if svc is None:
+            raise ValueError("That site isn't on this server any more")
+        cfg = copy.deepcopy(svc.cfg)
+        n = (provision.delete_phone if delete else provision.remove_phone)(cfg, phone_mac)
+        if not n:
+            raise ValueError("That phone isn't on that site any more")
+        svc.apply(cfg, save=True)
+        m = provision.pretty(provision.mac(phone_mac))
+        log.info("All sites: %s phone %s on site %s (%d extension%s %s)", "removed" if delete else "took off provisioning",
+                 m, code, n, "" if n == 1 else "s", "removed" if delete else "kept")
+        return n
+
     def set_provisioning(self, req: dict) -> dict:
         cfg = copy.deepcopy(self.cfg)
         p = cfg.setdefault("provisioning", {})
@@ -1538,6 +1577,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"config": svc.cfg, "meta": svc.meta()})
             if p == "/api/sites":   # the Sites page: Enterprise or Group, the groups and every site
                 return self._json(svc.sites.info())
+            if p == "/api/sites/phones":   # the Sites page: find a phone by its MAC address on any site
+                return self._json({"phones": svc.find_phones(parse_qs(url.query).get("q", [""])[0])})
             if p == "/api/setup/state":
                 return self._json(svc.wizard)
             if p == "/api/update":
@@ -1674,6 +1715,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not svc.box:
                     raise ValueError("Remote provisioning is only on AthanBox")
                 return self._json({"ok": True, **svc.set_provisioning(req), "config": svc.cfg})
+            if p == "/api/sites/phones/remove":   # the Sites page: remove a phone found by its MAC address
+                n = svc.remove_phone_on(str(req.get("site") or ""), str(req.get("mac") or ""), bool(req.get("delete")))
+                return self._json({"ok": True, "removed": n,
+                                   "phones": svc.find_phones(str(req.get("q") or ""))})
             if p.startswith("/api/sites/"):   # the Sites page
                 return self._json({"ok": True, **self._sites_post(p, req)})
             if p == "/api/provisioning/add":
