@@ -703,30 +703,13 @@ class ServerTarget:
         # address and port) are called one after another: a base only auto-answers a call while it has no
         # other call still ringing, and rings the rest. So each line waits until the one before it has
         # picked up or given up (and at least SAME_DEVICE_GAP), and a line that doesn't pick up within
-        # SAME_DEVICE_ANSWER (its handset is off or flat) stops ringing so the next one can still answer.
-        # Phone systems are called all at once.
+        # SAME_DEVICE_ANSWER stops ringing so the next one can still answer. Phone systems are called all
+        # at once.
         per_device: dict = {}
         for acct, b in jobs:
-            per_device.setdefault(b.addr, []).append(acct)
-        order, prev = [], {}
-        for acct, b in jobs:
-            shared = self.kind == "phone" and len(per_device[b.addr]) > 1
-            settled = threading.Event()
-            order.append((acct, b, prev.get(b.addr) if shared else None, settled,
-                          min(self.ring_timeout, SAME_DEVICE_ANSWER) if shared else self.ring_timeout))
-            prev[b.addr] = settled
-        jobs = order
+            per_device.setdefault(b.addr, []).append((acct, b))
 
-        def call(job):
-            acct, b, after, settled, ring_timeout = job
-            if after is not None:
-                if stop.wait(SAME_DEVICE_GAP):
-                    settled.set()
-                    return False
-                while not after.wait(0.25):
-                    if stop.is_set():
-                        settled.set()
-                        return False
+        def line(acct, b, ring_timeout, settled, calls) -> bool:
             _, host, port = _contact_hostport(b.contact)
             user = acct.dial or _contact_user(b.contact) or acct.username   # no number: call the device itself
             target = SipTarget(uri=f"sip:{user}@{host}:{port}", username=acct.username, password=acct.password,
@@ -734,13 +717,80 @@ class ServerTarget:
                                codecs=codecs, ring_timeout=ring_timeout,
                                local_ip=self.local_ip or rtp.local_ip_for(b.addr[0]))
             try:
-                transport = ServerCallTransport(server, b.addr)
-                return SipCall(target, clip.get, stop, transport=transport, settled=settled).run()
+                c = SipCall(target, clip.get, stop, transport=ServerCallTransport(server, b.addr), settled=settled)
+                calls.append(c)
+                return c.run()
             finally:
                 settled.set()
 
-        with ThreadPoolExecutor(max_workers=min(32, len(jobs))) as ex:
-            results = list(ex.map(call, jobs))
+        def one_by_one(ex, lines):
+            """Call these lines of one device one after another. Returns [(future, calls list)] once each
+            has picked up or given up."""
+            out, prev = [], None
+            ring = min(self.ring_timeout, SAME_DEVICE_ANSWER)
+            for acct, b in lines:
+                if prev is not None:
+                    if stop.wait(SAME_DEVICE_GAP):
+                        break
+                    while not prev.wait(0.25) and not stop.is_set():
+                        pass
+                    if stop.is_set():
+                        break
+                settled, calls = threading.Event(), []
+                out.append((ex.submit(line, acct, b, ring, settled, calls), calls, settled))
+                prev = settled
+            for _, _, settled in out:
+                while not settled.wait(0.25) and not stop.is_set():
+                    pass
+            return [(f, c) for f, c, _ in out]
+
+        def device(lines) -> list[bool]:
+            """A device with several lines. A DECT base answers a handset's line even when that handset is
+            off or flat, and then holds the call waiting for it, so the next handset only rings. So when a
+            line isn't answered but an earlier one was and sends no sound back, hang that one up and call
+            the unanswered lines again; if they still don't answer, call it back."""
+            with ThreadPoolExecutor(max_workers=3 * len(lines)) as ex:
+                first = one_by_one(ex, lines)
+                answered = [bool(c) and c[0].answered.is_set() for _, c in first]
+                failed = [i for i, a in enumerate(answered) if not a and i < len(first)]
+                suspects = [i for i, a in enumerate(answered) if a and first[i][1][0].heard == 0
+                            and any(j > i for j in failed)]
+                final = {i: f for i, (f, _) in enumerate(first)}
+                if failed and suspects and not stop.is_set():
+                    names = lambda ix: ", ".join(lines[i][0].username for i in ix)   # noqa: E731
+                    log.info("[%s] %s answered without sound and %s didn't pick up (a handset that's off?): "
+                             "hanging up %s and calling %s again", self.name, names(suspects), names(failed),
+                             names(suspects), names(failed))
+                    for i in suspects:
+                        first[i][1][0].hang_up()
+                    for i in suspects:
+                        first[i][0].result()
+                    if not stop.wait(1.0):
+                        again = one_by_one(ex, [lines[i] for i in failed])
+                        for i, (f, _) in zip(failed, again):
+                            final[i] = f
+                        if not any(c and c[0].answered.is_set() for _, c in again) and not stop.is_set():
+                            log.info("[%s] %s still didn't pick up: calling %s back", self.name, names(failed),
+                                     names(suspects))
+                            for i, (f, _) in zip(suspects, one_by_one(ex, [lines[i] for i in suspects])):
+                                final[i] = f
+                        else:
+                            for i in suspects:
+                                final[i] = None
+                return [bool(final[i] and final[i].result()) if i in final else False for i in range(len(lines))]
+
+        def single(job) -> list[bool]:
+            acct, b = job
+            return [line(acct, b, self.ring_timeout, threading.Event(), [])]
+
+        groups = []
+        for addr, lines in per_device.items():
+            if self.kind == "phone" and len(lines) > 1:
+                groups.append((device, lines))
+            else:
+                groups += [(single, j) for j in lines]
+        with ThreadPoolExecutor(max_workers=min(32, len(groups))) as ex:
+            results = [r for rs in ex.map(lambda g: g[0](g[1]), groups) for r in rs]
         log.info("[%s] %d/%d answered", self.name, sum(results), len(results))
         return any(results)
 

@@ -145,6 +145,8 @@ class SipCall:
         down or stopped ringing (and on any failure), so the next call to the same device can start."""
         self.t = target
         self.settled = settled or threading.Event()
+        self.answered = threading.Event()   # the phone said 200 OK
+        self.heard = 0                      # RTP packets that came back from the phone
         self.get_audio = get_audio
         self.stop = stop or threading.Event()
         self.transport = transport
@@ -365,6 +367,8 @@ class SipCall:
             tried_auth = True
             resp, branch, _ = self._transaction("INVITE", body, extra + [f"{ah}: {cred}"],
                                                 final_timeout=self.t.ring_timeout)
+        if resp is not None and 200 <= resp.status < 300:
+            self.answered.set()
         self.settled.set()
         if resp is None:
             log.warning("%s: no answer", self.t.uri)
@@ -383,6 +387,7 @@ class SipCall:
             self.remote_target = mm.group(1) if mm else contact.split(";")[0].strip()
         self.route_set = list(reversed([r.strip() for rr in resp.get_all("record-route") for r in rr.split(",")]))
         self._ack(resp)
+        self.answered.set()
 
         dest, codec = self._parse_answer(resp.body)
         if not dest:
@@ -412,7 +417,12 @@ class SipCall:
             log.info("%s: far end hung up", self.t.uri)
         else:
             self._bye()
+        log.debug("%s: %d audio packets came back from the phone", self.t.uri, self.heard)
         return True
+
+    def hang_up(self):
+        """End this call early (BYE), while the others carry on."""
+        self.stop_stream.set()
 
     def _watch(self):
         while self._watching and not self.stop_stream.is_set():
@@ -444,6 +454,8 @@ class SipCall:
                 _, addr = self.rtp_sock.recvfrom(2048)
             except OSError:
                 continue
+            if addr[0] in allowed:
+                self.heard += 1
             if addr[0] in allowed and addr != dests[0]:
                 log.info("%s: the phone's audio comes from %s:%s, sending there", self.t.uri, *addr)
                 dests[0] = addr
