@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.5 - Cordless handsets: skip a handset that's off, even when the base sends sound
+
+- **Cordless handsets on one base (W60B):** 0.12.4 only hung up a handset's call that sent no sound back, but a W60B sends sound even for a handset that's off. Now, whenever a handset doesn't pick up while an earlier handset on the same base did, AthanBox hangs up the earlier call and calls the unanswered handset again (and calls the earlier one back if that still doesn't help). The Activity log also shows how much sound came back on each call.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.12.4 - Cordless handsets: skip a handset that's off
 
 - **Cordless handsets on one base (W60B):** a W60B still accepts a handset's azan call when that handset is off or flat, and then holds it, so the next handset only rang. Now, when a handset's call isn't picked up while an earlier handset's call on the same base was accepted with no sound coming back, AthanBox hangs up that earlier call and calls the unanswered handset again, so it picks up by itself. If it still doesn't pick up, the earlier handset is called back. The Activity log says when this happens.

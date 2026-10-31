@@ -417,7 +417,7 @@ class SipCall:
             log.info("%s: far end hung up", self.t.uri)
         else:
             self._bye()
-        log.debug("%s: %d audio packets came back from the phone", self.t.uri, self.heard)
+        log.info("%s: call ended (%d audio packets came back from the phone)", self.t.uri, self.heard)
         return True
 
     def hang_up(self):
