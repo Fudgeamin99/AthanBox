@@ -139,10 +139,12 @@ class SipTarget:
 
 class SipCall:
     def __init__(self, target: SipTarget, get_audio: Callable[[str], bytes], stop: threading.Event | None = None,
-                 transport=None):
+                 transport=None, settled: threading.Event | None = None):
         """transport: send and receive through AthanBox's own SIP server socket (phones that signed in to it)
-        instead of a socket of this call's own."""
+        instead of a socket of this call's own. settled: set once the phone has answered, turned the call
+        down or stopped ringing (and on any failure), so the next call to the same device can start."""
         self.t = target
+        self.settled = settled or threading.Event()
         self.get_audio = get_audio
         self.stop = stop or threading.Event()
         self.transport = transport
@@ -268,7 +270,7 @@ class SipCall:
         while time.monotonic() < deadline:
             if method == "INVITE" and self.stop.is_set():
                 self._cancel(branch, cseq)
-                return None, branch, cseq
+                return self._after_cancel(branch, cseq), branch, cseq
             msg = self._recv(min(next_tx - time.monotonic(), 0.25) if not provisional else 0.25)
             if msg is None:
                 if not provisional and time.monotonic() >= next_tx:
@@ -286,7 +288,26 @@ class SipCall:
                     log.debug("%s: ringing", self.t.uri)
                 continue
             return msg, branch, cseq
+        if method == "INVITE":   # stop it ringing, rather than leave the phone (or a DECT base) busy with it
+            self._cancel(branch, cseq)
+            return self._after_cancel(branch, cseq), branch, cseq
         return None, branch, cseq
+
+    def _after_cancel(self, branch: str, cseq: int, wait: float = 2.0) -> SipMessage | None:
+        """After a CANCEL: wait briefly for the INVITE's final answer and ACK it (normally 487). Returns a
+        200 OK that crossed the CANCEL (the phone answered just then), else None."""
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline:
+            msg = self._recv(0.25)
+            if msg is None or not msg.get("cseq", "").endswith("INVITE") or msg.status < 200:
+                continue
+            if int(msg.get("cseq").split()[0]) != cseq:
+                continue
+            if msg.status < 300:
+                return msg
+            self._ack(msg, branch)
+            return None
+        return None
 
     def _cancel(self, branch: str, cseq: int):
         h = [f"CANCEL {self.ruri} SIP/2.0",
@@ -318,6 +339,7 @@ class SipCall:
             log.exception("%s: call failed", self.t.uri)
             return False
         finally:
+            self.settled.set()
             if self.sock:
                 self.sock.close()
             if self.transport:
@@ -343,6 +365,7 @@ class SipCall:
             tried_auth = True
             resp, branch, _ = self._transaction("INVITE", body, extra + [f"{ah}: {cred}"],
                                                 final_timeout=self.t.ring_timeout)
+        self.settled.set()
         if resp is None:
             log.warning("%s: no answer", self.t.uri)
             return False

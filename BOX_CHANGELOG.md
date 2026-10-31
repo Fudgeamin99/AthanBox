@@ -6,6 +6,13 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.2 - A DECT handset that's off no longer stops the others picking up
+
+- **Cordless handsets on one base (W60B):** when one handset was off, flat or out of range, the other handsets rang for the azan instead of picking up by themselves. AthanBox now calls a base's lines one after another, and a line that hasn't picked up within 5 seconds stops ringing so the next handset still answers on its own. With every handset on, nothing changes.
+- A call that nobody answers now stops ringing properly when its time is up, instead of being left to ring out on the phone.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.12.1 - Remote provisioning for every site, and finding a phone by MAC
 
 - **Remote provisioning on every site:** each site's control panel now has **Phones › Remote provisioning**, with its own link, its own phones and its own allowed addresses. A site's link only gives out that site's phones, and they get the username with the site code in front (`wcp-201`), so they sign in to the right site. **Update now**, **Test** and **Phones that asked recently** work per site too.
