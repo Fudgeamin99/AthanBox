@@ -515,8 +515,11 @@ class Yealink:
                     f"{n}.sip_server.1.port = {port}",
                     f"{n}.sip_server.1.transport_type = 0",
                     f"{n}.sip_server.1.expires = 300",
-                    # AthanBox only ever calls this line for the azan: answer it straight away
-                    f"{n}.auto_answer = 1",
+                    # AthanBox only ever calls this line for the azan: answer it straight away. Not on a DECT
+                    # base's handset line: the base would answer for a handset that's off or flat and keep
+                    # the call waiting for it, so the other handsets ring instead of picking up. There the
+                    # handset answers by itself (Auto Intercom), and only when it's really there.
+                    f"{n}.auto_answer = {0 if str(a.get('handset') or '').isdigit() else 1}",
                     # behind a router (a phone outside AthanBox's network): keep the way back open
                     f"{n}.nat.udp_update_enable = 1",
                     f"{n}.nat.udp_update_time = 30",
