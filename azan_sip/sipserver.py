@@ -655,6 +655,9 @@ def check_targets(targets: list) -> None:
 
 
 SAME_DEVICE_GAP = 1.5   # seconds between calls to lines on the same device (address and port)
+# A line that shares its device with other lines and hasn't picked up in this long isn't going to (a DECT
+# handset that's off, flat or out of range): stop ringing it so the device is free for its next line.
+SAME_DEVICE_ANSWER = 5.0
 
 
 @dataclass
@@ -697,27 +700,44 @@ class ServerTarget:
         codecs = [self.codec] + [c for c in ("PCMU", "PCMA") if c != self.codec]
 
         # Several lines on one device (say DECT handsets on one base, which all sign in from the base's
-        # address and port) are called a moment apart: a base that gets them in the same instant
-        # auto-answers the first and only rings the others. Phone systems are called all at once.
-        order, seen = [], {}
+        # address and port) are called one after another: a base only auto-answers a call while it has no
+        # other call still ringing, and rings the rest. So each line waits until the one before it has
+        # picked up or given up (and at least SAME_DEVICE_GAP), and a line that doesn't pick up within
+        # SAME_DEVICE_ANSWER (its handset is off or flat) stops ringing so the next one can still answer.
+        # Phone systems are called all at once.
+        per_device: dict = {}
         for acct, b in jobs:
-            n = seen.get(b.addr, 0)
-            seen[b.addr] = n + 1
-            order.append((acct, b, n * SAME_DEVICE_GAP if self.kind == "phone" else 0))
+            per_device.setdefault(b.addr, []).append(acct)
+        order, prev = [], {}
+        for acct, b in jobs:
+            shared = self.kind == "phone" and len(per_device[b.addr]) > 1
+            settled = threading.Event()
+            order.append((acct, b, prev.get(b.addr) if shared else None, settled,
+                          min(self.ring_timeout, SAME_DEVICE_ANSWER) if shared else self.ring_timeout))
+            prev[b.addr] = settled
         jobs = order
 
         def call(job):
-            acct, b, delay = job
-            if delay and stop.wait(delay):
-                return False
+            acct, b, after, settled, ring_timeout = job
+            if after is not None:
+                if stop.wait(SAME_DEVICE_GAP):
+                    settled.set()
+                    return False
+                while not after.wait(0.25):
+                    if stop.is_set():
+                        settled.set()
+                        return False
             _, host, port = _contact_hostport(b.contact)
             user = acct.dial or _contact_user(b.contact) or acct.username   # no number: call the device itself
             target = SipTarget(uri=f"sip:{user}@{host}:{port}", username=acct.username, password=acct.password,
                                from_user="azan", display_name="Azan", auto_answer=True,   # phone systems ignore it
-                               codecs=codecs, ring_timeout=self.ring_timeout,
+                               codecs=codecs, ring_timeout=ring_timeout,
                                local_ip=self.local_ip or rtp.local_ip_for(b.addr[0]))
-            transport = ServerCallTransport(server, b.addr)
-            return SipCall(target, clip.get, stop, transport=transport).run()
+            try:
+                transport = ServerCallTransport(server, b.addr)
+                return SipCall(target, clip.get, stop, transport=transport, settled=settled).run()
+            finally:
+                settled.set()
 
         with ThreadPoolExecutor(max_workers=min(32, len(jobs))) as ex:
             results = list(ex.map(call, jobs))
