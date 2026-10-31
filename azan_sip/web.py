@@ -52,7 +52,7 @@ PAGES = {"/setup": "setup.html", "/display": "display.html", "/sites": "sites.ht
 SITE_PATH = re.compile(r"^/s/([a-z][a-z0-9]{1,11})(/.*)?$")   # Group: /s/<code>/ is that site's control panel
 # Things the whole server shares, so they are changed from the first site only
 SERVER_ONLY = ("/api/password", "/api/factory-reset", "/api/setup", "/api/update", "/api/quit", "/api/security",
-               "/api/provisioning", "/api/sites", "/sites")
+               "/api/sites", "/sites")
 USB_ROOTS = ("/media", "/run/media")  # where Debian mounts USB sticks
 
 # The TV app's own routes. From other devices these follow "Let TV screens connect" only, so switching
@@ -397,8 +397,8 @@ class Service:
             if g.get("scheduler_enabled", True) and g.get("configured", True):
                 self.thread = threading.Thread(target=app.run_forever, name=f"scheduler-{self.code}", daemon=True)
                 self.thread.start()
-            if self.box and self.primary:
-                self._sync_provision_server()
+        if self.box:
+            self._prov_root._sync_provision_server(self)   # a site switching provisioning on opens the shared port
 
     def log_lines(self) -> list[dict]:
         """This site's activity log (the first site also gets what the whole server does)."""
@@ -446,12 +446,31 @@ class Service:
                 out["timezone"] = app.times.tz_name
         return out
 
-    # -- remote provisioning (provision.py): desk phones download their AthanBox line
-    def _sync_provision_server(self):
-        """Remote provisioning's own port, open while it is on, so a router can forward just that port."""
-        s = provision.settings(self.cfg)
-        old = self.provision_server
-        want = s["port"] if s["enabled"] else None
+    # -- remote provisioning (provision.py): desk phones download their AthanBox line. Each site has its own
+    # link (key), phones and allowed addresses; the port and the public address are the whole server's (first site).
+    @property
+    def _prov_root(self) -> "Service":
+        return self.root or self
+
+    def prov_sites(self, also: "Service | None" = None) -> dict[str, dict]:
+        """Every site's settings (code -> config), for the provisioning links: the first site's first."""
+        root = self._prov_root
+        out = {root.code: root.cfg}
+        for svc in (root.sites.all_services() if root.sites else []) + ([also] if also else []):
+            out[svc.code] = svc.cfg
+        return out
+
+    def _sync_provision_server(self, changed: "Service | None" = None):
+        """Remote provisioning's own port, open while any site has it on, so a router can forward just that port.
+        `changed`: a site whose settings just changed (it may not be on the list of sites yet, while it starts)."""
+        with PROV_PORT_LOCK:
+            s = provision.settings(self.cfg)
+            old = self.provision_server
+            on = any(provision.settings(c)["enabled"] for c in self.prov_sites(changed).values())
+            want = s["port"] if on else None
+            self._sync_provision_port(old, want)
+
+    def _sync_provision_port(self, old, want):
         if old and old.server_address[1] == want:
             return
         if old:
@@ -474,7 +493,9 @@ class Service:
 
     def provisioning(self, page_host: str = "") -> dict:
         """The Phones page's remote provisioning card."""
-        s = provision.settings(self.cfg)
+        root = self._prov_root
+        shared = provision.settings(root.cfg)
+        s = {**provision.settings(self.cfg), "port": shared["port"], "host": shared["host"]}
         links = []
         if s["key"]:
             path = f"{provision.PREFIX}{s['key']}/yealink/"
@@ -483,10 +504,10 @@ class Service:
             ip = box_ip()
             links.append({"label": "On AthanBox's network", "url": f"http://{ip}:{s['port']}{path}"})
         signed = {}
-        info = sipserver.MANAGER.info()
+        info = sipserver.MANAGER.info(self.code)
         for acct in (info or {}).get("accounts", []):
             signed[acct["username"].lower()] = acct.get("signins", [])
-        seen = {x["key"]: x for x in provision.PROVISIONER.recent(200)}
+        seen = {x["key"]: x for x in provision.PROVISIONER.recent(200, self.code)}
         phones = []
         for m, accts in provision.phones(self.cfg).items():
             lines = {a.get("username"): n for n, a, _ in provision.lines_for(self.cfg, m)}
@@ -501,8 +522,9 @@ class Service:
                                       "handset": a.get("handset"),
                                       "signed_in": bool(signed.get(str(a.get("username", "")).lower()))}
                                      for a in sorted(accts, key=lambda a: lines.get(a.get("username")) or 99)]})
-        return {**s, "links": links, "running": bool(self.provision_server), "error": self.provision_error,
-                "recent": provision.PROVISIONER.recent(), "ip": box_ip(), "phones": phones}
+        return {**s, "links": links, "running": bool(root.provision_server), "error": root.provision_error,
+                "recent": provision.PROVISIONER.recent(site=self.code), "ip": box_ip(), "phones": phones,
+                "shared": not self.primary}   # a site's port and public address are set in the first site
 
     def add_provision_phone(self, req: dict) -> dict:
         """Remote provisioning: add a phone in one step (its MAC address, a name and how many lines)."""
@@ -548,13 +570,53 @@ class Service:
             raise ValueError("No desk phone has a MAC address yet")
         active = server.active() if server and server.status == "running" else {}
         # one line per phone is enough: a phone (or DECT base) with three lines updates all of them at once
-        users = {next(u for u in (str(a.get("username", "")).lower() for a in accts) if u in active)
-                 for accts in chosen.values() if any(str(a.get("username", "")).lower() in active for a in accts)}
+        login = lambda a: sipserver.login(self.code, a.get("username", "")).lower()  # noqa: E731
+        users = {next(u for u in map(login, accts) if u in active)
+                 for accts in chosen.values() if any(login(a) in active for a in accts)}
         results = server.check_sync(users) if users else []
         if not results:
             raise ValueError("That phone isn't signed in to AthanBox, so it can't be asked. On the phone, press "
                              "Auto Provision Now (Settings → Auto Provision), or wait for its daily check")
         return {**self.provisioning(), "results": results}
+
+    # -- All sites › Find a phone: a phone by its MAC address (or name) on any site, and removing it from there
+    def find_phones(self, q: str) -> list[dict]:
+        text = str(q or "").strip().lower()
+        hexq = re.sub(r"[\s:.\-]", "", text)
+        if len(text) < 2:
+            return []
+        hexq = hexq if re.fullmatch(r"[0-9a-f]{2,12}", hexq) else ""
+        reg, out = self._prov_root.sites, []
+        for svc in (reg.all_services() if reg else [self._prov_root]):
+            site = (reg.site(svc.code) if reg else None) or {}
+            seen = {x["key"]: x for x in provision.PROVISIONER.recent(200, svc.code)}
+            for m, accts in provision.phones(svc.cfg).items():
+                name = provision.phone_name(accts)
+                words = " ".join([name, *(f"{a.get('name', '')} {a.get('username', '')}" for a in accts)]).lower()
+                if not ((hexq and hexq in m) or text in words):
+                    continue
+                lines = {a.get("username"): n for n, a, _ in provision.lines_for(svc.cfg, m)}
+                out.append({"site": svc.code, "site_name": site.get("name") or svc.code, "main": svc.primary,
+                            "mac": provision.pretty(m), "key": m, "name": name, "fetched": seen.get(m, {}).get("ago"),
+                            "lines": [{"username": a.get("username"), "name": a.get("name", ""),
+                                       "line": lines.get(a.get("username"))} for a in accts]})
+        return sorted(out, key=lambda x: (x["mac"], x["site_name"]))[:100]
+
+    def remove_phone_on(self, code: str, phone_mac: str, delete: bool) -> int:
+        """Take a phone off a site's remote provisioning (its extensions stay), or remove it with its extensions."""
+        reg = self._prov_root.sites
+        svc = reg.get(code) if reg else (self._prov_root if code == sites.MAIN else None)
+        if svc is None:
+            raise ValueError("That site isn't on this server any more")
+        cfg = copy.deepcopy(svc.cfg)
+        n = (provision.delete_phone if delete else provision.remove_phone)(cfg, phone_mac)
+        if not n:
+            raise ValueError("That phone isn't on that site any more")
+        svc.apply(cfg, save=True)
+        m = provision.pretty(provision.mac(phone_mac))
+        log.info("All sites: %s phone %s on site %s (%d extension%s %s)", "removed" if delete else "took off provisioning",
+                 m, code, n, "" if n == 1 else "s", "removed" if delete else "kept")
+        return n
 
     def set_provisioning(self, req: dict) -> dict:
         cfg = copy.deepcopy(self.cfg)
@@ -562,6 +624,9 @@ class Service:
         for k in ("enabled",):
             if k in req:
                 p[k] = bool(req[k])
+        if ("host" in req or "port" in req) and not self.primary:
+            raise ValueError("The provisioning port and public address are the same for every site. "
+                             "Change them in the first site's control panel")
         if "host" in req:
             p["host"] = re.sub(r"^https?://", "", str(req.get("host") or "").strip()).rstrip("/")
         if "port" in req:
@@ -1153,7 +1218,8 @@ class Service:
             phone = str(req.get("phone") or "")
             if phone:   # the Test button on one phone (Remote provisioning): ring the lines it's signed in with
                 server = sipserver.MANAGER.server
-                users = [str(a.get("username", "")).lower() for a in provision.phones(self.cfg).get(provision.mac(phone), [])]
+                users = [sipserver.login(self.code, a.get("username", "")).lower()
+                         for a in provision.phones(self.cfg).get(provision.mac(phone), [])]
                 active = server.active() if server and server.status == "running" else {}
                 if not any(u in active for u in users):
                     raise RuntimeError("That phone isn't signed in to AthanBox yet. Give it the provisioning link, or press "
@@ -1354,7 +1420,7 @@ class Handler(BaseHTTPRequestHandler):
         link's own key is what lets a phone in."""
         svc = self.service
         try:
-            code, body, ctype = provision.PROVISIONER.handle(svc.cfg, p, self.client_address[0],
+            code, body, ctype = provision.PROVISIONER.handle(svc.prov_sites(), p, self.client_address[0],
                                                              self.headers.get("Host") or "", box_ip(),
                                                              self.headers.get("User-Agent") or "")
         except Exception:
@@ -1511,6 +1577,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"config": svc.cfg, "meta": svc.meta()})
             if p == "/api/sites":   # the Sites page: Enterprise or Group, the groups and every site
                 return self._json(svc.sites.info())
+            if p == "/api/sites/phones":   # the Sites page: find a phone by its MAC address on any site
+                return self._json({"phones": svc.find_phones(parse_qs(url.query).get("q", [""])[0])})
             if p == "/api/setup/state":
                 return self._json(svc.wizard)
             if p == "/api/update":
@@ -1647,6 +1715,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not svc.box:
                     raise ValueError("Remote provisioning is only on AthanBox")
                 return self._json({"ok": True, **svc.set_provisioning(req), "config": svc.cfg})
+            if p == "/api/sites/phones/remove":   # the Sites page: remove a phone found by its MAC address
+                n = svc.remove_phone_on(str(req.get("site") or ""), str(req.get("mac") or ""), bool(req.get("delete")))
+                return self._json({"ok": True, "removed": n,
+                                   "phones": svc.find_phones(str(req.get("q") or ""))})
             if p.startswith("/api/sites/"):   # the Sites page
                 return self._json({"ok": True, **self._sites_post(p, req)})
             if p == "/api/provisioning/add":
@@ -1777,6 +1849,9 @@ class ProvisionHandler(Handler):
         return self._send(404, b"Not found", "text/plain")
 
     do_HEAD = do_GET
+
+
+PROV_PORT_LOCK = threading.Lock()   # remote provisioning's own port: one for the whole server
 
 
 class PanelServer(ThreadingHTTPServer):

@@ -576,7 +576,7 @@ function render(){
   document.querySelectorAll("nav button[data-page]").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
   const inPhones = page==="phones"||page==="provisioning";
   $("#phonesbtn").classList.toggle("active", inPhones); $("#phonesbtn").setAttribute("aria-expanded", String(inPhones && SESSION.box));
-  $("#phonesub").hidden = !(inPhones && SESSION.box && !subSite());
+  $("#phonesub").hidden = !(inPhones && SESSION.box);
   if(!CFG){ $("#main").innerHTML = offline ? stoppedHTML() : '<p class="muted">Loading…</p>'; return; }
   ({overview:pageOverview, times:pageTimes, audio:pageAudio, phones:pagePhones, provisioning:pageProvisioning, display:pageDisplay, tv:pageTV, ramadan:pageRamadan, security:pageSecurity, settings:pageSettings}[page]||pageOverview)();
 }
@@ -923,7 +923,7 @@ function pagePhones(){
       </div>${quranCardHTML()}${guideHTML()}`;
   }
   $("#main").innerHTML = html;
-  if(SESSION.box && !subSite() && !editing && !PROV) provLoad();
+  if(SESSION.box && !editing && !PROV) provLoad();
 }
 // ---- Quran by phone: extensions on AthanBox's own SIP server that play the live recitation or a playlist
 function quranCardHTML(){
@@ -1005,9 +1005,11 @@ function provLinkHTML(P){
       <button class="btn small" onclick="provCopy('${esc(l.url)}')">Copy</button></div>`).join("")}
     <div class="row" style="margin-top:8px"><button class="btn small" aria-expanded="${PV.linkset}" onclick="PV.linkset=!PV.linkset;provFill()">${ICON.gear||""} Link settings</button>
       ${P.host?"":'<span class="muted" style="font-size:13px">Phones outside this network: fill in the public address under Link settings.</span>'}</div>
-    ${PV.linkset?`<div class="grid3" style="margin-top:14px">
+    ${PV.linkset?`<div class="grid3" style="margin-top:14px">${P.shared?`
+      <div class="field"><label>Public address</label><div class="mono" style="padding:9px 0">${esc(P.host||"Not set")}</div><div class="hint">The same for every site: change it in the first site's control panel.</div></div>
+      <div class="field"><label>Provisioning port</label><div class="mono" style="padding:9px 0">${esc(P.port||8766)}</div><div class="hint">The same for every site. This site's link has its own key, so it only gives out this site's phones.</div></div>`:`
       <div class="field"><label for="prov-host">Public address</label><input type="text" id="prov-host" value="${esc(P.host||"")}" placeholder="azan.example.com or 203.0.113.7" spellcheck="false" onchange="provSet({host:this.value})"><div class="hint">The address phones outside this network use to reach AthanBox: your router's public IP or a dynamic DNS name. Leave it empty if every phone is on this network.</div></div>
-      <div class="field"><label for="prov-port">Provisioning port</label><input type="number" min="1024" max="65535" id="prov-port" value="${esc(P.port||8766)}" onchange="provSet({port:+this.value})"><div class="hint">Only the provisioning links answer on this port, not the control panel.</div></div>
+      <div class="field"><label for="prov-port">Provisioning port</label><input type="number" min="1024" max="65535" id="prov-port" value="${esc(P.port||8766)}" onchange="provSet({port:+this.value})"><div class="hint">Only the provisioning links answer on this port, not the control panel. Every site uses it.</div></div>`}
       <div class="field"><label for="prov-allow">Allowed addresses (optional)</label><input type="text" id="prov-allow" value="${esc((P.allow||[]).join(", "))}" placeholder="Anyone with the link" spellcheck="false" onchange="provSet({allow:this.value})"><div class="hint">Only these addresses or ranges may download, such as the remote office's public IP. Separate them with commas.</div></div></div>
       <div class="row"><button class="btn small danger" onclick="provNewLink()">New link</button><span class="muted" style="font-size:13px">Makes a new link. Phones with the old one stop getting their settings until they have the new one.</span></div>`:""}</div>`;
 }
@@ -1222,7 +1224,7 @@ function editorHTML(){
           <div class="field"><label for="dp${i}u">Extension (username)</label><input type="text" id="dp${i}u" data-path="edit.desk.${i}.username" value="${esc(a.username||"")}" spellcheck="false">${loginHint(a.username)}</div>
           <div class="field"><label for="dp${i}p">Password</label><input type="text" id="dp${i}p" data-path="edit.desk.${i}.password" value="${esc(a.password||"")}" spellcheck="false" autocomplete="off"></div>
           <div class="field"><label for="dp${i}m">Sign-ins allowed</label><input type="number" min="1" max="50" id="dp${i}m" data-path="edit.desk.${i}.max_signins" value="${esc(a.max_signins||"1")}"><div class="hint">How many phones can use this extension at once. They all ring for the azan.</div></div></div>
-        ${SESSION.box&&!subSite()?`<div class="hint" style="margin-top:8px">${a.mac?`On phone <span class="mono">${esc(a.mac)}</span>${a.phone?" ("+esc(a.phone)+")":""}, ${a.handset?"handset "+esc(a.handset):"line "+esc(a.line||"next free")}. `:""}Which phone and line it's on is set on <button class="linkbtn" onclick="go('provisioning')">Remote provisioning</button>.</div>`:""}</div>`).join("")}
+        ${SESSION.box?`<div class="hint" style="margin-top:8px">${a.mac?`On phone <span class="mono">${esc(a.mac)}</span>${a.phone?" ("+esc(a.phone)+")":""}, ${a.handset?"handset "+esc(a.handset):"line "+esc(a.line||"next free")}. `:""}Which phone and line it's on is set on <button class="linkbtn" onclick="go('provisioning')">Remote provisioning</button>.</div>`:""}</div>`).join("")}
       <div class="row" style="gap:8px;margin-bottom:6px"><button class="btn small" onclick="editing.desk.push(newDeskPhone());render()">+ Add a desk phone</button></div>
       <div class="hint">For the azan, AthanBox rings every signed-in phone with an auto-answer request, so the phones pick up by themselves and play it on the speaker. Calls into AthanBox are always refused, and repeated wrong passwords are blocked.</div>`;
   }
