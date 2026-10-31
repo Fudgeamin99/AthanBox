@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.3 - Cordless handsets: the base no longer answers for a handset that's off
+
+- **Cordless handsets on one base (W60B):** with a handset off or flat, the base still answered that handset's azan call and kept it waiting for the handset, so the next handset rang instead of picking up. A base's handset lines no longer have the base's own auto-answer: each handset answers by itself (Auto Intercom), only when it's really there, and a handset that's off is skipped after 5 seconds. Press **Update now** on the phone in **Remote provisioning** so the base gets the change straight away (otherwise it picks it up within a day). Desk phones keep auto-answer as before.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.12.2 - A DECT handset that's off no longer stops the others picking up
 
 - **Cordless handsets on one base (W60B):** when one handset was off, flat or out of range, the other handsets rang for the azan instead of picking up by themselves. AthanBox now calls a base's lines one after another, and a line that hasn't picked up within 5 seconds stops ringing so the next handset still answers on its own. With every handset on, nothing changes.
