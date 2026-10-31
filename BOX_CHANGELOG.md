@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.1 - Remote provisioning for every site
+
+- **Remote provisioning on every site:** each site's control panel now has **Phones › Remote provisioning**, with its own link, its own phones and its own allowed addresses. A site's link only gives out that site's phones, and they get the username with the site code in front (`wcp-201`), so they sign in to the right site. **Update now**, **Test** and **Phones that asked recently** work per site too.
+- The **provisioning port** and the **public address** are the same for every site, so they're set in the first site's control panel. The port opens when any site switches provisioning on.
+- A new site still starts with provisioning off.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.12.0 - Phones, Quran by phone and TV for each site
 
 - **Each site's phones sign in to their own site:** in Group, a desk phone or phone system at another site signs in with the site code in front of its username, like wcp-201 for extension 201 at the site with code wcp. The Phones page shows what to type under each extension. All sites share one SIP server and one port, and each site's azan and Test buttons ring only its own phones. Sign-ins are kept through a restart.

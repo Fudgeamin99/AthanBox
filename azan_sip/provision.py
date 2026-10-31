@@ -26,7 +26,8 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
-from . import security
+from . import security, sites
+from .sipserver import login
 
 log = logging.getLogger("azan-sip")
 
@@ -539,28 +540,36 @@ class Provisioner:
         with self.lock:
             self.failures.setdefault(ip, []).append(time.time())
 
-    def recent(self, limit: int = 20) -> list[dict]:
+    def recent(self, limit: int = 20, site: str = sites.MAIN) -> list[dict]:
+        """The phones that asked through one site's link, newest first."""
         with self.lock:
-            items = sorted(self.seen.values(), key=lambda x: -x["at"])[:limit]
+            items = sorted((x for x in self.seen.values() if x.get("site", sites.MAIN) == site), key=lambda x: -x["at"])[:limit]
         now = time.time()
         return [{**x, "ago": int(now - x["at"])} for x in items]
 
-    def handle(self, cfg: dict, path: str, ip: str, host_header: str, box_ip: str,
+    def handle(self, cfgs: dict[str, dict], path: str, ip: str, host_header: str, box_ip: str,
                agent: str = "") -> tuple[int, bytes, str]:
-        """(status, body, content type) for a GET of /provision/<key>/<brand>/<file>."""
-        s = settings(cfg)
+        """(status, body, content type) for a GET of /provision/<key>/<brand>/<file>. `cfgs`: every site's
+        settings (code -> config), the first site's first; the key says whose link it is."""
         plain = "text/plain; charset=utf-8"
-        if not s["enabled"]:
+        on = {code: c for code, c in cfgs.items() if settings(c)["enabled"] and settings(c)["key"]}
+        if not on:
             return 404, b"Not found", plain
         if self._refused(ip):
             return 403, b"Forbidden", plain
         parts = path[len(PREFIX):].split("/")
         key = parts[0] if parts else ""
-        if not s["key"] or not secrets.compare_digest(key.encode(), s["key"].encode()):
+        site = None
+        for code, c in on.items():   # compare with every key, so the time taken doesn't tell which matched
+            if secrets.compare_digest(key.encode(), settings(c)["key"].encode()):
+                site = code
+        if site is None:
             self._failed(ip)
             # Fail2ban reads this line (Security page); keep the address at the end
             log.warning("Wrong provisioning link from %s", ip)
             return 404, b"Not found", plain
+        cfg, s = cfgs[site], settings(cfgs[site])
+        shared = settings(next(iter(cfgs.values())))   # the port and public address: the first site's
         if s["allow"]:
             try:
                 addr = ipaddress.ip_address(ip.removeprefix("::ffff:"))
@@ -588,16 +597,18 @@ class Provisioner:
         phone = m.group(1)
         lines = lines_for(cfg, phone)
         with self.lock:
-            self.seen[phone] = {"mac": pretty(phone), "key": phone, "ip": ip, "brand": brand.name, "at": time.time(),
-                                "model": model(agent), "lines": [a.get("username") for _, a, _ in lines]}
+            self.seen[f"{site}/{phone}"] = {"mac": pretty(phone), "key": phone, "ip": ip, "brand": brand.name, "at": time.time(),
+                                "model": model(agent), "lines": [a.get("username") for _, a, _ in lines], "site": site}
             if len(self.seen) > 200:
                 del self.seen[min(self.seen, key=lambda k: self.seen[k]["at"])]
         if not lines:
             log.info("Provisioning: %s phone %s (%s) asked for its settings, but no desk phone has that MAC "
                      "address on the Phones page", brand.name, pretty(phone), ip)
             return 404, b"Not found", plain
-        host = s["host"] or _host_from(host_header) or box_ip
+        host = shared["host"] or _host_from(host_header) or box_ip
         sip_port = int(lines[0][2].get("port", 5060) or 5060)
+        # another site's phones sign in with the site code in front (wcp-201)
+        lines = [(n, {**a, "username": login(site, a.get("username", ""))}, t) for n, a, t in lines]
         log.info("Provisioning: sent %s phone %s (%s) its AthanBox line%s: %s", brand.name, pretty(phone), ip,
                  "s" if len(lines) > 1 else "", ", ".join(f"{a.get('username')} on line {n}" for n, a, _ in lines))
         return 200, brand.phone_file(lines, host, sip_port).encode(), plain
