@@ -748,7 +748,7 @@ class ServerTarget:
             """A device with several lines. A DECT base answers a handset's line even when that handset is
             off or flat, and then holds the call waiting for it, so the next handset only rings. So when a
             line isn't answered but an earlier one was, hang that one up and call
-            the unanswered lines again; if they still don't answer, call it back."""
+            the unanswered lines again, then call it back."""
             with ThreadPoolExecutor(max_workers=3 * len(lines)) as ex:
                 first = one_by_one(ex, lines)
                 answered = [bool(c) and c[0].answered.is_set() for _, c in first]
@@ -770,14 +770,12 @@ class ServerTarget:
                         again = one_by_one(ex, [lines[i] for i in failed])
                         for i, (f, _) in zip(failed, again):
                             final[i] = f
-                        if not any(c and c[0].answered.is_set() for _, c in again) and not stop.is_set():
-                            log.info("[%s] %s still didn't pick up: calling %s back", self.name, names(failed),
-                                     names(suspects))
+                        # then call the hung-up lines back: a handset that's really there picks up again, and
+                        # one that's off is only answered by the base, which now holds up nobody
+                        if not stop.wait(SAME_DEVICE_GAP):
+                            log.info("[%s] calling %s back", self.name, names(suspects))
                             for i, (f, _) in zip(suspects, one_by_one(ex, [lines[i] for i in suspects])):
                                 final[i] = f
-                        else:
-                            for i in suspects:
-                                final[i] = None
                 return [bool(final[i] and final[i].result()) if i in final else False for i in range(len(lines))]
 
         def single(job) -> list[bool]:
