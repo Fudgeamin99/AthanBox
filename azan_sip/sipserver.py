@@ -747,18 +747,19 @@ class ServerTarget:
         def device(lines) -> list[bool]:
             """A device with several lines. A DECT base answers a handset's line even when that handset is
             off or flat, and then holds the call waiting for it, so the next handset only rings. So when a
-            line isn't answered but an earlier one was and sends no sound back, hang that one up and call
+            line isn't answered but an earlier one was, hang that one up and call
             the unanswered lines again; if they still don't answer, call it back."""
             with ThreadPoolExecutor(max_workers=3 * len(lines)) as ex:
                 first = one_by_one(ex, lines)
                 answered = [bool(c) and c[0].answered.is_set() for _, c in first]
                 failed = [i for i, a in enumerate(answered) if not a and i < len(first)]
-                suspects = [i for i, a in enumerate(answered) if a and first[i][1][0].heard == 0
-                            and any(j > i for j in failed)]
+                # an earlier line that was answered: a base answers for a handset that's off (and may even
+                # send sound back), so any of them can be what's holding the base
+                suspects = [i for i, a in enumerate(answered) if a and any(j > i for j in failed)]
                 final = {i: f for i, (f, _) in enumerate(first)}
                 if failed and suspects and not stop.is_set():
                     names = lambda ix: ", ".join(lines[i][0].username for i in ix)   # noqa: E731
-                    log.info("[%s] %s answered without sound and %s didn't pick up (a handset that's off?): "
+                    log.info("[%s] %s answered and %s didn't pick up (a handset that's off?): "
                              "hanging up %s and calling %s again", self.name, names(suspects), names(failed),
                              names(suspects), names(failed))
                     for i in suspects:
