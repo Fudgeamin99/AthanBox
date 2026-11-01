@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.6 - Cordless handsets: both pick up again
+
+- **Cordless handsets on one base (W60B):** 0.12.3 took the base's own auto-answer off its handset lines, and without it the base won't pick up a second handset's call while the first is playing, so with both handsets on only one answered. It's back on. A handset that's off is still dealt with: when a handset's call isn't picked up, the earlier handset's call is hung up, the unanswered handset is called again, and then the earlier handset is called back. Press **Update now** on the base in **Remote provisioning** so it gets the change straight away.
+- **Debian:** update as usual in Settings → Updates, then press Update now on the base.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.12.5 - Cordless handsets: skip a handset that's off, even when the base sends sound
 
 - **Cordless handsets on one base (W60B):** 0.12.4 only hung up a handset's call that sent no sound back, but a W60B sends sound even for a handset that's off. Now, whenever a handset doesn't pick up while an earlier handset on the same base did, AthanBox hangs up the earlier call and calls the unanswered handset again (and calls the earlier one back if that still doesn't help). The Activity log also shows how much sound came back on each call.
