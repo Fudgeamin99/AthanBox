@@ -1,6 +1,8 @@
 """Sites: one AthanBox server for many mosques or homes, each with its own settings.
 
-Enterprise is one site: the AthanBox you know. Group is many sites, filed under groups you name
+Enterprise is one site: the AthanBox you know. Switching to Enterprise with other sites set up sets
+them aside: they stop and the Sites page shows only the first site, but their folders and settings stay,
+and switching back to Group starts them again. Group is many sites, filed under groups you name
 (London, Manchester ...). The first site keeps AthanBox's own folder; every other site has a folder
 of its own under sites/<code>/ with its own config.toml, recordings, time zone and TV screens, and
 its own control panel at /s/<code>/.
@@ -90,9 +92,8 @@ class Sites:
         self.lock = threading.RLock()
         self.services = {MAIN: root}
         self.data = self._read()
-        for s in self.data["sites"]:
-            if s["code"] != MAIN:
-                self._start(s["code"])
+        if self.mode == "group":   # Enterprise: the other sites are set aside until Group is back
+            self._start_others()
 
     # -- sites.json
     def _read(self) -> dict:
@@ -137,6 +138,18 @@ class Sites:
         finally:
             set_current(was)
 
+    def _start_others(self):
+        for s in self.data["sites"]:
+            if s["code"] != MAIN and s["code"] not in self.services:
+                self._start(s["code"])
+
+    def _stop_others(self):
+        """Enterprise: the other sites stop (their phones can't sign in), their folders and settings stay."""
+        for code in [c for c in self.services if c != MAIN]:
+            svc = self.services.pop(code)
+            svc.shutdown()
+            svc.removed()
+
     # -- reading
     @property
     def mode(self) -> str:
@@ -164,6 +177,9 @@ class Sites:
         with self.lock:
             sites = [dict(s) for s in self.data["sites"]]
             data = {"mode": self.mode, "groups": [dict(g) for g in self.data["groups"]], "domains": list(self.domains)}
+            if self.mode == "enterprise":   # only the first site: the others are set aside until Group
+                data["set_aside"] = len(sites) - 1
+                sites = [s for s in sites if s["code"] == MAIN]
         for s in sites:
             svc = self.get(s["code"])
             s["main"] = s["code"] == MAIN
@@ -199,10 +215,18 @@ class Sites:
         if mode not in MODES:
             raise SiteError("Choose Enterprise or Group")
         with self.lock:
-            if mode == "enterprise" and len(self.data["sites"]) > 1:
-                raise SiteError("Remove the other sites first: Enterprise runs one site")
+            if mode == self.mode:
+                return
             self.data["mode"] = mode
             self._save()
+            if mode == "enterprise":
+                self._stop_others()
+            else:
+                self._start_others()
+        others = len(self.data["sites"]) - 1
+        if others:
+            log.info("%s: %d other site%s %s", mode.title(), others, "s" if others > 1 else "",
+                     "set aside (kept, not running)" if mode == "enterprise" else "running again")
 
     def save_group(self, req: dict) -> dict:
         name = _name(req.get("name"), "group")

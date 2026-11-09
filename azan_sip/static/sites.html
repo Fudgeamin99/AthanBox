@@ -185,7 +185,9 @@ function renderSide(){
     .map(s => `<a href="${siteUrl(s)}" title="Open ${esc(s.name)}">${esc(s.name)}</a>`).join("");
   const item = (id, name, n) => `<button class="item${SEL === id ? " on" : ""}" onclick="pick('${id}')">${esc(name)}<span class="n">${n}</span></button>`
     + (SEL === id && id !== "all" && n ? `<div class="sub">${sub(id)}</div>` : "");
-  let h = item("all", "All sites", D.sites.length);
+  // Enterprise: just the main site, no counts or groups
+  let h = D.mode === "group" ? item("all", "All sites", D.sites.length)
+    : `<button class="item on" onclick="location.href='/'">${esc((D.sites[0] || {}).name || "Main site")}</button>`;
   if(D.mode === "group"){
     h += `<div class="head">GROUPS</div>` + D.groups.map(g => item(g.id, g.name, count(g.id))).join("");
     if(count("none")) h += item("none", "Not in a group", count("none"));
@@ -200,20 +202,21 @@ function pick(id){ SEL = id; render(); }
 function renderMain(){
   const list = shown();
   const g = D.groups.find(g => g.id === SEL);
-  const title = SEL === "all" ? "All sites" : SEL === "none" ? "Not in a group" : g.name;
+  const ent = D.mode === "enterprise";
+  const title = ent ? ((list[0] || D.sites[0] || {}).name || "Main site") : SEL === "all" ? "All sites" : SEL === "none" ? "Not in a group" : g.name;
   const phones = list.reduce((a, s) => a + (s.phones || 0), 0), screens = list.reduce((a, s) => a + (s.screens || 0), 0);
   const good = list.filter(s => health(s).k === "ok").length;
   const soon = list.filter(s => s.next).sort((a, b) => a.next.seconds - b.next.seconds)[0];
-  let h = `<div class="hrow"><div class="grow"><h1>${esc(title)}</h1><div class="sub">${list.length} site${list.length === 1 ? "" : "s"}${D.mode === "enterprise" ? " · Enterprise" : ""}</div></div>`;
+  let h = `<div class="hrow"><div class="grow"><h1>${esc(title)}</h1><div class="sub">${ent ? "Enterprise · one site" : `${list.length} site${list.length === 1 ? "" : "s"}`}</div></div>`;
   if(g) h += `<button class="btn small" onclick="groupDialog('${g.id}')">Rename group</button><button class="btn small" onclick="deleteGroup('${g.id}')">Delete group</button>`;
   if(D.mode === "group") h += `<button class="btn small primary" onclick="siteDialog()">+ Add site</button>`;
   h += `</div>`;
   if(D.mode === "enterprise"){
-    h += `<div class="intro"><h2>Enterprise: one site</h2><p>This server runs one mosque or home, as it always has. Switch to Group to run more sites on this server. Each one gets its own settings, time zone, recordings and phones, and you can file them under groups like London or Manchester. Your site carries on exactly as it is.</p>
+    h += `<div class="intro"><h2>Enterprise: one site</h2><p>This server runs one mosque or home, as it always has.${D.set_aside ? ` Your other ${D.set_aside === 1 ? "site is" : `${D.set_aside} sites are`} set aside: not running, with ${D.set_aside === 1 ? "its" : "their"} settings kept. Switch back to Group and ${D.set_aside === 1 ? "it starts" : "they start"} again.` : ` Switch to Group to run more sites on this server. Each one gets its own settings, time zone, recordings and phones, and you can file them under groups like London or Manchester. Your site carries on exactly as it is.`}</p>
       <button class="btn small primary" onclick="setMode('group')">Switch to Group</button></div>`;
   }
   h += `<div class="tiles">
-    <div class="tile"><div class="l">Sites running</div><div class="v">${good} of ${list.length}</div></div>
+    ${ent ? "" : `<div class="tile"><div class="l">Sites running</div><div class="v">${good} of ${list.length}</div></div>`}
     <div class="tile"><div class="l">Phones called</div><div class="v">${phones}</div></div>
     <div class="tile"><div class="l">TV screens</div><div class="v">${screens}</div></div>
     <div class="tile"><div class="l">Next azan</div><div class="v">${soon ? `${esc(prayerName(soon.next))} ${esc(soon.next.time)}` : "None"}</div>${soon && list.length > 1 ? `<div class="hint">${esc(soon.name)}</div>` : ""}</div></div>`;
@@ -235,7 +238,9 @@ function renderMain(){
 // -- changing things
 async function setMode(mode){
   if(mode === D.mode) return;
-  await change("api/sites/mode", {mode}, mode === "group" ? "Group is on: add your sites" : "Back to Enterprise");
+  const back = mode === "group" && D.set_aside;
+  await change("api/sites/mode", {mode}, back ? "Group is on: your other sites are running again"
+    : mode === "group" ? "Group is on: add your sites" : "Enterprise: only the main site runs");
 }
 document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 $("#q").addEventListener("input", () => { renderMain(); findPhones(); });
