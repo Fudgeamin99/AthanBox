@@ -6,6 +6,15 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.7 - Android app: portrait on phones and tablets
+
+- **Azan SIP TV for Android 1.3.0:** the app no longer stays sideways. On a phone or tablet the prayer times now turn upright with the device (following its rotation lock), using the display's phone layout: the cards in two columns, scrolling down, with Makkah live above them at full width. Android TV and Fire TV stay landscape as before.
+- **Screen choice:** press **Back** and pick **Screen** to keep it turning with the device, always sideways (landscape) or always upright (portrait), for a tablet fixed to a wall. (Not shown on a TV, which is always landscape.)
+- **Sign-in screen:** fits a phone held upright, with **Connect** and **Search the network** one under the other, and adjusts when the device turns.
+- **Getting it:** press **Back → Update the app** on each phone or tablet, or install it again from `http://<box address>/apk`.
+- **Debian:** nothing to do on the box. Its `/apk` link hands out the newest release's app, so screens get 1.3.0 straight away. Updating in Settings → Updates is still fine but isn't needed for this.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`, so the box's `/apk` serves the new app (screens can also get it from GitHub through Update the app). `compose.yaml` doesn't change.
+
 ## 0.12.6 - Cordless handsets: both pick up again
 
 - **Cordless handsets on one base (W60B):** 0.12.3 took the base's own auto-answer off its handset lines, and without it the base won't pick up a second handset's call while the first is playing, so with both handsets on only one answered. It's back on. A handset that's off is still dealt with: when a handset's call isn't picked up, the earlier handset's call is hung up, the unanswered handset is called again, and then the earlier handset is called back. Press **Update now** on the base in **Remote provisioning** so it gets the change straight away.

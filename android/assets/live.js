@@ -89,5 +89,8 @@
     if (now !== told){ told = now; A.layout(now); }
   }
   setInterval(place, 300);
+  // A phone held upright scrolls the page: the picture follows it straight away, and after a turn
+  addEventListener("scroll", place, {passive: true});
+  addEventListener("resize", () => setTimeout(place, 50));
   if (LV.on) startLive();   // already started with the page's own player: again with the app's
 })();
