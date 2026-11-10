@@ -5,6 +5,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
@@ -73,6 +75,7 @@ public class TvActivity extends Activity {
             finish();
             return;
         }
+        applyTurn();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
@@ -269,7 +272,7 @@ public class TvActivity extends Activity {
         });
     }
 
-    private static final int LIVE = 1, LIVE_SOUND = 2, SOUND = 3, PLAYER = 4, UPDATE = 5, RELOAD = 6, SERVER = 7, CLOSE = 8;
+    private static final int LIVE = 1, LIVE_SOUND = 2, SOUND = 3, PLAYER = 4, UPDATE = 5, RELOAD = 6, SERVER = 7, CLOSE = 8, TURN = 9;
 
     private void openMenu(boolean ready, boolean live, boolean sound, boolean liveSound) {
         final List<String> items = new ArrayList<>();
@@ -285,6 +288,10 @@ public class TvActivity extends Activity {
             acts.add(SOUND);
             items.add(appPlayer() ? "Makkah live: use the page's player instead" : "Makkah live picture black? Use the app's own player");
             acts.add(PLAYER);
+        }
+        if (canTurn()) {
+            items.add("Screen: " + TURN_NAMES[turn()]);
+            acts.add(TURN);
         }
         items.add("Update the app");
         acts.add(UPDATE);
@@ -304,6 +311,7 @@ public class TvActivity extends Activity {
                             case LIVE_SOUND: soundClick(); break;
                             case SOUND: web.evaluateJavascript("azanApp.toggleSound()", null); break;
                             case PLAYER: setPlayer(!appPlayer(), true); load(); break;
+                            case TURN: chooseTurn(); break;
                             case UPDATE: updater.start(); break;
                             case RELOAD: load(); break;
                             case SERVER: changeServer(); break;
@@ -315,6 +323,52 @@ public class TvActivity extends Activity {
                     @Override public void onDismiss(DialogInterface d) { hideSystemBars(); }
                 })
                 .show();
+    }
+
+    // ------------------------------------------------------------------ upright or sideways (phones and tablets)
+    /** How the picture is held: turns with the device (as its rotation lock allows), or kept one way. */
+    private static final int TURN_AUTO = 0, TURN_LANDSCAPE = 1, TURN_PORTRAIT = 2;
+    private static final String[] TURN_NAMES = {"turns with the device", "always sideways (landscape)", "always upright (portrait)"};
+
+    private int turn() {
+        int t = Net.prefs(this).getInt("turn", TURN_AUTO);
+        return t >= 0 && t < TURN_NAMES.length ? t : TURN_AUTO;
+    }
+
+    /** A TV, Fire TV or a screen without a sensor shows landscape whatever is asked: no choice there. */
+    private boolean canTurn() {
+        int mode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK;
+        return mode != Configuration.UI_MODE_TYPE_TELEVISION;
+    }
+
+    private void applyTurn() {
+        int t = turn();
+        setRequestedOrientation(t == TURN_LANDSCAPE ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : t == TURN_PORTRAIT ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                : ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+    }
+
+    private void chooseTurn() {
+        String[] choices = {"Turn with the device", "Always sideways (landscape)", "Always upright (portrait)"};
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle("Screen")
+                .setSingleChoiceItems(choices, turn(), new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        Net.prefs(TvActivity.this).edit().putInt("turn", which).apply();
+                        applyTurn();
+                        d.dismiss();
+                    }
+                })
+                .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override public void onDismiss(DialogInterface d) { hideSystemBars(); }
+                })
+                .show();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration c) {
+        super.onConfigurationChanged(c);
+        hideSystemBars();   // (the page lays itself out again by itself)
     }
 
     /** The page's Sound button (under the picture while the app's own player shows it). */

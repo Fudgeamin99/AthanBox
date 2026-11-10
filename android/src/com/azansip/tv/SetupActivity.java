@@ -2,6 +2,7 @@ package com.azansip.tv;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -28,6 +29,8 @@ public class SetupActivity extends Activity {
     private Button connect;
     private Button search;
     private TextView status;
+    private LinearLayout col;
+    private LinearLayout buttons;
     private boolean busy;
 
     @Override
@@ -55,14 +58,11 @@ public class SetupActivity extends Activity {
         FrameLayout outer = new FrameLayout(this);
         scroll.addView(outer, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout col = new LinearLayout(this);
+        col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         int pad = Ui.dp(this, 28);
         col.setPadding(pad, pad, pad, pad);
-        FrameLayout.LayoutParams colLp = new FrameLayout.LayoutParams(
-                Math.min(getResources().getDisplayMetrics().widthPixels, Ui.dp(this, 620)),
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-        outer.addView(col, colLp);
+        outer.addView(col, new FrameLayout.LayoutParams(1, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
         LinearLayout head = new LinearLayout(this);
         head.setOrientation(LinearLayout.HORIZONTAL);
@@ -109,8 +109,7 @@ public class SetupActivity extends Activity {
         col.addView(Ui.text(this, "Shown in the control panel, so you can tell the screens apart.", 14, Ui.MUTED, false));
 
         col.addView(gap(24));
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        buttons = new LinearLayout(this);
         connect = Ui.button(this, "Connect", true);
         connect.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { connect(); }
@@ -120,11 +119,8 @@ public class SetupActivity extends Activity {
             @Override public void onClick(View v) { search(); }
         });
         buttons.addView(connect);
-        LinearLayout.LayoutParams second = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        second.leftMargin = Ui.dp(this, 12);
-        buttons.addView(search, second);
-        col.addView(buttons);
+        buttons.addView(search);
+        col.addView(buttons, matchWidth());
 
         col.addView(gap(18));
         status = Ui.text(this, "", 16, Ui.MUTED, false);
@@ -136,7 +132,34 @@ public class SetupActivity extends Activity {
         help.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
         help.setBackground(Ui.box(this, 0x14FFFFFF, 0x26FFFFFF, 1, 12));
         col.addView(help, matchWidth());
+        fit();
         return scroll;
+    }
+
+    /** Sized for the screen as it's held now: the form is at most 620dp wide, and on a phone held
+     *  upright the two buttons go one under the other, full width. Again whenever the screen turns. */
+    private void fit() {
+        int widthDp = getResources().getConfiguration().screenWidthDp;
+        int width = widthDp > 0 ? Ui.dp(this, Math.min(widthDp, 620)) : Math.min(getResources().getDisplayMetrics().widthPixels, Ui.dp(this, 620));
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) col.getLayoutParams();
+        lp.width = width;
+        col.setLayoutParams(lp);
+        boolean narrow = widthDp > 0 && widthDp < 440;
+        buttons.setOrientation(narrow ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams first = new LinearLayout.LayoutParams(
+                narrow ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams second = new LinearLayout.LayoutParams(
+                narrow ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (narrow) second.topMargin = Ui.dp(this, 10);
+        else second.leftMargin = Ui.dp(this, 12);
+        connect.setLayoutParams(first);
+        search.setLayoutParams(second);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration c) {
+        super.onConfigurationChanged(c);
+        if (col != null) fit();
     }
 
     private View gap(int dp) {
