@@ -51,6 +51,7 @@ jobs:
           test -f /lib/systemd/system/azan-sip-client-screen.service
           test -f /lib/systemd/system/azan-sip-client-update.path
           test -f /lib/systemd/system/azan-sip-client-shutdown.path
+          test -f /lib/systemd/system/azan-sip-client-wifi.path
           python3 -m unittest discover -s client -v
       - name: Two screens show the prayer times
         run: sh client/test-two-screens.sh

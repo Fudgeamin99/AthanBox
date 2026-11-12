@@ -1,12 +1,15 @@
 [Unit]
-Description=AthanBox Client - turn the computer off, as Screen settings asked
-# Started by azan-sip-client-shutdown.path when Shut down is pressed in Screen settings
+Description=AthanBox Client - shut down, restart or sleep for the night, as Screen settings asked
+# Started by azan-sip-client-shutdown.path when Screen settings asks for it
 StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
-# As root, to turn the computer off. It takes nothing from the client's own files: it only checks
-# that shutdown-now was written in the last two minutes, then runs systemctl poweroff.
-ExecStart=/usr/bin/python3 -I /usr/lib/azan-sip-client/azan_client.py shutdown
+# As root, to turn the computer off or restart it. It takes nothing from the client's own files
+# but the newest request made in the last two minutes, and for Night sleep the time to switch back
+# on, which it sets the computer's clock to (/sys/class/rtc/rtc0/wakealarm) before switching off.
+# How the last night went is in /var/lib/azan-sip-client-power/state.json for Screen settings.
+ExecStart=/usr/bin/python3 -I /usr/lib/azan-sip-client/azan_client.py power
 WorkingDirectory=/
+StateDirectory=azan-sip-client-power
 TimeoutStartSec=60

@@ -37,6 +37,24 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
   opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #toast.bad{background:var(--bad);color:#3a120c}
+[hidden]{display:none !important}
+.line{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line)}
+.line:last-of-type{border-bottom:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--line);background:transparent;padding:8px 14px;font-size:16px}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:#14312a}
+select{font:inherit;font-size:17px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#fff}
+select option{color:#000}
+input[type=password]{width:100%;box-sizing:border-box;font:inherit;font-size:20px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#fff}
+.night{position:relative;height:16px;border:1px solid var(--line);border-radius:6px;margin:14px 0 4px;overflow:hidden}
+.night i{position:absolute;top:0;bottom:0;background:var(--accent);opacity:.55}
+.ticks{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+#wlist button{display:flex;justify-content:space-between;width:100%;margin-top:8px;text-align:left}
+#wlist small{color:var(--muted);font-weight:400}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dotted var(--line)}
+.kv span:first-child{color:var(--muted)}
+.kv span:last-child{text-align:right}
 @media (max-width:600px){main{padding:24px 16px 40px}section{padding:18px 16px}h1{font-size:26px}}
 </style>
 </head>
@@ -73,6 +91,60 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
   </section>
 
   <section>
+    <h2>Sound for each prayer</h2>
+    <p>On this screen only: the phones and other screens keep the azan. <b>Chime</b> plays a short chime instead of the azan. <b>Quiet</b> plays nothing for that prayer, its reminder included.</p>
+    <div id="psounds"></div>
+  </section>
+
+  <section>
+    <h2>Night sleep</h2>
+    <label class="switch"><input type="checkbox" id="non"> Sleep at night</label>
+    <p>The screen goes dark a while after Isha and comes back before Fajr. The TV stays on, so anything AthanBox plays in the night is heard and wakes the screen, and so do a key and the mouse.</p>
+    <div id="nset">
+      <div class="line"><span>What sleeps</span><span class="seg" id="nwhat"><button data-v="screen">TV screen</button><button data-v="computer">Whole computer</button></span></div>
+      <div class="line"><label for="nafter" style="margin:0">Off after Isha</label>
+        <select id="nafter"><option value="30">30 minutes</option><option value="60">1 hour</option><option value="90">1½ hours</option><option value="120">2 hours</option><option value="180">3 hours</option></select></div>
+      <div class="line"><label for="nbefore" style="margin:0">Back on before Fajr</label>
+        <select id="nbefore"><option value="0">At Fajr</option><option value="10">10 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">1 hour</option></select></div>
+      <div class="night" id="nbar"></div>
+      <div class="ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+      <p id="nwhen" style="margin-top:10px"></p>
+      <div id="ncomp">
+        <p>The computer switches off, and its own clock switches it back on before Fajr. Try it once: it switches off now for 3 minutes. If it doesn't come back by itself, switch on "Wake on RTC" or "Auto power on" in its BIOS. If the TV stays off when it does, let only the TV screen sleep, so the azan isn't missed.</p>
+        <div class="row"><button id="ntry">Try it: off for 3 minutes</button></div>
+        <div class="msg" id="nmsg"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Picture</h2>
+    <div class="line"><span>Turn the picture</span><span class="seg" id="prot"><button data-v="0">0°</button><button data-v="90">90°</button><button data-v="180">180°</button><button data-v="270">270°</button></span></div>
+    <div class="msg" id="pmsg"></div>
+    <label for="pmargin">Keep off the TV's edges: <span id="pmv"></span></label>
+    <input type="range" id="pmargin" min="0" max="10" step="1">
+    <label for="ptext">Text size: <span id="ptv"></span></label>
+    <input type="range" id="ptext" min="70" max="160" step="10">
+    <p style="margin-top:10px">Turn it for a TV on its side. Keep it off the edges on a TV that cuts them off. The text size is this screen's own, on top of AthanBox's.</p>
+  </section>
+
+  <section>
+    <h2>Wi-Fi</h2>
+    <p id="wnow">…</p>
+    <div class="row" id="wbtns">
+      <button id="wscan">Look for networks</button>
+      <button id="wforget" hidden>Forget this network</button>
+    </div>
+    <div id="wlist"></div>
+    <div id="wjoin" hidden>
+      <label for="wpass">Password for <span id="wname"></span></label>
+      <input type="password" id="wpass" autocomplete="off" spellcheck="false">
+      <div class="row"><button class="main" id="wgo">Join</button><button id="wcancel">Cancel</button></div>
+    </div>
+    <div class="msg" id="wmsg"></div>
+  </section>
+
+  <section>
     <h2>Updates</h2>
     <p id="upd">Checking for updates…</p>
     <div class="row">
@@ -83,12 +155,14 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
   </section>
 
   <section>
-    <h2>Shut down</h2>
-    <p>Turns <span class="tv-only">this computer</span><span class="remote-only">the TV screen's computer</span> off. The prayer times and the azan stop on <span class="tv-only">this</span><span class="remote-only">that</span> screen until it's switched back on with its power button.</p>
+    <h2>This screen</h2>
+    <div id="health"><p>Checking…</p></div>
+    <label class="switch" style="margin-top:12px"><input type="checkbox" id="showip"> Show its address on the prayer times</label>
     <div class="row">
+      <button id="restart">Restart</button>
       <button id="off">Shut down</button>
-      <button class="main" id="offyes" hidden>Yes, shut down</button>
-      <button id="offno" hidden>Cancel</button>
+      <button class="main" id="sure" hidden>Yes</button>
+      <button id="unsure" hidden>Cancel</button>
     </div>
     <div class="msg" id="omsg"></div>
   </section>
@@ -153,6 +227,7 @@ function show(st, fill){
   $("#back").disabled = !st.box;
   $("#foot").textContent = `AthanBox Client ${st.version}`;
   place(st.screens || [], st.outputs || []);
+  more(st);
 }
 // With several screens plugged in, this page is spread over all of them: keep it on the first one
 function place(sc, all){
@@ -271,27 +346,193 @@ $("#update").onclick = async () => {
 };
 $("#recheck").onclick = () => { umsg(""); $("#upd").textContent = "Checking for updates…"; updates(true); };
 updates();
-// Shut down: the computer turns itself off (azan-sip-client-shutdown.path, as root), asked twice
-function omsg(text, kind){ const m = $("#omsg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
-function offAsk(on){
-  $("#off").hidden = on; $("#offyes").hidden = $("#offno").hidden = !on;
-  $("#offyes").disabled = $("#offno").disabled = false;
-  omsg(on ? "Shut down now? Nothing plays on " + (ST.remote ? "the TV" : "this screen") + " until it's switched back on." : "", on ? "warn" : "");
+const hm = t => new Date(t * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: false});
+const seg = (el, v) => { for (const b of el.querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === String(v)); };
+const set = (body, note) => api("/client/api/settings", body).then(r => { if (r.ok){ show(r, false); if (note) toast(note); } })
+  .catch(() => toast("That wasn't saved. Try again.", "bad"));
+let edited = 0;   // (a change just made: the next status shows it, not the one before)
+function more(st){
+  if (Date.now() - edited < 3000) return;
+  // Sound for each prayer
+  const ps = st.prayer_sounds || {};
+  for (const [p, v] of Object.entries(ps)) seg($(`#ps-${p}`), v);
+  // Night sleep
+  const n = st.night || {};
+  $("#non").checked = !!n.on; $("#nset").hidden = !n.on;
+  seg($("#nwhat"), n.what);
+  $("#nwhat button[data-v=computer]").disabled = !n.can_wake && n.what !== "computer";
+  $("#nafter").value = String(n.after_isha); $("#nbefore").value = String(n.before_fajr);
+  $("#ncomp").hidden = n.what !== "computer";
+  const bar = $("#nbar"); bar.innerHTML = "";
+  if (n.off_at && n.on_at){
+    const day = t => { const d = new Date(t * 1000); return (d.getHours() * 60 + d.getMinutes()) / 1440 * 100; };
+    const a = day(n.off_at), b = day(n.on_at);
+    for (const [l, r] of a < b ? [[a, b]] : [[a, 100], [0, b]]) bar.insertAdjacentHTML("beforeend", `<i style="left:${l}%;width:${r - l}%"></i>`);
+    $("#nwhen").textContent = n.asleep ? `Asleep now, until ${hm(n.on_at)}.`
+      : (Date.now() / 1000 >= n.off_at ? "This night" : "Tonight") + `: off at ${hm(n.off_at)}, back on at ${hm(n.on_at)}.`;
+  } else $("#nwhen").textContent = n.on ? (st.state === "ok" ? "Getting AthanBox's prayer times…" : "It needs AthanBox's prayer times: connect to AthanBox first.") : "";
+  const L = n.last, nm = $("#nmsg");
+  if (n.what === "computer" && !n.can_wake){ nm.textContent = "This computer's clock can't switch it on, so only its screen can sleep."; nm.className = "msg bad"; }
+  else if (n.what === "computer" && L && L.slept && Date.now() - tried > 15000){
+    const ok = L.on && L.wake && Math.abs(L.on - L.wake) < 600;
+    nm.textContent = !L.on ? "" : ok ? `Last time it switched off at ${hm(L.slept)} and back on by itself at ${hm(L.on)}.`
+      : `Last time it switched off at ${hm(L.slept)}, but didn't come back by itself at ${hm(L.wake)}: it was switched on at ${hm(L.on)}. Check its BIOS, or let only the TV screen sleep.`;
+    nm.className = "msg " + (ok ? "ok" : "bad");
+  } else if (n.what === "computer" && L && L.failed){ nm.textContent = `Last time it stayed on: ${L.error}`; nm.className = "msg bad"; }
+  // Picture
+  const pic = st.picture || {}, turn = st.turning || {};
+  seg($("#prot"), pic.rotate);
+  $("#pmargin").value = pic.margin; $("#pmv").textContent = pic.margin ? pic.margin + "%" : "no";
+  $("#ptext").value = pic.text; $("#ptv").textContent = pic.text + "%";
+  const pm = $("#pmsg");
+  if (turn.rotate_error && turn.rotate === pic.rotate){ pm.textContent = `The picture can't be turned on this computer (it needs Debian 13): ${turn.rotate_error}`; pm.className = "msg bad"; }
+  else pm.textContent = "";
+  $("#showip").checked = !!st.show_ip;
 }
-$("#off").onclick = () => offAsk(true);
-$("#offno").onclick = () => offAsk(false);
-$("#offyes").onclick = async () => {
-  $("#offyes").disabled = $("#offno").disabled = true;
+// Sound for each prayer
+for (const p of ["fajr", "dhuhr", "asr", "maghrib", "isha"]){
+  const name = p[0].toUpperCase() + p.slice(1);
+  $("#psounds").insertAdjacentHTML("beforeend", `<div class="line"><span>${name}</span><span class="seg" id="ps-${p}">` +
+    `<button data-v="azan">Azan</button><button data-v="chime">Chime</button><button data-v="quiet">Quiet</button></span></div>`);
+  for (const b of $(`#ps-${p}`).querySelectorAll("button")) b.onclick = () => {
+    edited = Date.now(); seg($(`#ps-${p}`), b.dataset.v);
+    set({prayer_sounds: {[p]: b.dataset.v}}, `${name}: ${b.textContent.toLowerCase()} on this screen`);
+  };
+}
+// Night sleep
+const night = (body, note) => { edited = Date.now(); return set({night: body}, note); };
+$("#non").onchange = () => { $("#nset").hidden = !$("#non").checked; night({on: $("#non").checked}, `Night sleep ${$("#non").checked ? "on" : "off"}`); };
+for (const b of $("#nwhat").querySelectorAll("button")) b.onclick = () => { seg($("#nwhat"), b.dataset.v); $("#ncomp").hidden = b.dataset.v !== "computer"; night({what: b.dataset.v}, "Saved"); };
+$("#nafter").onchange = () => night({after_isha: +$("#nafter").value}, "Saved");
+$("#nbefore").onchange = () => night({before_fajr: +$("#nbefore").value}, "Saved");
+let tried = 0;
+$("#ntry").onclick = async () => {
+  const nm = $("#nmsg"); tried = Date.now();
   try{
-    if (!(await api("/client/api/shutdown", {})).ok) throw 0;
-  }catch(e){ offAsk(false); return omsg("This screen's own program isn't answering. Restart the computer.", "bad"); }
-  $("#offyes").hidden = $("#offno").hidden = true;
-  omsg(ST.remote ? "The TV screen's computer is shutting down. Switch it back on with its power button."
-                 : "Shutting down. Switch the computer back on with its power button.", "ok");
-  // Still answering a minute later: it didn't turn off
-  setTimeout(async () => {
-    try{ await api("/client/api/status"); }catch(e){ return; }
-    offAsk(false); omsg("It didn't shut down. Try again, or use the computer's power button.", "bad");
+    const r = await api("/client/api/sleep-test", {});
+    if (!r.ok){ nm.textContent = r.error; nm.className = "msg bad"; return; }
+    nm.textContent = `Switching off now. It should come back on by itself at ${hm(r.at + 180)}.`; nm.className = "msg ok";
+  }catch(e){ nm.textContent = "This screen's own program isn't answering."; nm.className = "msg bad"; }
+};
+// Picture
+for (const b of $("#prot").querySelectorAll("button")) b.onclick = () => { edited = Date.now(); seg($("#prot"), b.dataset.v); set({picture: {rotate: +b.dataset.v}}, `Picture turned ${b.textContent}`); };
+let picT;
+for (const [id, key, label] of [["#pmargin", "margin", "Kept off the edges"], ["#ptext", "text", "Text size"]]) $(id).oninput = () => {
+  edited = Date.now();
+  $("#pmv").textContent = +$("#pmargin").value ? $("#pmargin").value + "%" : "no"; $("#ptv").textContent = $("#ptext").value + "%";
+  clearTimeout(picT); picT = setTimeout(() => set({picture: {[key]: +$(id).value}}, `${label}: ${$(id).value}%`), 400);
+};
+$("#showip").onchange = () => { edited = Date.now(); set({show_ip: $("#showip").checked}, $("#showip").checked ? "The address shows on the prayer times" : "The address is hidden"); };
+// Wi-Fi: the computer looks for networks and joins one as root (azan-sip-client-wifi.path)
+function wmsg(text, kind){ const m = $("#wmsg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+let W = {}, wAsk = 0, wDo = "", pick = null;
+function wifiShow(w){
+  W = w;
+  $("#wbtns").hidden = !w.iface;
+  if (!w.iface){ $("#wnow").textContent = "This computer has no Wi-Fi."; return; }
+  const strength = s => s == null ? "" : s >= 70 ? " (strong)" : s >= 40 ? " (fair)" : " (weak)";
+  $("#wnow").textContent = w.ssid ? `On Wi-Fi: ${w.ssid}${strength(w.signal)}.` : w.cable ? "Not on Wi-Fi. On a network cable." : "Not on Wi-Fi.";
+  const r = w.result || {};
+  $("#wforget").hidden = !(r.ours && r.ours === w.ssid);
+}
+async function wifiPoll(){
+  let w;
+  try{ w = await api("/client/api/wifi"); }catch(e){ return setTimeout(wifiPoll, 3000); }
+  wifiShow(w);
+  if (!wAsk) return;
+  const r = w.result || {};
+  if (r.at >= wAsk - 1 && r.do === wDo && !w.busy){
+    wAsk = 0; $("#wscan").disabled = false;
+    if (!r.ok) return wmsg(r.error, "bad");
+    if (wDo === "scan"){
+      wmsg(r.networks.length ? "Choose a network to join." : "No Wi-Fi networks found.");
+      $("#wlist").innerHTML = "";
+      for (const net of r.networks){
+        const b = document.createElement("button");
+        b.innerHTML = `<span></span><small>${net.secure ? "🔒 " : ""}${net.signal}%</small>`;
+        b.querySelector("span").textContent = net.ssid + (net.current ? "  (on it now)" : "");
+        b.onclick = () => wifiPick(net);
+        $("#wlist").appendChild(b);
+      }
+    } else if (wDo === "connect") wmsg(`Joined ${r.ssid}.`, "ok");
+    else wmsg("Forgotten.", "ok");
+    return;
+  }
+  if (Date.now() / 1000 - wAsk > 200){ wAsk = 0; $("#wscan").disabled = false; return wmsg("The computer didn't answer. Restart it and try again.", "bad"); }
+  setTimeout(wifiPoll, 2000);
+}
+async function wifiAsk(body, note){
+  wmsg(note); $("#wscan").disabled = true;
+  try{
+    const r = await api("/client/api/wifi", body);
+    if (!r.ok){ $("#wscan").disabled = false; return wmsg(r.error, "bad"); }
+    wAsk = r.at; wDo = body.do; wifiPoll();
+  }catch(e){ $("#wscan").disabled = false; wmsg("This screen's own program isn't answering.", "bad"); }
+}
+function wifiPick(net){
+  pick = net; $("#wlist").innerHTML = "";
+  if (!net.secure) return wifiAsk({do: "connect", ssid: net.ssid, secure: false}, `Joining ${net.ssid}…`);
+  $("#wname").textContent = net.ssid; $("#wpass").value = ""; $("#wjoin").hidden = false; wmsg(""); $("#wpass").focus();
+}
+$("#wscan").onclick = () => { $("#wjoin").hidden = true; wifiAsk({do: "scan"}, "Looking for Wi-Fi networks…"); };
+$("#wgo").onclick = () => { $("#wjoin").hidden = true; wifiAsk({do: "connect", ssid: pick.ssid, password: $("#wpass").value, secure: true}, `Joining ${pick.ssid}. This can take a minute…`); };
+$("#wpass").addEventListener("keydown", e => { if (e.key === "Enter") $("#wgo").click(); });
+$("#wcancel").onclick = () => { $("#wjoin").hidden = true; wmsg(""); };
+$("#wforget").onclick = () => wifiAsk({do: "forget"}, "Forgetting this network…");
+wifiPoll();
+// This screen: how it's doing, and Restart and Shut down (as root, azan-sip-client-shutdown.path), asked twice
+function omsg(text, kind){ const m = $("#omsg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+const size = b => b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.round(b / 1e6) + " MB";
+function ago(s){ const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d} day${d > 1 ? "s" : ""}${h ? `, ${h} hour${h > 1 ? "s" : ""}` : ""}` : h ? `${h} hour${h > 1 ? "s" : ""}, ${m} min` : `${m} minutes`; }
+async function healthShow(){
+  try{
+    const h = await api("/client/api/health"), rows = [];
+    for (const a of h.addresses || []) rows.push(["Address", `${a.ip} (${a.kind === "wifi" ? "Wi-Fi" + (a.signal != null ? `, ${a.signal}%` : "") : "cable"})`]);
+    if (!(h.addresses || []).length) rows.push(["Address", "Not on a network"]);
+    if (h.temperature != null) rows.push(["Temperature", `${h.temperature} °C`]);
+    if (h.storage) rows.push(["Storage", `${size(h.storage.used)} of ${size(h.storage.total)} used`]);
+    if (h.memory) rows.push(["Memory", `${size(h.memory.used)} of ${size(h.memory.total)} used`]);
+    rows.push(["On for", ago(h.up)]);
+    const l = h.last;
+    if (l) rows.push(["Last sound", `${l.label}, ${hm(l.at)}: ` + (l.rule === "quiet" ? "quiet on this screen" : l.played ? (l.rule === "chime" ? "the chime played here" : "played here") : "didn't play here")]);
+    $("#health").innerHTML = "";
+    for (const [k, v] of rows){ const d = document.createElement("div"); d.className = "kv"; d.innerHTML = "<span></span><span></span>";
+      d.children[0].textContent = k; d.children[1].textContent = v; $("#health").appendChild(d); }
+  }catch(e){}
+  setTimeout(healthShow, 10000);
+}
+healthShow();
+let doing = "";
+const DO = {restart: ["Restart now? The prayer times come back by themselves in a minute or two.", "Yes, restart"],
+            shutdown: ["Shut down now? Nothing plays on this screen until it's switched back on with its power button.", "Yes, shut down"]};
+function ask(what){
+  doing = what;
+  $("#restart").hidden = $("#off").hidden = !!what; $("#sure").hidden = $("#unsure").hidden = !what;
+  $("#sure").disabled = $("#unsure").disabled = false;
+  if (what) $("#sure").textContent = DO[what][1];
+  omsg(what ? DO[what][0] : "", what ? "warn" : "");
+}
+$("#restart").onclick = () => ask("restart");
+$("#off").onclick = () => ask("shutdown");
+$("#unsure").onclick = () => ask("");
+$("#sure").onclick = async () => {
+  const what = doing;
+  $("#sure").disabled = $("#unsure").disabled = true;
+  try{
+    if (!(await api("/client/api/" + what, {})).ok) throw 0;
+  }catch(e){ ask(""); return omsg("This screen's own program isn't answering. Use the computer's power button.", "bad"); }
+  $("#sure").hidden = $("#unsure").hidden = true;
+  omsg(what === "restart" ? "Restarting. The prayer times come back by themselves."
+       : ST.remote ? "The TV screen's computer is shutting down. Switch it back on with its power button."
+       : "Shutting down. Switch the computer back on with its power button.", "ok");
+  // Still answering a minute later (or, for a restart, never stopped): it didn't happen
+  let gone = false;
+  const watch = setInterval(async () => { try{ await api("/client/api/status"); }catch(e){ gone = true; } }, 3000);
+  setTimeout(() => {
+    clearInterval(watch);
+    if (gone && what === "restart") return omsg("Restarted.", "ok");
+    if (!gone){ ask(""); omsg(`It didn't ${what === "restart" ? "restart" : "shut down"}. Try again, or use the computer's power button.`, "bad"); }
   }, 60000);
 };
 // Left open on the TV: go back to the prayer times after a few minutes without a touch

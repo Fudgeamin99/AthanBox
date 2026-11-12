@@ -2,7 +2,9 @@
 // "Screen settings" button (shown when the mouse moves or a key is pressed), and "Connecting to the
 // AthanBox" whenever AthanBox can't be reached (back to the prayer times by itself). The volume
 // is the azan's and Makkah live's. Makkah live's sound is switched on and off in Screen settings, and
-// a change made there (on a phone, say) shows here for a moment.
+// a change made there (on a phone, say) shows here for a moment. At night (Night sleep in Screen
+// settings) the screen goes dark until a key or the mouse wakes it, and this computer's address
+// shows in a corner (switched off in Screen settings).
 // On a second screen (a silent copy inside /client/wall), the sound is left to the first one.
 (() => {
   const FRAMED = window.top !== window;
@@ -37,7 +39,10 @@
 #azc-off{position:fixed;inset:0;z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
   background:rgba(8,40,34,.92);color:#fff;font:500 3vh system-ui,sans-serif;text-align:center;padding:6vh}
 #azc-off b{font-size:5vh}
-#azc-off small{font-size:2.4vh;color:#cfe3dc;max-width:70vw}`;
+#azc-off small{font-size:2.4vh;color:#cfe3dc;max-width:70vw}
+#azc-sleep{position:fixed;inset:0;z-index:10002;display:none;background:#000;cursor:none}
+#azc-ip{position:fixed;left:1.4vh;bottom:1.1vh;z-index:9997;pointer-events:none;font:600 1.9vh system-ui,"DejaVu Sans",sans-serif;
+  color:#fff;opacity:.6;letter-spacing:.02em;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.6)}`;
   document.head.appendChild(css);
   const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/>';
   const SOUND = SPK + '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>', QUIET = SPK + '<path d="m22 9-6 6M16 9l6 6"/></svg>';
@@ -53,7 +58,28 @@
   const note = document.createElement("div");
   note.id = "azc-note";
   note.setAttribute("role", "status");
-  document.body.append(bar, off, note);
+  const dark = document.createElement("div");   // Night sleep
+  dark.id = "azc-sleep";
+  const ip = document.createElement("div");      // this computer's address
+  ip.id = "azc-ip";
+  document.body.append(bar, off, note, dark, ip);
+  // Night sleep: dark while the client says so. A key, the mouse or a touch wakes it for a while
+  // (that key does nothing else).
+  let asleep = false;
+  function sleepCheck(st){
+    const want = !!(st.night || {}).asleep;
+    if (want === asleep) return;
+    asleep = want;
+    dark.style.display = asleep ? "block" : "none";
+  }
+  const wake = e => {
+    if (!asleep) return;
+    asleep = false; dark.style.display = "none";
+    fetch("/client/api/wake", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"}).catch(() => {});
+    if (e.type === "keydown"){ e.stopImmediatePropagation(); e.preventDefault(); }
+  };
+  for (const ev of ["mousemove", "mousedown", "touchstart", "keydown", "wheel"]) addEventListener(ev, wake, true);
+
   const code = document.createElement("script");   // the code for phones and computers, and their test chime
   code.src = "/client/code.js";
   document.body.appendChild(code);
@@ -151,7 +177,13 @@
       if (vol !== null && st.volume !== vol) popup(st.volume ? SOUND : QUIET, st.volume ? `Volume ${st.volume}%` : "Volume off", st.volume);
       vol = st.volume; showVol();
     }
-    if (st) liveCheck(st);
+    if (st){
+      liveCheck(st);
+      sleepCheck(st);
+      ip.textContent = st.show_ip && st.ip ? st.ip : "";
+      // Kept off the TV's edges: the prayer times go inside /client/wall, which leaves the margin
+      if (!FRAMED && st.picture && st.picture.margin > 0 && location.pathname === "/tv") return location.replace("/");
+    }
     if (st && st.state === "ok"){
       misses = 0;
       if (gone) return location.reload();   // back: a fresh page, in case AthanBox was updated

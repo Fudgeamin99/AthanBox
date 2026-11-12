@@ -24,9 +24,12 @@ if [ "$1" = configure ]; then
         # Update now in Screen settings
         systemctl enable azan-sip-client-update.path >/dev/null
         systemctl restart azan-sip-client-update.path
-        # Shut down in Screen settings
+        # Shut down, Restart and Night sleep in Screen settings
         systemctl enable azan-sip-client-shutdown.path >/dev/null
         systemctl restart azan-sip-client-shutdown.path
+        # Wi-Fi in Screen settings
+        systemctl enable azan-sip-client-wifi.path >/dev/null
+        systemctl restart azan-sip-client-wifi.path
         if systemctl is-enabled azan-sip-screen >/dev/null 2>&1; then
             systemctl disable azan-sip-client-screen >/dev/null 2>&1 || true
             echo "AthanBox's own screen is on here, so the client's screen isn't started."

@@ -4,7 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.12.0, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.4](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.4). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.12.0, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.6.0](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.6.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
@@ -99,7 +99,7 @@ A spare Dell Wyse, an old laptop or any small PC can be a TV screen for an Athan
 
 ```sh
 sudo apt update && sudo apt install -y wget
-wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.4/azan-sip-client.deb
+wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.6.0/azan-sip-client.deb
 sudo apt install -y ./azan-sip-client.deb
 ```
 
@@ -111,11 +111,19 @@ If it says `sudo: command not found` (Debian leaves sudo out when you set a root
 
 The Wyse shows on AthanBox's **TV app** page under its name, where *Test chime* checks the sound. **Volume:** move the mouse and use the volume buttons at the top of the screen, or press **+** and **−** (or a keyboard's volume keys), or run `azan-sip-client volume 60` over SSH. It sets Makkah live's volume as well as the azan's. To change AthanBox or the name later, press **Screen settings** next to them (or **S** on a keyboard). The Wyse can only show the prayer times: it can't change AthanBox's settings. More in [`client/README.md`](client/README.md).
 
-**From a phone or computer:** Screen settings also opens in a browser on the same network, at the address shown under **Phones and computers** in Screen settings on the TV, such as `http://192.168.1.31:8772`. The first time, type the code that shows on the TV; the browser then stays signed in. From there you can choose AthanBox, rename the screen, set the volume, switch Makkah live's sound on or off, play a test chime on the TV, update, and shut the Wyse down. A change to the volume or Makkah live's sound shows on the TV for a moment. It can be switched off, or everyone signed out, in Screen settings on the TV.
+**From a phone or computer:** Screen settings also opens in a browser on the same network, at the address shown under **Phones and computers** in Screen settings on the TV, such as `http://192.168.1.31:8772`. The first time, type the code that shows on the TV; the browser then stays signed in. From there you can do everything Screen settings does on the TV, except see the code: choose AthanBox, rename the screen, set the volume and each prayer's sound, switch Makkah live's sound on or off, play a test chime on the TV, set Night sleep, the picture and Wi-Fi, update, and restart or shut the Wyse down. A change to the volume or Makkah live's sound shows on the TV for a moment. It can be switched off, or everyone signed out, in Screen settings on the TV.
 
 **Updates:** open **Screen settings** and press **Update now** when it says a new version is available. The Wyse downloads it from the client's own releases on this repository (tagged `client-v...`, apart from AthanBox's, so a client update never changes AthanBox or its Docker image), installs it and restarts the screen by itself. Over SSH, `azan-sip-client update` as root does the same. A Wyse with a client older than 0.5.2 needs the three commands above once more: the Update button arrived in 0.3.0, and up to 0.5.1 it refuses updates since the repository was renamed AthanBox. What's new in each version is in [`client/CHANGELOG.md`](client/CHANGELOG.md).
 
-**Shut down:** press **Shut down** in Screen settings, on the TV or from a phone or computer, then **Yes, shut down**. The Wyse turns off, and its power button turns it back on.
+**Restart and Shut down:** under **This screen** in Screen settings, on the TV or from a phone or computer. Each asks first. After Shut down, the Wyse's power button turns it back on.
+
+**More in Screen settings** (0.6.0):
+
+- **The Wyse's address** shows small in the bottom-left corner of the prayer times. *Show its address on the prayer times* under **This screen** hides it. This screen also shows its temperature, storage, memory, how long it's been on, and the last sound AthanBox sent.
+- **Night sleep** makes the screen go dark a while after Isha and come back before Fajr. Anything AthanBox plays in the night wakes it, and so does a key. **Whole computer** switches the Wyse off for the night and its clock switches it back on: try it once with *Try it: off for 3 minutes*, since some need *Wake on RTC* switched on in the BIOS, and check the TV comes back on with it.
+- **Sound for each prayer** plays the azan, a short chime or nothing for each prayer, on this screen only.
+- **Picture** turns it for a TV on its side (Debian 13), keeps it off the TV's edges, and sets this screen's own text size.
+- **Wi-Fi** finds the networks nearby and joins one, so the Wyse doesn't need a network cable.
 
 ## First-time setup
 
