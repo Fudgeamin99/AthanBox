@@ -20,6 +20,7 @@ import azan_client as ac
 
 class FakeBox(BaseHTTPRequestHandler):
     allowed = True
+    local = []
     seen = []
 
     def log_message(self, *a):
@@ -44,6 +45,12 @@ class FakeBox(BaseHTTPRequestHandler):
             return self._send(200, b"<html><body><p>prayer times</p></body></html>", "text/html; charset=utf-8")
         if self.path.startswith("/api/tv"):
             return self._send(200, b'{"now": 1, "volume": 0.3, "playing": null}', "application/json")
+        if self.path == "/camera/local.json":   # cameras the screens read themselves
+            return self._send(200, json.dumps({"cameras": FakeBox.local}).encode(), "application/json")
+        if self.path.startswith("/camera/"):   # AthanBox's own copy of a camera
+            if self.path.endswith(".m3u8"):
+                return self._send(200, b"#EXTM3U\n#EXTINF:2.0,\nseg00000.ts\n# from the box", "application/vnd.apple.mpegurl")
+            return self._send(200, b"box video", "video/mp2t")
         if self.path == "/tv/sound/abc":
             return self._send(200, b"RIFF" + b"\0" * 100000, "audio/wav")
         return self._send(404, b"no", "text/plain")
@@ -293,6 +300,58 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(path, "/tv?name=Main+hall")
         self.assertEqual(host, self.box_base[7:])   # the box's own address, which it accepts
         self.assertIsNone(cookie)                   # nothing of the screen's goes to the box
+
+    def test_cameras_read_by_the_screen_itself(self):
+        # A stand-in for ffmpeg: it writes a playlist and a piece of video, or fails for an address with "bad" in it
+        bin_ = Path(self.tmp.name) / "bin"
+        bin_.mkdir(exist_ok=True)
+        (bin_ / "ffmpeg").write_text('#!/bin/sh\nfor a; do last="$a"; case "$a" in rtsp://*) url="$a";; esac; done\n'
+                                     'case "$url" in *bad*) exit 1;; esac\n'
+                                     'd=$(dirname "$last"); printf "own video %s" "$url" > "$d/seg00000.ts"\n'
+                                     'printf "#EXTM3U\\n#EXTINF:2.0,\\nseg00000.ts\\n" > "$last"\nexec sleep 30\n')
+        (bin_ / "ffmpeg").chmod(0o755)
+        urls = lambda h: {"main": [f"rtsp://v:p@{h}:554/h264Preview_01_main", f"rtsp://v:p@{h}:554/Preview_01_main"],
+                          "sub": [f"rtsp://v:p@{h}:554/h264Preview_01_sub", f"rtsp://v:p@{h}:554/Preview_01_sub"]}
+        FakeBox.local = [{"id": "gar", "name": "Garden", "stream": "sub", "urls": urls("10.0.0.5")},
+                         {"id": "bad", "name": "Shed", "stream": "sub", "urls": urls("bad")}]
+        ac.CAMERAS = ac.Cameras()
+        with mock.patch.dict(os.environ, {"PATH": f"{bin_}:{os.environ['PATH']}"}), mock.patch.object(ac, "CAMERA_WAIT", 2):
+            try:
+                r, body = self.get("/camera/gar/stream.m3u8")   # read here, from the camera itself
+                self.assertEqual(r.status, 200)
+                self.assertNotIn(b"from the box", body)
+                _, seg = self.get("/camera/gar/seg00000.ts")
+                self.assertEqual(seg, b"own video rtsp://v:p@10.0.0.5:554/h264Preview_01_sub")
+                _, seg = self.get("/camera/gar.sub/stream.m3u8")   # the grid's Fluent picture: its own copy
+                self.assertNotIn(b"from the box", seg)
+                # Not one of them: through AthanBox, as before
+                _, body = self.get("/camera/front/stream.m3u8")
+                self.assertIn(b"from the box", body)
+                # One this screen can't reach either: through AthanBox, and stays so for a while
+                _, body = self.get("/camera/bad/stream.m3u8")
+                self.assertIn(b"from the box", body)
+                self.assertFalse(ac.CAMERAS.here(self.box_base, "bad"))
+                _, seg = self.get("/camera/bad/seg00000.ts")
+                self.assertEqual(seg, b"box video")
+                # Switched off on AthanBox: through AthanBox again, and its ffmpeg stops
+                FakeBox.local = []
+                ac.CAMERAS.listed_at = -1e9
+                _, body = self.get("/camera/gar/stream.m3u8")
+                self.assertIn(b"from the box", body)
+                self.assertEqual(ac.CAMERAS.streams, {})
+            finally:
+                ac.CAMERAS.stop_all()
+                FakeBox.local = []
+
+    def test_cameras_without_ffmpeg_go_through_athanbox(self):
+        FakeBox.local = [{"id": "gar", "name": "Garden", "stream": "sub", "urls": {"sub": ["rtsp://h/x"]}}]
+        ac.CAMERAS = ac.Cameras()
+        try:
+            with mock.patch.object(ac.shutil, "which", return_value=None):
+                _, body = self.get("/camera/gar/stream.m3u8")
+            self.assertIn(b"from the box", body)
+        finally:
+            FakeBox.local = []
 
     def test_own_volume(self):
         r, body = self.get("/api/tv?id=x&sound=1")

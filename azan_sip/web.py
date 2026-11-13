@@ -1470,6 +1470,8 @@ class Handler(BaseHTTPRequestHandler):
         if not (self._client_local() or (svc.box and self._authed()) or svc.screens_on):
             return self._json({"ok": False, "error": "Cameras show on TV screens only. In the control panel, go to "
                                                      "TV app and switch on \u201cLet TV screens connect\u201d"}, 403)
+        if p == "/camera/local.json":   # for screens that read cameras themselves (the Wyse client)
+            return self._json({"cameras": cameras.for_local_screens(svc.cfg.get("cameras"))})
         parts = p.split("/")
         if len(parts) != 4:
             return self._send(404, b"Not found", "text/plain")

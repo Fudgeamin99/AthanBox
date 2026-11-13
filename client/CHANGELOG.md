@@ -6,6 +6,14 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.6.0 - Reads cameras itself
+
+- **Cameras read by the screen itself:** a camera set to **Screens read it themselves** on AthanBox's Display page (AthanBox 0.13.2) is read by the Wyse from the camera, with ffmpeg, instead of through AthanBox. For AthanBox on a cloud server that can't reach the cameras at home, say. The screen shows it as before: one camera, or all of them in the grid. ffmpeg runs only while the screen shows the camera, copies the video without re-encoding it, and keeps it in memory.
+- **If the Wyse can't reach the camera** (or ffmpeg isn't installed), the camera goes through AthanBox as before, and the Wyse tries it again after 5 minutes.
+- **ffmpeg** is installed with this version (apt installs it with the update). On a Wyse with little room left, it can be removed (`apt remove ffmpeg`): AthanBox Client still works without it, with every camera through AthanBox.
+- **Screens with 0.5.2 or newer** get it from **Update now** in Screen settings.
+- **Box and Docker:** the switch is AthanBox 0.13.2.
+
 ## 0.5.4 - Stars for kids mode
 
 - AthanBox 0.8.0's **kids mode** works on the Wyse: when a kids screen asks "Did you pray?", pressing **Yes** (a tap, or OK on the remote) now reaches AthanBox and earns the star. The client passes on only that, so the screen still can't change AthanBox's settings.

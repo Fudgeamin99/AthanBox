@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.13.2 - Screens can read the cameras themselves
+
+- **Screens read it themselves:** a new switch for each camera on the Display page (Cameras card). With it on, Wyse screens and the Android TV app read that camera straight from the camera, not through AthanBox. It's for when AthanBox can't reach the camera but the screens can, such as AthanBox on a cloud server and the cameras and TVs at home. A screen that can't reach the camera either goes through AthanBox, as before, and tries again a few minutes later. The grid of all cameras works the same way on a Wyse.
+- **Which screens:** Wyse screens with AthanBox Client 0.6.0 (Update now in Screen settings) and the Android TV app 1.4.0 (attached to this release, and installed by **Update the app** in the app's menu). A browser opening the prayer-times screen, and AthanBox's own screen, always go through AthanBox: a browser can't read a camera's RTSP stream.
+- **The camera's password:** with the switch on, AthanBox gives the camera's address, username and password to TV screens (only while **Let TV screens connect** is on), so they can log in to the camera. Make a view-only user for the screens in the Reolink app (Settings, Users) and use that one here. With the switch off, nothing changes: the password stays on AthanBox.
+- **Debian:** update as usual in Settings → Updates. Nothing new to install.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change. This switch is most useful with AthanBox in Docker on a server away from the cameras.
+
 ## 0.13.1 - All cameras at once
 
 - **All cameras:** with two or more cameras, press **Camera** on a screen and pick **All cameras** to see every camera at once in a grid that uses the whole width, with the prayer times as cards below. The grid fits the screen by itself: 4 cameras in a row or 2×2, 8 as 4×2, 12 as 6×2 or 4×3, up to 16. Tap a camera to show it on its own; **All cameras** goes back to the grid. A screen showing the grid keeps showing it after a restart, and goes back to it after a doorbell press. Open `/display?camera=all` to start with it.
