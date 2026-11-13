@@ -52,12 +52,18 @@ code=$(curl -s -o /dev/null -w '%{http_code}' "$url/ramadan/timetable")
 curl -fsS "$url/api/state" | grep -q '"ramadan_screen"' || { echo "FAIL: the prayer-times screen gets no Ramadan data"; exit 1; }
 echo "ok: Ramadan timetable and screens"
 
-# From another device (here the container's host) the TV app needs "Let TV screens connect"
+# From another device (here the container's host) the TV app needs "Let TV screens connect", and so do cameras
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/camera/none/stream.m3u8")
+[ "$code" = 403 ] || { echo "FAIL: a camera answered $code while TV screens are switched off (expected 403)"; exit 1; }
 code=$(curl -s -o /dev/null -w '%{http_code}' "$url/api/tv?id=ci")
 [ "$code" = 403 ] || { echo "FAIL: a TV screen got in ($code) while TV screens are switched off"; exit 1; }
 curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"on": true}' "$url/api/screens" >/dev/null
 code=$(curl -s -o /dev/null -w '%{http_code}' "$url/api/tv?id=ci")
 [ "$code" = 200 ] || { echo "FAIL: a TV screen couldn't connect ($code) with TV screens switched on"; exit 1; }
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url/camera/none/stream.m3u8")
+[ "$code" = 404 ] || { echo "FAIL: an unknown camera answered $code (expected 404)"; exit 1; }
+curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"camera": {"host": "127.0.0.1", "rtsp_port": 9}}' \
+     "$url/api/cameras/test" | grep -q "didn't accept the connection" || { echo "FAIL: the camera Test button didn't check the camera"; exit 1; }
 code=$(curl -s -o /dev/null -w '%{http_code}' "$url/apk")
 case "$code" in 200|302) ;; *) echo "FAIL: /apk answered $code"; exit 1;; esac
 curl -fsS -b "$jar" -H 'X-Azan-Panel: 1' -H 'Content-Type: application/json' -d '{"on": false}' "$url/api/screens" >/dev/null

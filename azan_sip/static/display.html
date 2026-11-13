@@ -119,6 +119,17 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .live .stage{gap:1.6vw;margin-top:2.6vh}
 .live .player{display:block;flex:0 1 auto;height:100%;aspect-ratio:16/9;max-width:min(var(--vw),calc(100% - 250px - 1.6vw))}
 .vid-right .player{order:2}
+/* ---- Cameras: a Reolink camera in the place of Makkah live, with its name buttons and the doorbell banner */
+.camchips{position:absolute;right:1.6vh;top:1.6vh;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.8vh;max-width:70%}
+.camchips button{all:unset;cursor:pointer;padding:.8vh 1.6vh;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:1.8vh;font-weight:600}
+.camchips button:hover,.camchips button:focus-visible{background:rgba(0,0,0,.8)}
+.camchips button.on{background:var(--t-accent);color:var(--t-on)}
+.dbell{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:1.4vh;padding:1.8vh 2.2vh;background:rgba(0,0,0,.78);color:#fff;font-size:2.8vh;font-weight:700}
+.dbell svg{width:3.6vh;height:3.6vh;flex:none;color:var(--t-accent);animation:pulse 1.2s ease-in-out infinite}
+.dbell span{flex:1;min-width:0}
+.dbell button{all:unset;cursor:pointer;padding:1vh 2vh;border-radius:1.2vh;border:1px solid rgba(255,255,255,.3);font-size:2vh;font-weight:600}
+.dbell button:hover,.dbell button:focus-visible{background:rgba(255,255,255,.15)}
+.crypto .camchips,.crypto .dbell{display:none !important}
 /* ---- Crypto: live prices in the place of Makkah live */
 .cpanel{display:none}
 .crypto .player{background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);box-shadow:none}
@@ -391,6 +402,8 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
       <div class="badge"><span class="rec"></span>LIVE · Makkah</div>
       <div class="pmsg" id="pmsg"><div class="spin"></div><h2>Connecting to Makkah live…</h2></div>
       <button class="sound" id="sound" type="button" hidden></button>
+      <div class="camchips" id="camchips" hidden></div>
+      <div class="dbell" id="dbell" role="alert" hidden></div>
       <div class="cpanel" id="cpanel" aria-live="polite"></div>
     </div>
     <div class="side">
@@ -407,6 +420,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
     <div class="fbtns">
     <button class="fbtn" id="livebtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg><span>Makkah live</span></button>
     <button class="fbtn" id="cryptobtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Crypto</span></button>
+    <button class="fbtn" id="cambtn" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>Camera</span></button>
     <button class="fbtn" id="tvsound" type="button" hidden></button>
     <button class="fbtn" id="fs" type="button" hidden onclick="fullScreen()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Full screen</button>
     <button class="fbtn" id="settings" type="button" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Settings</button>
@@ -685,10 +699,16 @@ async function load(){
     // Crypto: ?crypto=1 in the address, else what this screen chose last
     const qc = new URLSearchParams(location.search).get("crypto"), mc = store.get("azanCrypto");
     if(!PREVIEW && st.crypto_button !== false && (qc !== null ? qc !== "0" : mc === "1")) setCrypto(true, false);
-  } else if(LV.on && !PREVIEW && LV.key !== null && LV.key !== liveKey()){ LV.directFailed = false; startLive(); }  // the stream setting changed
+    // A camera: ?camera=<name or id> in the address, else the one this screen showed last
+    const qm = new URLSearchParams(location.search).get("camera"), mm = store.get("azanCam");
+    const pick = qm !== null ? (cams().find(c => c.id === qm || c.name.toLowerCase() === qm.toLowerCase()) || cams()[0] || {}).id : mm;
+    if(!PREVIEW && pick && camOf(pick)) setLive(true, false, pick);
+  } else if(CAM.id && !camOf(CAM.id)){ CAM.back = null; endBell(false); setLive(false, false); }   // the camera was removed
+  else if(LV.on && !PREVIEW && LV.key !== null && LV.key !== liveKey()){ LV.directFailed = false; startLive(); }  // the stream or camera setting changed
   $("#cryptobtn").hidden = PREVIEW || st.crypto_button === false;
   if(CR.on && st.crypto_button === false) setCrypto(false, false);   // switched off on the Display page
-  render(); azanCheck();
+  camButtons();
+  render(); azanCheck(); camEvent(st.camera_event);
 }
 function showSplash(msg){ $("#splashmsg").textContent = msg; $("#splash").hidden = false; $("#screen").hidden = true; }
 
@@ -963,9 +983,18 @@ const RELAY = "live/stream.m3u8";
 const CR = {on:false, timer:null, data:null, err:""};   // the Crypto view (below)
 const LV = {on:false, hls:null, retry:null, wait:15, want:store.get("azanLiveSound") === "1", azanMuted:false, lastT:0, lastMove:0,
             directFailed:false, played:false, key:null};
-const liveKey = () => JSON.stringify((S && S.live) || {});
-function liveSrc(){ const l = S && S.live; return l && l.direct && l.url && !LV.directFailed ? l.url : RELAY; }
+// A Reolink camera plays in Makkah live's place with the same player: CAM.id says which (null: Makkah live).
+const CAM = {id:null, back:null, timer:null, seen:null};
+const cams = () => (S && S.cameras) || [];
+const camOf = id => cams().find(c => c.id === id);
+const liveName = () => CAM.id ? (camOf(CAM.id) || {}).name || "The camera" : "Makkah live";
+const liveKey = () => JSON.stringify(CAM.id ? camOf(CAM.id) || {} : (S && S.live) || {});
+function liveSrc(){
+  if(CAM.id) return `camera/${encodeURIComponent(CAM.id)}/stream.m3u8`;   // always through AthanBox, which reads the camera
+  const l = S && S.live; return l && l.direct && l.url && !LV.directFailed ? l.url : RELAY;
+}
 function directFailed(){
+  if(CAM.id) return retryLive(`${liveName()} isn't available right now`, "");   // (the Android app's player)
   if(S && S.live && S.live.fallback === false)  // going through AthanBox is turned off: keep trying the stream itself
     return retryLive("Makkah live isn't available on this screen", "It couldn't fetch the stream itself, and going through AthanBox is turned off on the Display page.");
   LV.directFailed = true; startLive();
@@ -980,7 +1009,7 @@ function liveMsg(kind, title, text){
 }
 function soundBtn(){
   const v = $("#video"), b = $("#sound");
-  b.hidden = !LV.on || !$("#pmsg").hidden || PREVIEW || !!KIDS;
+  b.hidden = !LV.on || !!CAM.id || !$("#pmsg").hidden || PREVIEW || !!KIDS;   // cameras are shown without sound
   b.innerHTML = LV.azanMuted ? `${SPK.off}Muted for the azan` : v.muted ? `${SPK.off}Sound off` : `${SPK.on}Sound on`;
   b.setAttribute("aria-label", v.muted ? "Turn the Makkah live sound on" : "Turn the Makkah live sound off");
 }
@@ -1018,19 +1047,19 @@ async function startLive(){
     $("#pmsg").innerHTML = `<div class="preview-pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>The Makkah live picture</div>`;
     return;
   }
-  liveMsg("wait", "Connecting to Makkah live…");
+  liveMsg("wait", `Connecting to ${liveName()}…`);
   soundBtn();
   LV.key = liveKey(); LV.played = false;
-  const src = liveSrc(), direct = src !== RELAY, v = $("#video");
+  const src = liveSrc(), direct = !CAM.id && src !== RELAY, v = $("#video");
   // iPads, iPhones and Macs play the stream with their own player: lighter on an old iPad
   const native = /Apple/.test(navigator.vendor || "") && !!v.canPlayType("application/vnd.apple.mpegurl");
   try{
     if(!direct){
-      const r = await fetch(RELAY, {cache: "no-store"});
+      const r = await fetch(src, {cache: "no-store"});
       if(!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.error || `The stream isn't available (error ${r.status}).`); }
     }
     if(!native) await loadHls();
-  }catch(e){ return retryLive("Makkah live isn't available right now", e.message); }
+  }catch(e){ return retryLive(`${liveName()} isn't available right now`, e.message); }
   if(!LV.on) return;
   if(!native && window.Hls && Hls.isSupported()){
     const h = LV.hls = new Hls({liveSyncDurationCount: 3, maxBufferLength: 30, backBufferLength: 30, enableWorker: true});
@@ -1038,10 +1067,10 @@ async function startLive(){
       if(!d.fatal) return;
       if(direct && !LV.played && d.type === Hls.ErrorTypes.NETWORK_ERROR) return directFailed();
       if(d.type === Hls.ErrorTypes.MEDIA_ERROR && /codec|incompatible/i.test(d.details || "")){
-        stopLive(); liveMsg("error", "This screen can't play Makkah live", "Its browser doesn't support the stream's video format. Chrome or Edge will play it."); soundBtn(); return;
+        stopLive(); liveMsg("error", `This screen can't play ${liveName()}`, CAM.id ? "Its browser doesn't support the camera's video format. Choose Fluent for this camera on the Display page." : "Its browser doesn't support the stream's video format. Chrome or Edge will play it."); soundBtn(); return;
       }
       if(d.type === Hls.ErrorTypes.MEDIA_ERROR && !LV.recovered){ LV.recovered = true; h.recoverMediaError(); return; }
-      retryLive("Makkah live was interrupted", d.type === Hls.ErrorTypes.NETWORK_ERROR ? "The connection to the stream dropped." : "");
+      retryLive(`${liveName()} was interrupted`, d.type === Hls.ErrorTypes.NETWORK_ERROR ? "The connection to the stream dropped." : "");
     });
     h.on(Hls.Events.MANIFEST_PARSED, () => play());
     h.loadSource(src);
@@ -1049,20 +1078,20 @@ async function startLive(){
   } else if(v.canPlayType("application/vnd.apple.mpegurl")){
     v.onerror = () => {   // the built-in player gave up: go through AthanBox, or reconnect
       if(direct && !LV.played) directFailed();
-      else if(LV.on && !PREVIEW) retryLive("Makkah live was interrupted", "The connection to the stream dropped.");
+      else if(LV.on && !PREVIEW) retryLive(`${liveName()} was interrupted`, "The connection to the stream dropped.");
     };
     v.src = src; play();
     // the built-in player: if it hasn't started in 45 seconds, try again
-    LV.slow = setTimeout(() => { if(LV.on && !$("#pmsg").hidden && v.getAttribute("src")) retryLive("Makkah live isn't available right now", "It didn't start."); }, 45000);
+    LV.slow = setTimeout(() => { if(LV.on && !$("#pmsg").hidden && v.getAttribute("src")) retryLive(`${liveName()} isn't available right now`, "It didn't start."); }, 45000);
   } else {
-    liveMsg("error", "This screen can't play Makkah live", "Its browser is too old for live video. Chrome or Edge will play it."); soundBtn();
+    liveMsg("error", `This screen can't play ${liveName()}`, "Its browser is too old for live video. Chrome or Edge will play it."); soundBtn();
   }
 }
 $("#video").addEventListener("playing", () => { liveMsg(null); LV.played = true; LV.wait = 15; LV.recovered = false; LV.lastMove = Date.now(); soundBtn(); });
 $("#video").addEventListener("volumechange", soundBtn);
 $("#video").addEventListener("timeupdate", () => { const t = $("#video").currentTime; if(t !== LV.lastT){ LV.lastT = t; LV.lastMove = Date.now(); } });
 setInterval(() => {  // a TV runs for days: if the picture freezes, reconnect
-  if(LV.on && !PREVIEW && (LV.hls || $("#video").getAttribute("src")) && $("#pmsg").hidden && Date.now() - LV.lastMove > 30000) retryLive("Makkah live froze", "Reconnecting.");
+  if(LV.on && !PREVIEW && (LV.hls || $("#video").getAttribute("src")) && $("#pmsg").hidden && Date.now() - LV.lastMove > 30000) retryLive(`${liveName()} froze`, "Reconnecting.");
 }, 10000);
 $("#sound").addEventListener("click", () => {
   const v = $("#video");
@@ -1071,17 +1100,25 @@ $("#sound").addEventListener("click", () => {
   v.muted = !LV.want; if(!v.muted) v.play().catch(() => {});
   soundBtn();
 });
-function setLive(on, remember){
-  if(on === LV.on && !remember && LV.started) return;
-  if(on && CR.on) setCrypto(false, remember);   // Makkah live and Crypto share the same place
-  LV.on = on; LV.started = true;
+// cam: a camera's id to show it instead of Makkah live. remember: the viewer chose it (kept for next time).
+function setLive(on, remember, cam){
+  const id = on && cam ? cam : null;
+  if(remember) endBell(false);   // the viewer chose something else: don't go back after a doorbell press
+  if(on === LV.on && id === CAM.id && !remember && LV.started) return;
+  if(on && CR.on) setCrypto(false, remember);   // Makkah live, the cameras and Crypto share the same place
+  const switching = on && LV.on && id !== CAM.id;
+  LV.on = on; LV.started = true; CAM.id = id;
   document.body.classList.toggle("live", on || CR.on);
   layoutClasses();
   if(S) render();
-  const b = $("#livebtn");
-  b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
-  b.querySelector("span").textContent = on ? "Hide Makkah live" : "Makkah live";
-  if(remember) store.set("azanLive", on ? "1" : "0");
+  const b = $("#livebtn"), mk = on && !id;
+  b.classList.toggle("on", mk); b.setAttribute("aria-pressed", mk ? "true" : "false");
+  b.querySelector("span").textContent = mk ? "Hide Makkah live" : "Makkah live";
+  $("#player .badge").innerHTML = `<span class="rec"></span>LIVE · ${esc(id ? liveName() : "Makkah")}`;
+  $("#video").setAttribute("aria-label", liveName());
+  camButtons();
+  if(remember){ store.set("azanLive", mk ? "1" : "0"); store.set("azanCam", id || ""); if(id) store.set("azanCamLast", id); }
+  if(switching) LV.wait = 15;
   if(on) startLive(); else { stopLive(); liveMsg(null); LV.azanMuted = false; }
   soundBtn();
 }
@@ -1091,12 +1128,51 @@ function azanCheck(){  // our own azan is playing on the phones: keep the stream
   if(S.playing && !LV.azanMuted && !v.muted){ LV.azanMuted = true; v.muted = true; soundBtn(); }
   else if(!S.playing && LV.azanMuted){ LV.azanMuted = false; if(LV.want && !KIDS){ v.muted = false; v.play().catch(() => {}); } soundBtn(); }
 }
-$("#livebtn").addEventListener("click", () => setLive(!LV.on, true));
+$("#livebtn").addEventListener("click", () => setLive(!(LV.on && !CAM.id), true));
+
+// ---------------------------------------------------------------- Cameras
+// Reolink cameras added on the Display page. Camera shows the last one this screen watched; with more than one,
+// their names on the picture switch between them. A doorbell press shows that camera on every screen for 30
+// seconds, then the screen goes back to what it showed.
+const BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+function camButtons(){
+  const list = cams(), b = $("#cambtn"), ch = $("#camchips");
+  b.hidden = PREVIEW || !list.length;
+  b.classList.toggle("on", !!CAM.id); b.setAttribute("aria-pressed", CAM.id ? "true" : "false");
+  b.querySelector("span").textContent = CAM.id ? (list.length > 1 ? "Hide cameras" : "Hide camera") : list.length === 1 ? list[0].name : "Cameras";
+  ch.hidden = !CAM.id || list.length < 2;
+  ch.innerHTML = list.length < 2 ? "" : list.map(c => `<button type="button" data-cam="${esc(c.id)}" class="${c.id === CAM.id ? "on" : ""}" aria-pressed="${c.id === CAM.id}">${esc(c.name)}</button>`).join("");
+}
+function lastCam(){ const l = store.get("azanCamLast"); return camOf(l) ? l : (cams()[0] || {}).id; }
+$("#cambtn").addEventListener("click", () => CAM.id ? setLive(false, true) : setLive(true, true, lastCam()));
+$("#camchips").addEventListener("click", e => { const b = e.target.closest("button[data-cam]"); if(b) setLive(true, true, b.dataset.cam); });
+function camEvent(ev){   // from /api/state and, on a TV screen, /api/tv
+  if(!ev || PREVIEW) return;
+  if(CAM.seen === null){ CAM.seen = ev.seq; if(ev.age > 30) return; }   // a press from before this screen opened
+  else if(ev.seq === CAM.seen) return;
+  CAM.seen = ev.seq;
+  if(ev.age > 30 || !camOf(ev.id)) return;
+  if(!CAM.back) CAM.back = {live: LV.on, cam: CAM.id, crypto: CR.on};
+  setLive(true, false, ev.id);
+  const d = $("#dbell");
+  d.innerHTML = `${BELL}<span>${esc(ev.kind === "person" ? `Someone is at ${ev.name}` : `Doorbell · someone is at ${ev.name}`)}</span><button type="button">Close</button>`;
+  d.hidden = false;
+  d.querySelector("button").addEventListener("click", () => endBell(true));
+  clearTimeout(CAM.timer); CAM.timer = setTimeout(() => endBell(true), Math.max(5, 30 - ev.age) * 1000);
+}
+function endBell(goBack){
+  clearTimeout(CAM.timer); CAM.timer = null;
+  $("#dbell").hidden = true;
+  const b = CAM.back; CAM.back = null;
+  if(!b || !goBack) return;
+  if(b.crypto) setCrypto(true, false); else setLive(b.live, false, b.cam);
+}
 
 // ---------------------------------------------------------------- Crypto
 // Live prices of the coins chosen on the Display page, in Makkah live's place. AthanBox fetches them
 // from CoinGecko once a minute for every screen (/api/crypto); this screen asks every 30 seconds.
 function setCrypto(on, remember){
+  if(remember) endBell(false);
   if(on && LV.on) setLive(false, remember);
   CR.on = on;
   document.body.classList.toggle("crypto", on);
@@ -1372,6 +1448,7 @@ function tvHandle(j){
   // A new AthanBox version: load the new page, so updates reach screens that stay open for months
   if (j.version && TVA.ver && j.version !== TVA.ver) { location.reload(); return; }
   if (j.version) TVA.ver = j.version;
+  if (S) camEvent(j.camera_event);   // a doorbell press: show that camera straight away
   // The volume on the TV app page is for AthanBox's own screen only (it opens the TV app on
   // 127.0.0.1); other screens keep their own volume
   const vol = LOCAL_SCREEN && typeof j.volume === "number" ? j.volume : 1, before = tvGain();
