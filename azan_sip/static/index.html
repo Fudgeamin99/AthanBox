@@ -495,6 +495,7 @@ async function loadConfig(){
 function normalize(c){
   for(const k of ["general","location","calculation","offsets","prayers","audio","network","live","display","panel","ramadan"]) c[k] = c[k] || {};
   c.targets = c.targets || [];
+  c.cameras = c.cameras || [];
   c.crypto = c.crypto || {coins:["bitcoin","ethereum"], currency:"gbp", button:true};
   c.crypto.coins = c.crypto.coins || [];
   c.quran_line = Object.assign({enabled:true, live_ext:"700", playlist_ext:"701", playlist:[], shuffle:false}, c.quran_line || {});
@@ -1714,11 +1715,73 @@ function pageDisplay(){
     <div class="field" style="margin-top:12px"><label for="live-url">IPTV stream link (.m3u8)</label><input type="text" id="live-url" data-path="live.url" spellcheck="false" placeholder="${esc(META.live_default||"")}" value="${val("live.url")}">
       <div class="hint">Leave it empty for Saudi Quran TV. If the channel moves, or to show another channel (Madinah, say), paste its .m3u8 link here and press Save changes.</div></div>
     <div class="row"><button class="btn" id="live-check" onclick="checkLive()">Check the stream</button><span id="live-result" class="muted"></span></div></div>
+  ${camerasCardHTML()}
   ${cryptoCardHTML()}`;
   fitPreview();
   if(previewObserver) previewObserver.disconnect();
   previewObserver = new ResizeObserver(fitPreview); previewObserver.observe($(".dprev"));
 }
+// ---- Cameras: Reolink cameras on the prayer-times screen, and a Reolink doorbell that rings the phones
+const CAMRES = {};   // the Test button's last answer for each camera
+function camerasCardHTML(){
+  const list = CFG.cameras, phones = (CFG.targets || []).map(t => t.name).filter(Boolean);
+  const item = (c, i) => {
+    const P = `cameras.${i}.`, res = CAMRES[c.id];
+    return `<div class="camitem" style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px">
+      <div class="row" style="justify-content:space-between"><h3 style="margin:0;font-size:16px">${esc(c.name || `Camera ${i + 1}`)}${c.doorbell ? ' <span class="pill brand">Doorbell</span>' : ""}</h3>
+        <button class="btn small danger" onclick="removeCamera(${i})">Remove</button></div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="field"><label for="cam-n${i}">Name on the screens</label><input type="text" id="cam-n${i}" data-path="${P}name" maxlength="40" placeholder="Front door" value="${val(P + "name")}"></div>
+        <div class="field"><label for="cam-h${i}">Camera address</label><input type="text" id="cam-h${i}" data-path="${P}host" spellcheck="false" placeholder="192.168.1.50" value="${val(P + "host")}">
+          <div class="hint">Its IP address, shown in the Reolink app under the camera's Settings, Network. Give the camera a fixed address on your router.</div></div>
+        <div class="field"><label for="cam-u${i}">Username</label><input type="text" id="cam-u${i}" data-path="${P}username" autocomplete="off" placeholder="admin" value="${val(P + "username")}"></div>
+        <div class="field"><label for="cam-p${i}">Password</label><input type="password" id="cam-p${i}" data-path="${P}password" autocomplete="new-password" value="${val(P + "password")}">
+          <div class="hint">The camera's own password, as in the Reolink app. It stays on AthanBox.</div></div>
+        <div class="field"><label for="cam-s${i}">Picture</label><select id="cam-s${i}" data-path="${P}stream">${opt("sub", "Fluent (lighter, plays on every screen)", c.stream || "sub")}${opt("main", "Clear (full quality, needs an H.264 camera)", c.stream || "sub")}</select></div>
+        <div class="grid2" style="gap:12px"><div class="field"><label for="cam-r${i}">RTSP port</label><input type="number" id="cam-r${i}" min="1" max="65535" data-path="${P}rtsp_port" data-kind="num" placeholder="554" value="${val(P + "rtsp_port")}"></div>
+          <div class="field"><label for="cam-c${i}">Channel</label><input type="number" id="cam-c${i}" min="1" max="64" data-path="${P}channel" data-kind="num" placeholder="1" value="${val(P + "channel")}"><div class="hint">Only for a Home Hub or NVR.</div></div></div>
+      </div>
+      <div class="toggle-row"><div><div class="t">Show on the screens</div><div class="d">A button with its name on every screen. Turn it off for a doorbell that should only ring the phones.</div></div>${sw(P + "screens", c.screens !== false)}</div>
+      <div class="toggle-row"><div><div class="t">This is a Reolink doorbell</div><div class="d">AthanBox watches its button and acts when someone presses it.</div></div>${sw(P + "doorbell", !!c.doorbell, "data-rerender")}</div>
+      ${c.doorbell ? `<div style="padding-left:14px;border-left:3px solid var(--line);margin:6px 0 4px">
+        <div class="toggle-row"><div><div class="t">Show it on every screen</div><div class="d">For 30 seconds after a press, then each screen goes back to what it showed.</div></div>${sw(P + "popup", c.popup !== false)}</div>
+        <div class="toggle-row"><div><div class="t">Ring the phones</div><div class="d">The phones play the doorbell sound, the way they play the azan. Not while the azan is playing.</div></div>${sw(P + "phones", c.phones !== false, "data-rerender")}</div>
+        ${c.phones !== false ? `<div class="field" style="margin-top:8px"><label>Which phones</label>
+          ${phones.length ? `<div class="row" style="gap:8px;flex-wrap:wrap">${phones.map(n => `<label class="pill" style="cursor:pointer"><input type="checkbox" data-path="${P}ring" data-kind="member" value="${esc(n)}" ${(c.ring || []).includes(n) ? "checked" : ""}> ${esc(n)}</label>`).join("")}</div>
+            <div class="hint">As listed on the Phones page. Tick none to ring them all.</div>` : `<p class="muted" style="margin:0">No phones yet. Add them on the Phones page.</p>`}</div>
+        <div class="field"><label for="cam-snd${i}">Doorbell sound</label><select id="cam-snd${i}" data-path="${P}sound">${audioOptions(c.sound || "", [["", "Built-in chime"]])}</select>
+          <div class="hint">Add your own recording on the Azan sound page. Up to 30 seconds of it plays.</div></div>` : ""}
+        <div class="toggle-row"><div><div class="t">Also when a person is seen</div><div class="d">Uses the doorbell's own person detection.</div></div>${sw(P + "motion", !!c.motion)}</div></div>` : ""}
+      <div class="row" style="margin-top:10px"><button class="btn" id="cam-t${i}" onclick="testCamera(${i})">Test</button>
+        <span class="muted" id="cam-res${i}">${res ? `<span class="pill ${res.working ? "ok" : "bad"}">${res.working ? "OK" : "Not working"}</span> ${esc(res.summary)}` : "Checks that AthanBox can read the camera with the settings above, saved or not."}</span></div>
+      ${res && res.picture ? `<img src="${res.picture}" alt="A picture from ${esc(c.name || "the camera")}" style="display:block;margin-top:10px;max-width:100%;width:360px;border-radius:10px">` : ""}
+    </div>`;
+  };
+  return `<div class="card" id="camcard"><h2>Cameras</h2>
+    <p class="muted" style="margin-top:0">Reolink cameras on the prayer-times screen, in Makkah live's place. Press <b>Camera</b> on a screen to show one. AthanBox reads each camera itself and passes the picture on, so its password never leaves AthanBox. Cameras show on TV screens (with “Let TV screens connect” on the TV app page) and on AthanBox's own screen, without sound.</p>
+    ${list.length ? list.map(item).join("") : `<p class="muted">No cameras yet.</p>`}
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="addCamera()" ${list.length >= 8 ? "disabled" : ""}>+ Add camera</button></div>
+    <div class="hint" style="margin-top:10px">In the Reolink app, turn on RTSP for each camera (Settings, Network, Advanced, Server settings). A camera at another place must be reachable from AthanBox: forward its port 554 on that router, or put both on Tailscale and type the camera's Tailscale address.</div></div>`;
+}
+function redrawCameras(){ const el = $("#camcard"); if(el) el.outerHTML = camerasCardHTML(); dirty(); }
+function addCamera(){
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(3)), b => b.toString(16).padStart(2, "0")).join("");
+  CFG.cameras.push({id, name: CFG.cameras.length ? `Camera ${CFG.cameras.length + 1}` : "Front door", host: "", username: "admin", password: "", stream: "sub", screens: true});
+  redrawCameras();
+}
+function removeCamera(i){
+  const c = CFG.cameras[i];
+  if(!confirm(`Remove ${c.name || "this camera"}? Press Save changes afterwards.`)) return;
+  CFG.cameras.splice(i, 1); redrawCameras();
+}
+async function testCamera(i){
+  const c = CFG.cameras[i], b = $(`#cam-t${i}`), out = $(`#cam-res${i}`);
+  b.disabled = true; out.innerHTML = "Checking the camera… (up to 20 seconds)";
+  try{ CAMRES[c.id] = await api("api/cameras/test", {camera: c}); }
+  catch(e){ CAMRES[c.id] = {working: false, summary: e.message}; }
+  redrawCameras();
+}
+
 // ---- Crypto view: live prices on the prayer-times screen, in Makkah live's place
 const CUR_NAMES = {gbp:"Pound (£)", usd:"US dollar ($)", eur:"Euro (€)", aed:"UAE dirham", sar:"Saudi riyal", pkr:"Pakistani rupee", inr:"Indian rupee", bdt:"Bangladeshi taka", myr:"Malaysian ringgit", try:"Turkish lira", cad:"Canadian dollar", aud:"Australian dollar"};
 const COIN_NAMES = {};   // names of coins found with the search, for coins that aren't in the popular list

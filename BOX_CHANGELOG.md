@@ -6,6 +6,16 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.13.0 - Reolink cameras on the screens, and a doorbell that rings the phones
+
+- **Cameras on the prayer-times screen:** add up to 8 Reolink cameras on the **Display** page (Cameras card): a name, the camera's address, username and password, and Fluent (lighter) or Clear picture. Press **Test** to check AthanBox can read it, with a picture from the camera. Each screen gets a **Camera** button; the picture shows in Makkah live's place, and with more than one camera their names on the picture switch between them. Each screen remembers which camera it showed.
+- **How it works:** AthanBox reads each camera's RTSP stream with ffmpeg and passes it on to the screens without re-encoding it, only while a screen is watching, so it's light on AthanBox and the camera's password never leaves AthanBox. Cameras show without sound. In the Reolink app, turn on RTSP for each camera (Settings, Network, Advanced, Server settings).
+- **Who can see them:** AthanBox's own screen, TV screens (the TV app, the Android app and Wyse screens) while **Let TV screens connect** is on, and anyone signed in to the control panel. Other devices opening the prayer-times screen can't.
+- **Reolink doorbell:** mark a camera as a doorbell, and when someone presses its button AthanBox shows it on every screen for 30 seconds (then each screen goes back to what it showed), and rings the phones you choose with the built-in chime or one of your recordings. Not while the azan is playing. Optionally also when the doorbell sees a person. The doorbell needs firmware that reports its button to other programs; Test says if it doesn't.
+- **A camera at another place:** AthanBox has to reach it, by forwarding port 554 on that router or with Tailscale. Reolink's own cloud connection only works in the Reolink app.
+- **Debian:** update as usual in Settings → Updates. Nothing new to install: ffmpeg is already on the box.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. The image already has ffmpeg and the container uses the computer's own network, so it reaches cameras on your network. `compose.yaml` doesn't change.
+
 ## 0.12.9 - Enterprise shows only the main site
 
 - **Sites:** pressing **Enterprise** with other sites set up no longer stops with "Remove the other sites first". The other sites are set aside instead: they stop running and their phones can't sign in, but their folders and settings are kept. The Sites page then shows only the main site, without site counts or groups. Press **Group** and they start again, exactly as they were.

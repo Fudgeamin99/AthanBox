@@ -32,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__, crypto, hostvol, kids, live, look, provision, quranline, ramadan, rtp, screens, security, sipserver, sites, tomlw, updater
+from . import __version__, cameras, crypto, hostvol, kids, live, look, provision, quranline, ramadan, rtp, screens, security, sipserver, sites, tomlw, updater
 from .auth import COOKIE, SESSION_SECONDS, Auth, LoginError
 from .env import app_dir
 from .sipreg import Registration, RegistrationManager
@@ -337,6 +337,9 @@ class Service:
         self.wizard = {"rev": 0, "state": None, "driver": ""}  # first-time setup, shared by the screen and phones
         self.live = live.LiveRelay(lambda: self.live_url)
         self.crypto = crypto.Prices()   # the Crypto view on the prayer-times screen
+        self.cams = cameras.Relay()     # Reolink cameras on the prayer-times screen
+        self.bells = cameras.Doorbells(self.doorbell)   # and the doorbells among them
+        self.cam_event: dict | None = None   # the last doorbell press, for screens to show the camera
         self.tvs = screens.Screens()       # TV screens that play the azan (the TV app)
         self.sounds = screens.Sounds()
         self.shared.screens_listening = self.tvs.listening
@@ -370,6 +373,8 @@ class Service:
         live.check_url((cfg.get("live") or {}).get("url", ""))   # raises with a friendly message
         if "crypto" in cfg:
             cfg["crypto"] = crypto.clean(cfg["crypto"])
+        if "cameras" in cfg:
+            cfg["cameras"] = cameras.clean(cfg["cameras"])
         if "quran_line" in cfg:
             cfg["quran_line"] = quranline.clean(cfg["quran_line"])
         look.check(cfg)
@@ -388,6 +393,8 @@ class Service:
                     x.site = self.code
             self.app, self.cfg, self.error = app, cfg, None
             self.regs.sync(cfg)  # stay registered on the phone system (shows as Idle)
+            self.cams.sync(cfg.get("cameras"))
+            self.bells.sync(cfg.get("cameras"))
             g = cfg.get("general", {})
             quranline.line(self.code).configure(cfg.get("quran_line"), self.audio_dir, lambda: self.live_url)  # Quran by phone
             # phones and phone systems that sign in to AthanBox (one server for every site)
@@ -669,6 +676,42 @@ class Service:
             return {"direct": True, "url": self.live_url, "fallback": lv.get("fallback") is not False}
         return {"direct": False}
 
+    # -- Reolink cameras (cameras.py): a doorbell press shows the camera on the screens and rings the phones
+    def doorbell(self, cam: dict, kind: str):
+        """Called by a doorbell's watcher: its button was pressed, or (kind "person") it saw someone."""
+        sites.set_current(self.code)   # its log lines go to this site's activity log
+        name = cam.get("name") or "Camera"
+        log.info("%s: %s", name, "doorbell pressed" if kind == "doorbell" else "a person was seen")
+        if cam.get("popup", True) and cam.get("screens", True):
+            seq = (self.cam_event or {}).get("seq", 0) + 1
+            self.cam_event = {"seq": seq, "id": cam["id"], "name": name, "kind": kind, "at": time.time()}
+        app = self.app
+        if app is None or not cam.get("phones", True):
+            return
+        ring = set(cam.get("ring") or [])
+        targets = [t for t in app.targets if not ring or t.name in ring]
+        if not targets:
+            log.warning("%s: none of the phones chosen to ring for it are switched on", name)
+            return
+        if app.now_playing:
+            log.info("%s: the phones aren't rung while %s is playing", name, app.now_playing)
+            return
+        a, g = self.cfg.get("audio", {}), self.cfg.get("general", {})
+        lead = int(a.get("lead_in_ms", 400) or 0)
+        sound = str(cam.get("sound") or "")
+        if sound.startswith("audio/") and (app.base / "audio" / Path(sound).name).is_file():
+            clip = Clip("audio/" + Path(sound).name, app.base, float(a.get("volume_db", 0) or 0), lead, 30)
+        else:
+            clip = Clip("tone", app.base, float(g.get("test_chime_volume_db", 0) or 0), lead, tone_seconds=4)
+        label = f"Doorbell · {name}" if kind == "doorbell" else f"{name} · person seen"
+        threading.Thread(target=app.broadcast, args=(clip, label, targets, False), name="doorbell", daemon=True).start()
+
+    def camera_event(self) -> dict | None:
+        """The last doorbell press, for screens: they show it if it's new to them and recent."""
+        ev = self.cam_event
+        return ev and {"seq": ev["seq"], "id": ev["id"], "name": ev["name"], "kind": ev["kind"],
+                       "age": round(time.time() - ev["at"], 1)}
+
     @property
     def relay_off(self) -> bool:
         """Screens must fetch Makkah live themselves: AthanBox doesn't relay it at all."""
@@ -734,6 +777,8 @@ class Service:
         quranline.drop(self.code)
 
     def shutdown(self):
+        self.bells.stop()
+        self.cams.stop_all()
         if not self.primary:   # a site that is being removed, or the server stopping
             self._stop_scheduler()
             self.regs.stop_all()
@@ -840,7 +885,8 @@ class Service:
         if getattr(self, "host_volume_set", False):
             vol = 1.0
         out = {"now": int(time.time() * 1000), "version": VERSION, "playing": None, "last": sh.last,
-               "next": None, "volume": vol, "kids": self.kids_screen(sid) if sid else None}
+               "next": None, "volume": vol, "kids": self.kids_screen(sid) if sid else None,
+               "camera_event": self.camera_event()}
         p = sh.playing
         if p and p["screens"]:
             out["playing"] = {"seq": p["seq"], "label": p["label"], "started": int(p["started"] * 1000),
@@ -976,6 +1022,8 @@ class Service:
                   "look": look.display(self.cfg),  # theme and layout of the prayer-times screen
                   "live": self.live_screen(),
                   "crypto_button": crypto.clean(self.cfg.get("crypto"))["button"],   # the Crypto button on screens
+                  "cameras": cameras.for_screens(self.cfg.get("cameras")),   # a Camera button for each (names only)
+                  "camera_event": self.camera_event(),   # a doorbell press: screens show that camera
                   "quran_now": quranline.line(self.code).now_playing(),   # Quran by phone: what the playlist station is playing
                   "location": self.cfg.get("location", {}).get("name") or "", "log": self.log_lines()[-200:],
                   "log_id": RING.counter, "registrations": self.regs.info(),
@@ -1415,6 +1463,29 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Upload too large")
         return self.rfile.read(n) if n else b""
 
+    def _camera(self, p: str):
+        """A camera's live video. Home cameras aren't for everyone who can open the prayer-times screen: only
+        AthanBox's own screen, someone signed in, or TV screens while "Let TV screens connect" is on."""
+        svc = self.service
+        if not (self._client_local() or (svc.box and self._authed()) or svc.screens_on):
+            return self._json({"ok": False, "error": "Cameras show on TV screens only. In the control panel, go to "
+                                                     "TV app and switch on \u201cLet TV screens connect\u201d"}, 403)
+        parts = p.split("/")
+        if len(parts) != 4:
+            return self._send(404, b"Not found", "text/plain")
+        cid, name = parts[2], parts[3]
+        if name == "stream.m3u8":
+            try:
+                return self._send(200, svc.cams.playlist(cid), live.M3U8)
+            except KeyError:
+                return self._json({"ok": False, "error": "That camera isn't set up on AthanBox any more"}, 404)
+            except cameras.CameraError as exc:
+                return self._json({"ok": False, "error": str(exc)}, 502)
+        body = svc.cams.segment(cid, name)
+        if body is None:
+            return self._send(404, b"Not found", "text/plain")
+        return self._send(200, body, "video/mp2t")
+
     def _provision(self, p: str):
         """Remote provisioning: any Host name (a phone outside the network may use a public name), as the
         link's own key is what lets a phone in."""
@@ -1538,6 +1609,8 @@ class Handler(BaseHTTPRequestHandler):
                                                  "accounts": [{"registered": a["registered"], "kind": a["kind"]}
                                                               for a in srv["accounts"]]})
                 return self._json(st)
+            if p.startswith("/camera/"):   # a Reolink camera, relayed (camera/<id>/stream.m3u8 and its pieces)
+                return self._camera(p)
             if p in ("/live/stream.m3u8", "/live/x") and svc.relay_off:
                 return self._json({"ok": False, "error": "Makkah live through AthanBox is turned off on the Display page"}, 403)
             if p == "/live/stream.m3u8":  # Makkah live, relayed so any screen can play it
@@ -1749,6 +1822,8 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/security/refresh":
                 svc.security.request()
                 return self._json({"ok": True})
+            if p == "/api/cameras/test":   # the Display page: the Test button on a camera
+                return self._json({"ok": True, **cameras.test(req.get("camera") or {})})
             if p == "/api/live/test":
                 return self._json({"ok": True, **svc.live.test(str(req.get("url") or ""))})
             if p == "/api/preview":
