@@ -130,6 +130,19 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:2vw;mar
 .dbell button{all:unset;cursor:pointer;padding:1vh 2vh;border-radius:1.2vh;border:1px solid rgba(255,255,255,.3);font-size:2vh;font-weight:600}
 .dbell button:hover,.dbell button:focus-visible{background:rgba(255,255,255,.15)}
 .crypto .camchips,.crypto .dbell{display:none !important}
+/* All cameras: a grid of every camera, using the whole width, with the prayer times as cards below */
+.cgrid{display:none}
+.camgrid .player video#video,.camgrid .player .badge,.camgrid .player .pmsg,.camgrid .player .sound{display:none !important}
+.camgrid .cgrid{display:grid;position:absolute;inset:0;gap:.5vh;align-content:center;justify-content:center;
+  grid-template-columns:repeat(var(--gc,2),var(--gw,1fr));grid-auto-rows:var(--gh,1fr)}
+.camgrid .side{display:none}
+.camgrid .player{flex:1 1 auto;width:100%;max-width:none;aspect-ratio:auto}
+.ctile{all:unset;position:relative;overflow:hidden;background:#111;cursor:pointer;border-radius:.6vh}
+.ctile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.ctile b{position:absolute;left:.8vh;bottom:.8vh;max-width:calc(100% - 1.6vh);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:.4vh 1vh;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;font-size:1.6vh;font-weight:700}
+.ctile i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1vh;text-align:center;color:#c9d4cf;font-size:1.5vh;font-style:normal}
+.ctile:focus-visible{outline:.4vh solid var(--t-accent);outline-offset:-.4vh}
 /* ---- Crypto: live prices in the place of Makkah live */
 .cpanel{display:none}
 .crypto .player{background:rgb(var(--t-tint) / .065);border:1px solid rgb(var(--t-tint) / .1);box-shadow:none}
@@ -402,6 +415,7 @@ html.kids,html.kids body{background:var(--k-bg);color:var(--k-ink)}
       <div class="badge"><span class="rec"></span>LIVE · Makkah</div>
       <div class="pmsg" id="pmsg"><div class="spin"></div><h2>Connecting to Makkah live…</h2></div>
       <button class="sound" id="sound" type="button" hidden></button>
+      <div class="cgrid" id="cgrid"></div>
       <div class="camchips" id="camchips" hidden></div>
       <div class="dbell" id="dbell" role="alert" hidden></div>
       <div class="cpanel" id="cpanel" aria-live="polite"></div>
@@ -507,7 +521,7 @@ function applyLook(L){
   if(S) render();
 }
 function layoutClasses(){  // the prayer times have their own layout next to Makkah live
-  const L = look(), list = !KIDS && (LV.on || CR.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
+  const L = look(), list = !KIDS && !GR.on && (LV.on || CR.on ? (L.live_layout || "list") : L.layout) === "list", b = document.body.classList;
   b.toggle("l-list", list); b.toggle("l-cards", !list);
 }
 let uiTimer = null;
@@ -701,9 +715,11 @@ async function load(){
     if(!PREVIEW && st.crypto_button !== false && (qc !== null ? qc !== "0" : mc === "1")) setCrypto(true, false);
     // A camera: ?camera=<name or id> in the address, else the one this screen showed last
     const qm = new URLSearchParams(location.search).get("camera"), mm = store.get("azanCam");
-    const pick = qm !== null ? (cams().find(c => c.id === qm || c.name.toLowerCase() === qm.toLowerCase()) || cams()[0] || {}).id : mm;
-    if(!PREVIEW && pick && camOf(pick)) setLive(true, false, pick);
-  } else if(CAM.id && !camOf(CAM.id)){ CAM.back = null; endBell(false); setLive(false, false); }   // the camera was removed
+    const pick = qm !== null ? (/^(all|\*)$/i.test(qm) ? "*" : (cams().find(c => c.id === qm || c.name.toLowerCase() === qm.toLowerCase()) || cams()[0] || {}).id) : mm;
+    if(!PREVIEW && pick === "*" && cams().length > 1) setGrid(true, false);
+    else if(!PREVIEW && pick && camOf(pick)) setLive(true, false, pick);
+  } else if(GR.on && GR.key !== gridKey()){ if(cams().length > 1) startGrid(); else setGrid(false, false); }   // cameras added, removed or changed
+  else if(CAM.id && !camOf(CAM.id)){ CAM.back = null; endBell(false); setLive(false, false); }   // the camera was removed
   else if(LV.on && !PREVIEW && LV.key !== null && LV.key !== liveKey()){ LV.directFailed = false; startLive(); }  // the stream or camera setting changed
   $("#cryptobtn").hidden = PREVIEW || st.crypto_button === false;
   if(CR.on && st.crypto_button === false) setCrypto(false, false);   // switched off on the Display page
@@ -1106,9 +1122,10 @@ function setLive(on, remember, cam){
   if(remember) endBell(false);   // the viewer chose something else: don't go back after a doorbell press
   if(on === LV.on && id === CAM.id && !remember && LV.started) return;
   if(on && CR.on) setCrypto(false, remember);   // Makkah live, the cameras and Crypto share the same place
+  if(on && GR.on) setGrid(false, false);
   const switching = on && LV.on && id !== CAM.id;
   LV.on = on; LV.started = true; CAM.id = id;
-  document.body.classList.toggle("live", on || CR.on);
+  document.body.classList.toggle("live", on || CR.on || GR.on);
   layoutClasses();
   if(S) render();
   const b = $("#livebtn"), mk = on && !id;
@@ -1117,7 +1134,7 @@ function setLive(on, remember, cam){
   $("#player .badge").innerHTML = `<span class="rec"></span>LIVE · ${esc(id ? liveName() : "Makkah")}`;
   $("#video").setAttribute("aria-label", liveName());
   camButtons();
-  if(remember){ store.set("azanLive", mk ? "1" : "0"); store.set("azanCam", id || ""); if(id) store.set("azanCamLast", id); }
+  if(remember){ store.set("azanLive", mk ? "1" : "0"); if(on || !GR.on) store.set("azanCam", id || ""); if(id) store.set("azanCamLast", id); }
   if(switching) LV.wait = 15;
   if(on) startLive(); else { stopLive(); liveMsg(null); LV.azanMuted = false; }
   soundBtn();
@@ -1138,21 +1155,99 @@ const BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 function camButtons(){
   const list = cams(), b = $("#cambtn"), ch = $("#camchips");
   b.hidden = PREVIEW || !list.length;
-  b.classList.toggle("on", !!CAM.id); b.setAttribute("aria-pressed", CAM.id ? "true" : "false");
-  b.querySelector("span").textContent = CAM.id ? (list.length > 1 ? "Hide cameras" : "Hide camera") : list.length === 1 ? list[0].name : "Cameras";
-  ch.hidden = !CAM.id || list.length < 2;
-  ch.innerHTML = list.length < 2 ? "" : list.map(c => `<button type="button" data-cam="${esc(c.id)}" class="${c.id === CAM.id ? "on" : ""}" aria-pressed="${c.id === CAM.id}">${esc(c.name)}</button>`).join("");
+  const on = !!CAM.id || GR.on;
+  b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.querySelector("span").textContent = on ? (list.length > 1 ? "Hide cameras" : "Hide camera") : list.length === 1 ? list[0].name : "Cameras";
+  ch.hidden = !on || list.length < 2;
+  ch.innerHTML = list.length < 2 ? "" : `<button type="button" data-cam="*" class="${GR.on ? "on" : ""}" aria-pressed="${GR.on}">All cameras</button>`
+    + (GR.on ? "" : list.map(c => `<button type="button" data-cam="${esc(c.id)}" class="${c.id === CAM.id ? "on" : ""}" aria-pressed="${c.id === CAM.id}">${esc(c.name)}</button>`).join(""));
 }
-function lastCam(){ const l = store.get("azanCamLast"); return camOf(l) ? l : (cams()[0] || {}).id; }
-$("#cambtn").addEventListener("click", () => CAM.id ? setLive(false, true) : setLive(true, true, lastCam()));
-$("#camchips").addEventListener("click", e => { const b = e.target.closest("button[data-cam]"); if(b) setLive(true, true, b.dataset.cam); });
+function lastCam(){ const l = store.get("azanCamLast"); return l === "*" && cams().length > 1 ? l : camOf(l) ? l : (cams()[0] || {}).id; }
+function showCam(id, remember){ if(id === "*") setGrid(true, remember); else setLive(true, remember, id); }
+$("#cambtn").addEventListener("click", () => GR.on ? setGrid(false, true) : CAM.id ? setLive(false, true) : showCam(lastCam(), true));
+$("#camchips").addEventListener("click", e => { const b = e.target.closest("button[data-cam]"); if(b) showCam(b.dataset.cam, true); });
+
+// All cameras: every camera at once, each with its own small player, as big as the screen allows (2x2 for 4,
+// 4x2 for 8, 4x3 for 12...). Always the lighter Fluent picture. Tap one to show it on its own.
+const GR = {on:false, key:"", tiles:[]};
+const gridKey = () => cams().map(c => c.id + c.v).join(",");
+// hls.js for the grid's players, kept to itself: the Android app takes window.Hls away from the page
+// (it plays Makkah live and single cameras with its own player), so the grid loads its own copy
+let gridHls = null;
+async function loadGridHls(){
+  if(gridHls) return gridHls;
+  if(window.Hls) return gridHls = window.Hls;
+  const r = await fetch("static/hls.min.js"); if(!r.ok) throw new Error("Couldn't load the video player");
+  const m = {exports: {}}; new Function("module", "exports", "define", await r.text())(m, m.exports, undefined);
+  return gridHls = m.exports;
+}
+function setGrid(on, remember){
+  if(remember) endBell(false);
+  if(on && (LV.on || CAM.id)) setLive(false, remember);
+  if(on && CR.on) setCrypto(false, remember);
+  GR.on = on;
+  document.body.classList.toggle("camgrid", on);
+  document.body.classList.toggle("live", on || LV.on || CR.on);
+  layoutClasses();
+  if(remember){ store.set("azanCam", on ? "*" : ""); if(on) store.set("azanCamLast", "*"); }
+  camButtons();
+  if(on) startGrid(); else stopGrid();
+  if(S) render();
+}
+function stopGrid(){
+  for(const t of GR.tiles){ clearTimeout(t.retry); if(t.hls) t.hls.destroy(); }
+  GR.tiles = []; GR.key = ""; $("#cgrid").innerHTML = "";
+}
+function fitGrid(){   // the most columns/rows layout that gives each 16:9 picture the most room
+  const g = $("#cgrid"), n = GR.tiles.length; if(!n || !GR.on) return;
+  const W = g.clientWidth, H = g.clientHeight; let best = [1, n, 0];
+  for(let c = 1; c <= n; c++){
+    const r = Math.ceil(n / c), w = Math.min(W / c, H / r * 16 / 9);
+    if(w > best[2] + .5) best = [c, r, w];
+  }
+  const [c, r, w] = best;
+  g.style.setProperty("--gc", c); g.style.setProperty("--gw", Math.floor(w) - 4 + "px"); g.style.setProperty("--gh", Math.floor(w * 9 / 16) - 4 + "px");
+}
+addEventListener("resize", fitGrid);
+async function startGrid(){
+  stopGrid();
+  if(!GR.on) return;
+  GR.key = gridKey();
+  const g = $("#cgrid");
+  g.innerHTML = cams().map(c => `<button class="ctile" type="button" data-cam="${esc(c.id)}"><video muted autoplay playsinline aria-label="${esc(c.name)}"></video><i>Connecting…</i><b>${esc(c.name)}</b></button>`).join("");
+  GR.tiles = cams().map((c, i) => ({cam: c, el: g.children[i], hls: null, retry: null, wait: 15}));
+  fitGrid();
+  let H = null;
+  try{ H = await loadGridHls(); }catch(e){}
+  for(const t of GR.tiles) playTile(t, H);
+}
+function playTile(t, H){
+  if(!GR.on || !GR.tiles.includes(t)) return;
+  const v = t.el.querySelector("video"), msg = t.el.querySelector("i");
+  const src = `camera/${encodeURIComponent(t.cam.id + (t.cam.clear ? ".sub" : ""))}/stream.m3u8`;
+  const fail = text => {
+    if(t.hls){ t.hls.destroy(); t.hls = null; }
+    msg.textContent = `${text} Trying again in ${t.wait} s.`; msg.hidden = false;
+    t.retry = setTimeout(() => playTile(t, H), t.wait * 1000); t.wait = Math.min(t.wait * 2, 120);
+  };
+  v.onplaying = () => { msg.hidden = true; t.wait = 15; };
+  if(H && H.isSupported()){
+    const h = t.hls = new H({liveSyncDurationCount: 2, maxBufferLength: 10, backBufferLength: 10, enableWorker: true});
+    h.on(H.Events.ERROR, (ev, d) => { if(d.fatal) fail(d.type === H.ErrorTypes.NETWORK_ERROR ? "Not available." : "Can't play it here."); });
+    h.on(H.Events.MANIFEST_PARSED, () => v.play().catch(() => {}));
+    h.loadSource(src); h.attachMedia(v);
+  } else if(v.canPlayType("application/vnd.apple.mpegurl")){
+    v.onerror = () => fail("Not available."); v.src = src; v.play().catch(() => {});
+  } else msg.textContent = "This screen can't play live video.";
+}
+$("#cgrid").addEventListener("click", e => { const b = e.target.closest("[data-cam]"); if(b) setLive(true, true, b.dataset.cam); });
 function camEvent(ev){   // from /api/state and, on a TV screen, /api/tv
   if(!ev || PREVIEW) return;
   if(CAM.seen === null){ CAM.seen = ev.seq; if(ev.age > 30) return; }   // a press from before this screen opened
   else if(ev.seq === CAM.seen) return;
   CAM.seen = ev.seq;
   if(ev.age > 30 || !camOf(ev.id)) return;
-  if(!CAM.back) CAM.back = {live: LV.on, cam: CAM.id, crypto: CR.on};
+  if(!CAM.back) CAM.back = {live: LV.on, cam: CAM.id, crypto: CR.on, grid: GR.on};
   setLive(true, false, ev.id);
   const d = $("#dbell");
   d.innerHTML = `${BELL}<span>${esc(ev.kind === "person" ? `Someone is at ${ev.name}` : `Doorbell · someone is at ${ev.name}`)}</span><button type="button">Close</button>`;
@@ -1165,7 +1260,7 @@ function endBell(goBack){
   $("#dbell").hidden = true;
   const b = CAM.back; CAM.back = null;
   if(!b || !goBack) return;
-  if(b.crypto) setCrypto(true, false); else setLive(b.live, false, b.cam);
+  if(b.crypto) setCrypto(true, false); else if(b.grid) setGrid(true, false); else setLive(b.live, false, b.cam);
 }
 
 // ---------------------------------------------------------------- Crypto
@@ -1174,9 +1269,10 @@ function endBell(goBack){
 function setCrypto(on, remember){
   if(remember) endBell(false);
   if(on && LV.on) setLive(false, remember);
+  if(on && GR.on) setGrid(false, remember);
   CR.on = on;
   document.body.classList.toggle("crypto", on);
-  document.body.classList.toggle("live", on || LV.on);
+  document.body.classList.toggle("live", on || LV.on || GR.on);
   layoutClasses();
   const b = $("#cryptobtn");
   b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");

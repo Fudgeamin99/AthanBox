@@ -1760,7 +1760,7 @@ function camerasCardHTML(){
   return `<div class="card" id="camcard"><h2>Cameras</h2>
     <p class="muted" style="margin-top:0">Reolink cameras on the prayer-times screen, in Makkah live's place. Press <b>Camera</b> on a screen to show one. AthanBox reads each camera itself and passes the picture on, so its password never leaves AthanBox. Cameras show on TV screens (with “Let TV screens connect” on the TV app page) and on AthanBox's own screen, without sound.</p>
     ${list.length ? list.map(item).join("") : `<p class="muted">No cameras yet.</p>`}
-    <div class="row" style="margin-top:14px"><button class="btn" onclick="addCamera()" ${list.length >= 8 ? "disabled" : ""}>+ Add camera</button></div>
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="addCamera()" ${list.length >= 16 ? "disabled" : ""}>+ Add camera</button></div>
     <div class="hint" style="margin-top:10px">In the Reolink app, turn on RTSP for each camera (Settings, Network, Advanced, Server settings). A camera at another place must be reachable from AthanBox: forward its port 554 on that router, or put both on Tailscale and type the camera's Tailscale address.</div></div>`;
 }
 function redrawCameras(){ const el = $("#camcard"); if(el) el.outerHTML = camerasCardHTML(); dirty(); }
