@@ -64,7 +64,8 @@ jobs:
 
   # 32-bit PCs and laptops: Debian 12 is the last version with a 32-bit installer. JavaScript
   # actions can't run in a 32-bit container, so this one runs it by hand.
-  # --network host: on the ubuntu-26.04 runners, a 32-bit container on Docker's own network can't look up deb.debian.org.
+  # On the ubuntu-26.04 runners a 32-bit (emulated) container can't look up any address itself, so
+  # deb.debian.org's address is looked up here and handed to it (--add-host).
   install-32bit:
     needs: test
     runs-on: ubuntu-latest
@@ -72,7 +73,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install it on 32-bit Debian 12
         run: |
-          docker run --rm --network host --platform linux/386 -v "$PWD:/src" -w /src debian:bookworm sh -euc '
+          echo "DEBIAN_HOST=deb.debian.org:$(getent ahostsv4 deb.debian.org | awk 'NR==1{print $1}')" >> "$GITHUB_ENV"
+          docker run --rm --add-host "deb.debian.org:$(getent ahostsv4 deb.debian.org | awk 'NR==1{print $1}')" --platform linux/386 -v "$PWD:/src" -w /src debian:bookworm sh -euc '
             test "$(dpkg --print-architecture)" = i386
             apt-get update
             sh client/build-deb.sh
@@ -84,7 +86,7 @@ jobs:
       - name: Two screens and Update now, on 32-bit Debian 12
         run: |
           mkdir -p two-screens
-          docker run --rm --network host --platform linux/386 --shm-size=1g -v "$PWD:/src" -v "$PWD/two-screens:/tmp/two-screens" \
+          docker run --rm --add-host "$DEBIAN_HOST" --platform linux/386 --shm-size=1g -v "$PWD:/src" -v "$PWD/two-screens:/tmp/two-screens" \
             -w /src debian:bookworm sh -euc 'apt-get update && sh client/test-two-screens.sh && sh client/test-update.sh'
       - uses: actions/upload-artifact@v4
         if: always()
