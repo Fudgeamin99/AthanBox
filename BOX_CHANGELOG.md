@@ -6,6 +6,14 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.13.1 - All cameras at once
+
+- **All cameras:** with two or more cameras, press **Camera** on a screen and pick **All cameras** to see every camera at once in a grid that uses the whole width, with the prayer times as cards below. The grid fits the screen by itself: 4 cameras in a row or 2×2, 8 as 4×2, 12 as 6×2 or 4×3, up to 16. Tap a camera to show it on its own; **All cameras** goes back to the grid. A screen showing the grid keeps showing it after a restart, and goes back to it after a doorbell press. Open `/display?camera=all` to start with it.
+- **Up to 16 cameras** on the Display page (was 8).
+- **Lighter on AthanBox and the TV:** the grid always uses each camera's Fluent picture, even for a camera set to Clear.
+- **Debian:** update as usual in Settings → Updates. Nothing new to install.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.13.0 - Reolink cameras on the screens, and a doorbell that rings the phones
 
 - **Cameras on the prayer-times screen:** add up to 8 Reolink cameras on the **Display** page (Cameras card): a name, the camera's address, username and password, and Fluent (lighter) or Clear picture. Press **Test** to check AthanBox can read it, with a picture from the camera. Each screen gets a **Camera** button; the picture shows in Makkah live's place, and with more than one camera their names on the picture switch between them. Each screen remembers which camera it showed.

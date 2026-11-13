@@ -1,7 +1,8 @@
 """Reolink cameras on the prayer-times screen, and a Reolink doorbell that rings the phones.
 
 - Video: AthanBox reads a camera's RTSP stream with ffmpeg and repackages it as HLS, without re-encoding,
-  only while a screen is watching it (/camera/<id>/stream.m3u8). Screens play it with Makkah live's player
+  only while a screen is watching it (/camera/<id>/stream.m3u8, or /camera/<id>.sub/... for the lighter Fluent
+  picture, which the All cameras grid always uses). Screens play it with Makkah live's player
   and never see the camera's address or password. ffmpeg stops a minute after the last screen stops asking.
 - Doorbell: for a camera marked as a doorbell, AthanBox signs in to the camera's own web API and asks it
   every second whether its button was pressed (and, if chosen, whether a person was seen).
@@ -31,7 +32,7 @@ from urllib.parse import quote
 
 log = logging.getLogger("azan-sip")
 
-MAX_CAMERAS = 8
+MAX_CAMERAS = 16
 ID_RE = re.compile(r"^[a-z0-9]{1,12}$")
 HOST_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9.\-]{0,251}[A-Za-z0-9])?$|^\[?[0-9A-Fa-f:]+\]?$")
 SEGMENT_RE = re.compile(r"^seg\d{1,8}\.ts$")
@@ -105,6 +106,7 @@ def for_screens(cams: list[dict] | None) -> list[dict]:
         if c.get("screens", True):
             key = json.dumps([c["host"], c["rtsp_port"], c["channel"], c["username"], c["password"], c["stream"]])
             out.append({"id": c["id"], "name": c["name"], "doorbell": bool(c.get("doorbell")),
+                        "clear": c["stream"] == "main",   # the grid then asks for its Fluent picture (<id>.sub)
                         "v": base64.urlsafe_b64encode(_digest(key)).decode()[:10]})
     return out
 
@@ -231,7 +233,7 @@ class Relay:
         with self.lock:
             self.cams = {c["id"]: c for c in cams or []}
             for cid, s in list(self.streams.items()):
-                if self.cams.get(cid) != s.cam:
+                if self._cam_for(cid) != s.cam:
                     s.stop()
                     shutil.rmtree(s.folder, ignore_errors=True)
                     del self.streams[cid]
@@ -241,9 +243,17 @@ class Relay:
             self.root = Path(tempfile.mkdtemp(prefix="athanbox-cameras-", dir=_shm_dir()))
         return self.root / cid
 
+    def _cam_for(self, key: str) -> dict | None:
+        """"<id>" is the camera as set; "<id>.sub" its Fluent picture (the grid of every camera)."""
+        cid, _, q = key.partition(".")
+        cam = self.cams.get(cid)
+        if cam is None or q not in ("", "sub"):
+            return None
+        return dict(cam, stream="sub") if q else cam
+
     def _stream(self, cid: str) -> _Stream:
         with self.lock:
-            cam = self.cams.get(cid)
+            cam = self._cam_for(cid)
             if not cam or not cam.get("screens", True):
                 raise KeyError(cid)
             s = self.streams.get(cid)
