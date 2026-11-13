@@ -6,6 +6,13 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.6.1 - Cameras added on the screen itself
+
+- **Cameras in Screen settings:** add Reolink cameras on the Wyse itself, on the TV or from a phone or computer signed in to Screen settings: a name, the camera's address, username and password, Fluent or Clear picture, and the channel. **Test** shows a picture from the camera. They show with **Camera** on the prayer times, next to AthanBox's own cameras (if it has any), and in **All cameras**.
+- **Nothing goes through AthanBox:** the cameras, their addresses and passwords are kept on the Wyse only (its settings file is now readable by the client alone), and the Wyse reads them straight from the camera with ffmpeg. AthanBox doesn't know they exist, so the camera only has to be on the Wyse's network. A saved password is never shown again in Screen settings: leave it empty to keep it.
+- **Screens with 0.5.2 or newer** get it from **Update now** in Screen settings.
+- **Box and Docker:** nothing changes.
+
 ## 0.6.0 - Reads cameras itself
 
 - **Cameras read by the screen itself:** a camera set to **Screens read it themselves** on AthanBox's Display page (AthanBox 0.13.2) is read by the Wyse from the camera, with ffmpeg, instead of through AthanBox. For AthanBox on a cloud server that can't reach the cameras at home, say. The screen shows it as before: one camera, or all of them in the grid. ffmpeg runs only while the screen shows the camera, copies the video without re-encoding it, and keeps it in memory.

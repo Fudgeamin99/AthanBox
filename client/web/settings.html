@@ -14,7 +14,7 @@ section{background:var(--card);border:1px solid var(--line);border-radius:16px;p
 h2{font-size:20px;margin:0 0 6px}
 p{margin:0 0 14px;color:var(--muted)}
 label{display:block;font-weight:600;margin:14px 0 6px}
-input[type=text]{width:100%;box-sizing:border-box;font:inherit;font-size:20px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#fff}
+input[type=text],input[type=password],input[type=number],select{width:100%;box-sizing:border-box;font:inherit;font-size:20px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#fff}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
 button{font:600 18px system-ui,sans-serif;padding:11px 20px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
@@ -37,6 +37,10 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
   opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #toast.bad{background:var(--bad);color:#3a120c}
+.cam{border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;margin-top:14px;background:rgba(0,0,0,.12)}
+.cam .two{display:flex;gap:12px}.cam .two>div{flex:1 1 0;min-width:0}.cam .two>div.narrow{flex:0 0 120px}
+.cam img{display:block;max-width:100%;border-radius:8px;margin-top:10px}
+select option{color:#14312a}
 @media (max-width:600px){main{padding:24px 16px 40px}section{padding:18px 16px}h1{font-size:26px}}
 </style>
 </head>
@@ -70,6 +74,18 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
     <div class="msg" id="tmsg"></div>
     <label class="switch"><input type="checkbox" id="live"> Makkah live sound</label>
     <p>When Makkah live is on this screen. It goes quiet by itself while the azan plays.</p>
+  </section>
+
+  <section>
+    <h2>Cameras</h2>
+    <p>Reolink cameras that <span class="tv-only">this screen</span><span class="remote-only">the TV screen</span> shows by itself: press <b>Camera</b> on the prayer times. They're kept on <span class="tv-only">this computer</span><span class="remote-only">the TV screen's computer</span> only, and read straight from the camera, so the camera has to be on the same network as <span class="tv-only">this screen</span><span class="remote-only">it</span>. AthanBox never sees them. In the Reolink app, turn on RTSP for each camera (Settings, Network, Advanced, Server settings).</p>
+    <p id="noff" class="msg bad" hidden>ffmpeg isn't installed on this computer, so cameras can't be shown. Install it as root with <b>apt install ffmpeg</b>.</p>
+    <div id="cams"></div>
+    <div class="row">
+      <button id="addcam">Add a camera</button>
+      <button class="main" id="savecams">Save cameras</button>
+    </div>
+    <div class="msg" id="cmsg"></div>
   </section>
 
   <section>
@@ -152,6 +168,8 @@ function show(st, fill){
   $("#vol").textContent = $("#volume").value + "%";
   $("#back").disabled = !st.box;
   $("#foot").textContent = `AthanBox Client ${st.version}`;
+  $("#noff").hidden = st.ffmpeg !== false;
+  if (CAMS === null) camsFrom(st);
   place(st.screens || [], st.outputs || []);
 }
 // With several screens plugged in, this page is spread over all of them: keep it on the first one
@@ -231,6 +249,68 @@ $("#test").onclick = async () => {   // AthanBox's chime, at this screen's volum
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.4 * v, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .6);
     o.start(t); o.stop(t + .62);
   });
+};
+// Cameras: this screen's own (the client reads them; AthanBox never sees them). A saved password is never
+// shown again: left empty, it stays as it is.
+let CAMS = null;
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function cmsg(text, kind){ const m = $("#cmsg"); m.textContent = text || ""; m.className = "msg " + (kind || ""); }
+function camsFrom(st){ CAMS = (st.cameras || []).map(c => ({...c, password: ""})); drawCams(); }
+function readCams(){
+  document.querySelectorAll(".cam").forEach((el, i) => {
+    for (const f of el.querySelectorAll("[data-f]")) CAMS[i][f.dataset.f] = f.value;
+  });
+}
+function drawCams(){
+  $("#cams").innerHTML = CAMS.map((c, i) => `<div class="cam" data-i="${i}">
+    <label for="cn${i}">Name on the screen</label><input type="text" id="cn${i}" data-f="name" maxlength="40" value="${esc(c.name)}" placeholder="Garden">
+    <div class="two"><div><label for="ch${i}">Camera's address</label><input type="text" id="ch${i}" data-f="host" value="${esc(c.host)}" placeholder="192.168.1.51" spellcheck="false" autocomplete="off"></div>
+      <div class="narrow"><label for="cp${i}">RTSP port</label><input type="number" id="cp${i}" data-f="rtsp_port" value="${esc(c.rtsp_port || 554)}" min="1" max="65535"></div></div>
+    <div class="two"><div><label for="cu${i}">Username</label><input type="text" id="cu${i}" data-f="username" value="${esc(c.username || "admin")}" spellcheck="false" autocomplete="off"></div>
+      <div><label for="cw${i}">Password</label><input type="password" id="cw${i}" data-f="password" value="${esc(c.password)}" autocomplete="new-password" placeholder="${c.password_set ? "Saved (type to change)" : ""}"></div></div>
+    <div class="two"><div><label for="cq${i}">Picture</label><select id="cq${i}" data-f="stream"><option value="sub"${c.stream !== "main" ? " selected" : ""}>Fluent (lighter, plays on any screen)</option><option value="main"${c.stream === "main" ? " selected" : ""}>Clear (full quality)</option></select></div>
+      <div class="narrow"><label for="cc${i}">Channel</label><input type="number" id="cc${i}" data-f="channel" value="${esc(c.channel || 1)}" min="1" max="64"></div></div>
+    <div class="row"><button data-test="${i}">Test</button><button data-rm="${i}">Remove</button><span class="msg" id="ct${i}" style="margin:0"></span></div>
+    <div id="ci${i}"></div>
+  </div>`).join("") || `<p style="margin-top:12px">No cameras yet.</p>`;
+  $("#addcam").disabled = CAMS.length >= 16;
+}
+$("#cams").addEventListener("click", async e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  readCams();
+  if (t.dataset.rm !== undefined){ CAMS.splice(+t.dataset.rm, 1); drawCams(); return cmsg("Press Save cameras to keep this.", "warn"); }
+  if (t.dataset.test !== undefined){
+    const i = +t.dataset.test, out = $("#ct" + i), pic = $("#ci" + i);
+    t.disabled = true; out.textContent = "Asking the camera…"; out.className = "msg"; pic.innerHTML = "";
+    try{
+      const r = await api("/client/api/cameras/test", {camera: CAMS[i]});
+      out.textContent = r.ok ? "It works." : r.error; out.className = "msg " + (r.ok ? "ok" : "bad");
+      if (r.image) pic.innerHTML = `<img alt="A picture from the camera" src="${r.image}">`;
+    }catch(e){ out.textContent = "This screen's own program isn't answering."; out.className = "msg bad"; }
+    finally{ t.disabled = false; }
+  }
+});
+$("#addcam").onclick = () => {
+  readCams();
+  CAMS.push({name: "", host: "", rtsp_port: 554, username: "admin", password: "", stream: "sub", channel: 1});
+  drawCams();
+  const f = document.querySelectorAll(".cam [data-f=name]"); if (f.length) f[f.length - 1].focus();
+};
+$("#savecams").onclick = async () => {
+  readCams();
+  if (CAMS.some(c => !c.host.trim())) return cmsg("Type each camera's address, or remove it.", "bad");
+  $("#savecams").disabled = true;
+  try{
+    const r = await api("/client/api/settings", {cameras: CAMS.map(c => ({id: c.id, name: c.name, host: c.host, rtsp_port: +c.rtsp_port,
+      channel: +c.channel, username: c.username, password: c.password, stream: c.stream}))});
+    if (!r.ok) throw 0;
+    camsFrom(r);
+    const n = (r.cameras || []).length;
+    cmsg(n ? `Saved. ${n === 1 ? "The camera shows" : "The cameras show"} with Camera on the prayer times.` : "Saved.", "ok");
+    toast("Cameras saved");
+  }catch(e){ cmsg("The cameras weren't saved. Try again.", "bad"); }
+  finally{ $("#savecams").disabled = false; }
 };
 $("#back").onclick = () => location.assign("/");
 $("#ron").onchange = async () => show(await api("/client/api/settings", {remote: $("#ron").checked}), false);

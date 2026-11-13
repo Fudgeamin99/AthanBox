@@ -56,7 +56,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -101,6 +101,7 @@ def save_config(c: dict):
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
     tmp = CONFIG.with_suffix(".tmp")
     tmp.write_text(json.dumps(c, indent=2) + "\n", "utf-8")
+    os.chmod(tmp, 0o600)   # it holds the cameras' passwords
     os.replace(tmp, CONFIG)
 
 
@@ -661,15 +662,115 @@ class Watch:
 
 
 # ------------------------------------------------------------------ cameras this screen reads itself
-# A Reolink camera set to "Screens read it themselves" on AthanBox's Display page (for when AthanBox can't
-# reach it, such as AthanBox on a cloud server) is read here, by this screen's own ffmpeg, from its RTSP
-# address. The screen asks for /camera/<id>/stream.m3u8 as before, and gets this computer's own copy.
-# Without ffmpeg, or when this screen can't reach the camera either, it goes through AthanBox as before.
+# Two kinds, both read here by this computer's own ffmpeg from the camera's RTSP address:
+# * This screen's own cameras, added in Screen settings. AthanBox knows nothing of them: their addresses
+#   and passwords stay on this computer, and the client adds them to the prayer-times screen's list.
+# * A camera on AthanBox set to "Screens read it themselves" (for when AthanBox can't reach it). Without
+#   ffmpeg, or when this screen can't reach it either, it goes through AthanBox as before.
+# The screen asks for /camera/<id>/stream.m3u8 as for any camera, and gets this computer's own copy.
 CAMERA_PATH = re.compile(r"^/camera/([a-z0-9]{1,12}(?:\.sub)?)/(stream\.m3u8|seg\d{1,8}\.ts)$")
 CAMERA_LIST_EVERY = 30.0    # seconds between asking AthanBox which cameras to read here
 CAMERA_IDLE = 60.0          # seconds without the screen asking before ffmpeg stops
 CAMERA_WAIT = 10.0          # how long the screen waits for the first piece of video, from each address
 CAMERA_FAILED_FOR = 300.0   # a camera this screen couldn't read goes through AthanBox for this long
+MAX_OWN_CAMERAS = 16
+CAMERA_ID = re.compile(r"^[a-z0-9]{1,12}$")
+
+
+def _int(v, default: int, lo: int, hi: int) -> int:
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return default
+    return n if lo <= n <= hi else default
+
+
+def clean_cameras(items, old: list | None = None) -> list[dict]:
+    """This screen's own cameras, as saved. A camera sent without a password keeps the one it had (Screen
+    settings never shows a password again)."""
+    before = {c["id"]: c for c in old or [] if isinstance(c, dict) and isinstance(c.get("id"), str)}
+    out, ids = [], set()
+    for c in items if isinstance(items, list) else []:
+        if not isinstance(c, dict):
+            continue
+        host = str(c.get("host") or "").strip()
+        host = re.sub(r"^[a-z]+://", "", host, flags=re.I).split("/")[0].rsplit("@", 1)[-1]
+        if not host or len(host) > 255 or not re.fullmatch(r"[A-Za-z0-9.\-:\[\]]+", host):
+            continue
+        port = c.get("rtsp_port")
+        m = re.fullmatch(r"([^:\[\]]+):(\d{1,5})", host) or re.fullmatch(r"(\[[^\]]+\]):(\d{1,5})", host)
+        if m:   # typed with its port (192.168.1.51:554)
+            host, port = m.group(1), m.group(2)
+        cid = str(c.get("id") or "")
+        if not CAMERA_ID.match(cid) or cid in ids:
+            cid = "w" + secrets.token_hex(3)
+        ids.add(cid)
+        pw = c.get("password")
+        if not isinstance(pw, str) or pw == "":
+            pw = (before.get(cid) or {}).get("password", "")
+        out.append({"id": cid, "name": str(c.get("name") or "").strip()[:40] or f"Camera {len(out) + 1}",
+                    "host": host, "rtsp_port": _int(port, 554, 1, 65535),
+                    "channel": _int(c.get("channel"), 1, 1, 64),
+                    "username": str(c.get("username") or "admin").strip()[:64] or "admin", "password": pw[:128],
+                    "stream": "main" if c.get("stream") == "main" else "sub"})
+        if len(out) >= MAX_OWN_CAMERAS:
+            break
+    return out
+
+
+def own_cameras(c: dict) -> list[dict]:
+    cams = c.get("cameras")
+    return cams if isinstance(cams, list) else []
+
+
+def rtsp_urls(cam: dict, stream: str) -> list[str]:
+    """Reolink's RTSP addresses for a camera, the likeliest first (as AthanBox's)."""
+    q = urllib.parse.quote
+    auth = f"{q(cam['username'], safe='')}:{q(cam['password'], safe='')}@"
+    h = cam["host"].strip("[]")
+    host = f"[{h}]" if ":" in h else h
+    base, ch = f"rtsp://{auth}{host}:{cam['rtsp_port']}", f"{cam['channel']:02d}"
+    return [f"{base}/h264Preview_{ch}_{stream}", f"{base}/Preview_{ch}_{stream}"]
+
+
+def own_for_screen(c: dict) -> list[dict]:
+    """This screen's own cameras as the prayer-times screen lists them (names, no addresses)."""
+    out = []
+    for cam in own_cameras(c):
+        key = json.dumps([cam["host"], cam["rtsp_port"], cam["channel"], cam["username"], cam["password"], cam["stream"]])
+        out.append({"id": cam["id"], "name": cam["name"], "doorbell": False, "clear": cam["stream"] == "main",
+                    "local": True, "v": hashlib.sha256(key.encode()).hexdigest()[:10]})
+    return out
+
+
+def camera_snapshot(cam: dict, timeout: float = 20) -> dict:
+    """Screen settings' Test: one picture from the camera, or why there isn't one."""
+    if not shutil.which("ffmpeg"):
+        return {"ok": False, "error": "ffmpeg isn't installed on this computer. Install it (apt install ffmpeg) to show cameras here."}
+    why = ""
+    for url in rtsp_urls(cam, "sub"):
+        try:
+            r = subprocess.run(["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-rtsp_transport", "tcp",
+                                "-timeout", "10000000", "-i", url, "-frames:v", "1", "-vf", "scale=640:-2",
+                                "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "5", "-"],
+                               capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            why = "timeout"
+            continue
+        if r.returncode == 0 and r.stdout[:2] == b"\xff\xd8":
+            import base64
+            return {"ok": True, "image": "data:image/jpeg;base64," + base64.b64encode(r.stdout).decode()}
+        why = r.stderr.decode("utf-8", "replace")
+    low = why.lower()
+    if "401" in low or "unauthorized" in low:
+        msg = "The camera turned down the username or password."
+    elif "refused" in low:
+        msg = f"The camera didn't accept the connection on port {cam['rtsp_port']}. In the Reolink app, turn on RTSP (Settings, Network, Advanced, Server settings)."
+    elif "404" in low or "not found" in low:
+        msg = "The camera has no stream at that channel. Check the channel."
+    else:
+        msg = f"No picture from {cam['host']}. Check the address, and that this screen is on the camera's network."
+    return {"ok": False, "error": msg}
 
 
 class _CamStream:
@@ -752,7 +853,7 @@ class Cameras:
                 if set(listed) != set(self.listed):
                     log("Cameras read by this screen itself: " + (", ".join(c.get("name", i) for i, c in listed.items()) or "none"))
                 for key, s in list(self.streams.items()):   # removed or changed: stop it
-                    cam = listed.get(key.partition(".")[0])
+                    cam = self.own(key) or listed.get(key.partition(".")[0])
                     if cam is None or self._urls(cam, key) != s.urls:
                         s.stop()
                         shutil.rmtree(s.folder, ignore_errors=True)
@@ -766,13 +867,39 @@ class Cameras:
         urls = cam["urls"].get(q)
         return [u for u in urls if isinstance(u, str) and u.startswith("rtsp://")][:2] if isinstance(urls, list) else []
 
+    @staticmethod
+    def own(key: str) -> dict | None:
+        """One of this screen's own cameras (Screen settings), with its addresses."""
+        cid = key.partition(".")[0]
+        for cam in own_cameras(load_config()):
+            if cam.get("id") == cid:
+                return {"name": cam["name"], "stream": cam["stream"], "own": True,
+                        "urls": {"main": rtsp_urls(cam, "main"), "sub": rtsp_urls(cam, "sub")}}
+        return None
+
+    def _cam(self, box: str, key: str) -> dict | None:
+        return self.own(key) or self._list(box).get(key.partition(".")[0])
+
     def here(self, box: str, key: str) -> bool:
         """Is this camera read by this screen itself (and not given up on for now)?"""
         if not self.ffmpeg():
             return False
-        cam = self._list(box).get(key.partition(".")[0])
+        cam = self._cam(box, key)
         with self.lock:
-            return bool(cam and self._urls(cam, key)) and self.failed.get(key, 0) < time.monotonic()
+            return bool(cam and self._urls(cam, key)) and (cam.get("own") or self.failed.get(key, 0) < time.monotonic())
+
+    def changed(self):
+        """Screen settings changed this screen's own cameras: stop any that was removed or changed."""
+        with self.lock:
+            listed = dict(self.listed)
+        for key, s in list(self.streams.items()):
+            cam = self.own(key) or listed.get(key.partition(".")[0])
+            if cam is None or self._urls(cam, key) != s.urls:
+                with self.lock:
+                    if self.streams.get(key) is s:
+                        s.stop()
+                        shutil.rmtree(s.folder, ignore_errors=True)
+                        del self.streams[key]
 
     def _folder(self, key: str) -> Path:
         if self.root is None:
@@ -783,7 +910,7 @@ class Cameras:
     def playlist(self, box: str, key: str) -> bytes | None:
         """The camera's live playlist, read by this screen itself. None when it can't be read here (the
         screen then gets it through AthanBox, for the next few minutes)."""
-        cam = self._list(box).get(key.partition(".")[0])
+        cam = self._cam(box, key)
         if not cam:
             return None
         with self.lock:
@@ -809,6 +936,9 @@ class Cameras:
                         pass
                     time.sleep(0.25)
             s.stop()
+        if cam.get("own"):
+            log(f"Camera {cam.get('name', key)}: no video from it")
+            return None
         with self.lock:
             self.failed[key] = time.monotonic() + CAMERA_FAILED_FOR
         log(f"Camera {cam.get('name', key)}: this screen can't read it itself, so it shows through AthanBox "
@@ -900,7 +1030,10 @@ class Handler(BaseHTTPRequestHandler):
         st = {"state": w["state"], "box_version": w.get("version"), "box": c.get("box"),
               "name": c.get("name") or default_name(), "volume": volume_of(c), "version": __version__,
               **dict(zip(("screens", "outputs"), read_screens())), "remote": self.REMOTE, "chime": Handler.chime_at,
-              "live_sound": c.get("live_sound") if isinstance(c.get("live_sound"), bool) else None}
+              "live_sound": c.get("live_sound") if isinstance(c.get("live_sound"), bool) else None,
+              "cameras": [{k: v for k, v in cam.items() if k != "password"} | {"password_set": bool(cam.get("password"))}
+                          for cam in own_cameras(c)],
+              "ffmpeg": CAMERAS.ffmpeg()}
         if not self.REMOTE:   # the TV only: the code, and where phones and computers open these settings
             on = c.get("remote", True) is not False and bool(REMOTE_PORT)
             st.update(remote_on=on, remote_url=remote_url() if on else "", signed_in=signed_in(),
@@ -983,8 +1116,20 @@ class Handler(BaseHTTPRequestHandler):
                 c["live_sound"] = req["live_sound"]
             if "remote" in req and not self.REMOTE:   # switched on and off on the TV only
                 c["remote"] = bool(req["remote"])
+            if "cameras" in req:   # this screen's own cameras
+                if not isinstance(req["cameras"], list):
+                    return self._json({"ok": False, "error": "Bad request"}, 400)
+                c["cameras"] = clean_cameras(req["cameras"], own_cameras(c))
             save_config(c)
+            if "cameras" in req:
+                CAMERAS.changed()
+                log(f"This screen's own cameras: {', '.join(x['name'] for x in c['cameras']) or 'none'}")
             return self._json({"ok": True, **self._status()})
+        if p == "/client/api/cameras/test":
+            cams = clean_cameras([req.get("camera")], own_cameras(c))
+            if not cams:
+                return self._json({"ok": False, "error": "Type the camera's address first."})
+            return self._json(camera_snapshot(cams[0]))
         if p == "/client/api/chime":   # the prayer times on the TV play it (web/screen.js)
             Handler.chime_at = time.time()
             return self._json({"ok": True})
@@ -1038,9 +1183,16 @@ class Handler(BaseHTTPRequestHandler):
                 return False
             self._send(200, body, "video/mp2t")
             return True
+        own = CAMERAS.own(key)
+        if own and not CAMERAS.ffmpeg():
+            self._json({"ok": False, "error": "ffmpeg isn't installed on this screen's computer"}, 502)
+            return True
         if not CAMERAS.here(c["box"], key):
             return False
         body = CAMERAS.playlist(c["box"], key)
+        if body is None and own:
+            self._json({"ok": False, "error": f"{own['name']} didn't send any video. Check it in Screen settings (Test)."}, 502)
+            return True
         if body is None:
             return False
         self._send(200, body, "application/vnd.apple.mpegurl")
@@ -1100,10 +1252,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._redirect("/client/connecting?to=" + urllib.parse.quote(url.path + ("?" + url.query if url.query else ""), safe=""))
         try:
             ctype = r.getheader("Content-Type", "")
-            if (page and r.status == 200 and ctype.startswith("text/html")) or (url.path == "/api/tv" and r.status == 200):
+            if (page and r.status == 200 and ctype.startswith("text/html")) or (url.path in ("/api/tv", "/api/state") and r.status == 200):
                 body = r.read()
                 if url.path == "/api/tv":
                     body = self._own_volume(body, c, self._mirror())
+                elif url.path == "/api/state":
+                    body = self._own_cameras(body, c)
                 else:
                     body = body.replace(b"</body>", INJECT + b"</body>", 1) if b"</body>" in body else body + INJECT
                 return self._send(r.status, body, ctype, {k: v for k, v in r.getheaders()
@@ -1133,6 +1287,23 @@ class Handler(BaseHTTPRequestHandler):
         """Asked by a copy of the TV app on a second screen (/client/wall gives those mirror=1)."""
         ref = urllib.parse.urlsplit(self.headers.get("Referer") or "")
         return urllib.parse.parse_qs(ref.query).get("mirror") == ["1"]
+
+    @staticmethod
+    def _own_cameras(body: bytes, c: dict) -> bytes:
+        """This screen's own cameras (Screen settings) on the prayer-times screen, after AthanBox's."""
+        own = own_for_screen(c)
+        if not own:
+            return body
+        try:
+            j = json.loads(body)
+            if isinstance(j, dict):
+                ids = {x["id"] for x in own}
+                box = [x for x in j.get("cameras") or [] if isinstance(x, dict) and x.get("id") not in ids]
+                j["cameras"] = box + own
+                return json.dumps(j).encode()
+        except ValueError:
+            pass
+        return body
 
     @staticmethod
     def _own_volume(body: bytes, c: dict, mirror: bool = False) -> bytes:
@@ -1209,7 +1380,7 @@ class RemoteHandler(Handler):
             return self._send(200, b'{"ok": true}', "application/json", {
                 "Set-Cookie": f"azc={token}; Max-Age={SESSION_DAYS * 86400}; Path=/; HttpOnly; SameSite=Strict"})
         if p in ("/client/api/connect", "/client/api/settings", "/client/api/update", "/client/api/chime",
-                 "/client/api/shutdown"):
+                 "/client/api/shutdown", "/client/api/cameras/test"):
             return self._client_post(p, req) if self._signed_in() else self._json(self.SIGN_IN, 401)
         return self._json({"ok": False, "error": "Not found"}, 404)
 

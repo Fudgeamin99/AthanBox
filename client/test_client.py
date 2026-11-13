@@ -45,6 +45,8 @@ class FakeBox(BaseHTTPRequestHandler):
             return self._send(200, b"<html><body><p>prayer times</p></body></html>", "text/html; charset=utf-8")
         if self.path.startswith("/api/tv"):
             return self._send(200, b'{"now": 1, "volume": 0.3, "playing": null}', "application/json")
+        if self.path == "/api/state":
+            return self._send(200, b'{"cameras": [{"id": "front", "name": "Front door"}], "location": "London"}', "application/json")
         if self.path == "/camera/local.json":   # cameras the screens read themselves
             return self._send(200, json.dumps({"cameras": FakeBox.local}).encode(), "application/json")
         if self.path.startswith("/camera/"):   # AthanBox's own copy of a camera
@@ -352,6 +354,73 @@ class ClientTest(unittest.TestCase):
             self.assertIn(b"from the box", body)
         finally:
             FakeBox.local = []
+
+    def fake_ffmpeg(self):
+        """A stand-in for ffmpeg: a playlist and a piece of video, or a failure for an address with "bad" in it"""
+        bin_ = Path(self.tmp.name) / "bin"
+        bin_.mkdir(exist_ok=True)
+        (bin_ / "ffmpeg").write_text('#!/bin/sh\nfor a; do last="$a"; case "$a" in rtsp://*) url="$a";; esac; done\n'
+                                     'case "$url" in *bad*) exit 1;; esac\n'
+                                     'd=$(dirname "$last"); printf "own video %s" "$url" > "$d/seg00000.ts"\n'
+                                     'printf "#EXTM3U\\n#EXTINF:2.0,\\nseg00000.ts\\n" > "$last"\nexec sleep 30\n')
+        (bin_ / "ffmpeg").chmod(0o755)
+        return mock.patch.dict(os.environ, {"PATH": f"{bin_}:{os.environ['PATH']}"})
+
+    def test_cameras_added_on_the_screen_itself(self):
+        ac.CAMERAS = ac.Cameras()
+        r = json.loads(self.get("/client/api/settings", "POST", json.dumps({"cameras": [
+            {"name": "Garden", "host": "192.168.1.51", "username": "view", "password": "p@ss"},
+            {"name": "Shed", "host": "bad.local", "password": "x"},
+            {"name": "No address"}]}))[1])
+        self.assertTrue(r["ok"])
+        self.assertEqual([c["name"] for c in r["cameras"]], ["Garden", "Shed"])   # (one without an address isn't kept)
+        self.assertNotIn("p@ss", json.dumps(r))   # a password is never shown again
+        self.assertTrue(r["cameras"][0]["password_set"])
+        gid = r["cameras"][0]["id"]
+        self.assertEqual(oct(ac.CONFIG.stat().st_mode & 0o777), "0o600")
+        # Saved again without the password (Screen settings never has it): it stays
+        r = json.loads(self.get("/client/api/settings", "POST", json.dumps({"cameras": [{**r["cameras"][0], "password": "", "name": "Back garden"}]}))[1])
+        self.assertEqual(ac.load_config()["cameras"][0]["password"], "p@ss")
+        self.assertEqual(r["cameras"][0]["id"], gid)
+        # The prayer-times screen lists it after AthanBox's cameras, without its address
+        _, body = self.get("/api/state")
+        st = json.loads(body)
+        self.assertEqual([c["name"] for c in st["cameras"]], ["Front door", "Back garden"])
+        self.assertNotIn("192.168.1.51", body.decode())
+        with self.fake_ffmpeg(), mock.patch.object(ac, "CAMERA_WAIT", 2):
+            try:
+                r, body = self.get(f"/camera/{gid}/stream.m3u8")   # read here; AthanBox never asked
+                self.assertEqual(r.status, 200)
+                _, seg = self.get(f"/camera/{gid}/seg00000.ts")
+                self.assertEqual(seg, b"own video rtsp://view:p%40ss@192.168.1.51:554/h264Preview_01_sub")
+                self.assertFalse([x for x in FakeBox.seen if x[0].startswith(f"/camera/{gid}")])
+                # Removed in Screen settings: its ffmpeg stops
+                self.get("/client/api/settings", "POST", json.dumps({"cameras": []}))
+                self.assertEqual(ac.CAMERAS.streams, {})
+                _, body = self.get("/api/state")
+                self.assertEqual([c["name"] for c in json.loads(body)["cameras"]], ["Front door"])
+            finally:
+                ac.CAMERAS.stop_all()
+
+    def test_own_camera_that_cant_be_read_says_so(self):
+        ac.CAMERAS = ac.Cameras()
+        r = json.loads(self.get("/client/api/settings", "POST", json.dumps({"cameras": [{"name": "Shed", "host": "bad.local"}]}))[1])
+        sid = r["cameras"][0]["id"]
+        with self.fake_ffmpeg(), mock.patch.object(ac, "CAMERA_WAIT", 1):
+            try:
+                r, body = self.get(f"/camera/{sid}/stream.m3u8")
+                self.assertEqual(r.status, 502)
+                self.assertIn("Shed", json.loads(body)["error"])
+            finally:
+                ac.CAMERAS.stop_all()
+                self.get("/client/api/settings", "POST", json.dumps({"cameras": []}))
+
+    def test_clean_cameras(self):
+        cams = ac.clean_cameras([{"host": "rtsp://admin:x@10.0.0.5:554/h264Preview_01_main", "rtsp_port": "99999", "channel": 0},
+                                 {"host": "10.0.0.6; rm -rf /"}, "nonsense"])
+        self.assertEqual(len(cams), 1)
+        self.assertEqual((cams[0]["host"], cams[0]["rtsp_port"], cams[0]["channel"], cams[0]["name"]), ("10.0.0.5", 554, 1, "Camera 1"))
+        self.assertEqual(ac.clean_cameras([{"host": "cam.local:8554", "rtsp_port": 554}])[0]["rtsp_port"], 8554)
 
     def test_own_volume(self):
         r, body = self.get("/api/tv?id=x&sound=1")
