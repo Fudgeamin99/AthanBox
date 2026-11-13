@@ -515,9 +515,7 @@ class Yealink:
                     f"{n}.sip_server.1.port = {port}",
                     f"{n}.sip_server.1.transport_type = 0",
                     f"{n}.sip_server.1.expires = 300",
-                    # AthanBox only ever calls this line for the azan: answer it straight away. A DECT base
-                    # needs it too, or it won't pick up a second handset's call while the first is playing
-                    # (a handset that's off is dealt with when calling: see sipserver.ServerTarget)
+                    # AthanBox only ever calls this line for the azan: answer it straight away
                     f"{n}.auto_answer = 1",
                     # behind a router (a phone outside AthanBox's network): keep the way back open
                     f"{n}.nat.udp_update_enable = 1",

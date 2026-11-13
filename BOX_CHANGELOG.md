@@ -6,6 +6,12 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 
 
 
+## 0.12.8 - Cordless handsets: back to how 0.12.1 called them
+
+- **Cordless handsets on one base (W60B with W52H/W56H):** the changes in 0.12.2 to 0.12.6 for a handset that's off didn't help on a real base, so they're undone. AthanBox calls a base's handsets as it did in 0.12.1: each handset's line 1.5 seconds apart, with the base's own auto-answer on. With every handset on, they all pick up by themselves. If the base got its settings from 0.12.3 (auto-answer off), press **Update now** on it in **Remote provisioning**.
+- **Debian:** update as usual in Settings → Updates. Nothing else changes.
+- **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. `compose.yaml` doesn't change.
+
 ## 0.12.7 - Android app: portrait on phones and tablets
 
 - **Azan SIP TV for Android 1.3.0:** the app no longer stays sideways. On a phone or tablet the prayer times now turn upright with the device (following its rotation lock), using the display's phone layout: the cards in two columns, scrolling down, with Makkah live above them at full width. Android TV and Fire TV stay landscape as before.
