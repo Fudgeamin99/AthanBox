@@ -4,7 +4,7 @@ AthanBox plays the azan (call to prayer) automatically at every prayer time on y
 
 It runs in **Docker** on a Linux computer that stays on, such as a NAS, a home server or a Raspberry Pi, or [straight on Debian](#run-it-on-debian) on a small PC such as a Dell Wyse thin client. A ready-to-plug-in AthanBox (a Dell Wyse 3040 with its own prayer-times screen) is on the way. See [What's next](#whats-next).
 
-**Latest release:** [box-v0.12.0, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.5.4](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.5.4). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
+**Latest release:** [box-v0.12.0, Docker](https://github.com/Fudgeamin99/AthanBox/releases/latest). Wyse client: [client-v0.6.0](https://github.com/Fudgeamin99/AthanBox/releases/tag/client-v0.6.0). Tested on a UGREEN NAS paging the phones through a Grandstream UCM.
 
 ## Run it with Docker
 
@@ -99,7 +99,7 @@ A spare Dell Wyse, an old laptop or any small PC can be a TV screen for an Athan
 
 ```sh
 sudo apt update && sudo apt install -y wget
-wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.5.4/azan-sip-client.deb
+wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.6.0/azan-sip-client.deb
 sudo apt install -y ./azan-sip-client.deb
 ```
 
@@ -136,7 +136,7 @@ The wizard shows a QR code: scan it to carry on from your phone. If you'd rather
 
 **TV app:** on the **TV app** page, switch on *Let TV screens connect*. A TV screen then shows the prayer times and plays the azan through the TV's speakers, at the same moment as the phones. Use an old iPad (scan the QR code, then *Add to Home Screen*), the **Azan SIP TV** Android app (scan the second QR code, or open `http://<AthanBox's address>:8765/apk` on the device), or a smart TV's browser at `http://<AthanBox's address>:8765/tv`. The page lists the screens and can test them.
 
-**Cameras:** add Reolink cameras on the Display page, and each screen gets a *Camera* button that shows one in Makkah live's place (`/display?camera=<name>` opens with it). With two or more, *All cameras* shows every camera at once in a grid (up to 16, `/display?camera=all`). AthanBox reads each camera itself and passes the picture on, so the camera's password stays on AthanBox. Cameras show on AthanBox's own screen and on TV screens while *Let TV screens connect* is on. A camera marked as a Reolink doorbell pops up on every screen for 30 seconds when its button is pressed, and rings the phones you choose. Turn on RTSP for each camera in the Reolink app first.
+**Cameras:** add Reolink cameras on the Display page, and each screen gets a *Camera* button that shows one in Makkah live's place (`/display?camera=<name>` opens with it). With two or more, *All cameras* shows every camera at once in a grid (up to 16, `/display?camera=all`). AthanBox reads each camera itself and passes the picture on, so the camera's password stays on AthanBox. Cameras show on AthanBox's own screen and on TV screens while *Let TV screens connect* is on. When AthanBox can't reach a camera (AthanBox on a cloud server, say), switch on *Screens read it themselves* for it: Wyse screens and the Android TV app then read it straight from the camera, and fall back to AthanBox when they can't. A camera marked as a Reolink doorbell pops up on every screen for 30 seconds when its button is pressed, and rings the phones you choose. Turn on RTSP for each camera in the Reolink app first.
 
 **Android app updates:** on the screen, press **Back** (or the remote's **Menu** button) for the app's menu, then **Update the app**. Android asks before it installs the update. A screen that got the app before AthanBox 0.7.7 needs it removed and installed again once, from `/apk`, because the app is now signed with its permanent key. If Makkah live doesn't show a picture on a screen, the same menu switches it to the other video player.
 

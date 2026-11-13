@@ -411,7 +411,7 @@ public class TvActivity extends Activity {
         }
 
         @JavascriptInterface public void play(final String url, final boolean relay) {
-            if (url == null || !url.matches("(?i)https?://.+")) return;
+            if (url == null || !url.matches("(?i)(https?|rtsp)://.+")) return;   // (rtsp: a camera read straight from it)
             handler.post(new Runnable() {
                 @Override public void run() {
                     if (!ours() || !appPlayer()) return;

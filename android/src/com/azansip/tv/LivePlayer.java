@@ -37,6 +37,7 @@ final class LivePlayer {
     }
 
     private static final long NO_START_MS = 45000;   // as the page's own player
+    private static final long NO_START_RTSP_MS = 15000;   // a camera read straight from it: soon through AthanBox instead
     private static final long FROZEN_MS = 30000;
     private static final long CHECK_MS = 5000;
     private static final int DOT = 2;
@@ -225,7 +226,8 @@ final class LivePlayer {
             movedAt = now;   // (some TVs always say 0 for a live stream: playing will do)
         }
         if (!started && on && pos > 1000) started();   // (some TVs never say when the picture starts)
-        if (!started && now - since > NO_START_MS) {
+        long wait = url.regionMatches(true, 0, "rtsp:", 0, 5) ? NO_START_RTSP_MS : NO_START_MS;
+        if (!started && now - since > wait) {
             fail("It didn't start.");
             return;
         }

@@ -69,6 +69,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The runner's own 32-bit emulation (ubuntu-26.04) has no network: apt fails with "socket (38: Function
+      # not implemented)". QEMU's own, registered here, has.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: "386"
       - name: Install it on 32-bit Debian 12
         run: |
           docker run --rm --platform linux/386 -v "$PWD:/src" -w /src debian:bookworm sh -euc '

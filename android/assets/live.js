@@ -1,4 +1,5 @@
-// Added by the Azan SIP TV app to the TV page (/tv) of Azan SIP or AthanBox, for Makkah live.
+// Added by the Azan SIP TV app to the TV page (/tv) of Azan SIP or AthanBox, for Makkah live (and AthanBox's
+// cameras, which play in its place).
 // Some Android TVs play Makkah live inside the page with a black picture, so the app plays it with
 // Android's own video player instead (LivePlayer.java). The page still decides when it plays, from
 // which link and whether it's quiet; this tells the app, and where the page's player is, and the
@@ -24,6 +25,20 @@
   };
 
   let gen = 0, playing = false, relay = true, told = "";
+  // A camera set to "Screens read it themselves" on AthanBox: the app's player reads it from the camera's own
+  // address (RTSP), not through AthanBox. If it can't, through AthanBox, for the next few minutes.
+  let own = null;            // {next: the camera's other addresses, box: AthanBox's copy} while reading it itself
+  const skip = {};           // camera id -> until when it goes through AthanBox
+  async function camAddresses(){
+    if (typeof CAM !== "object" || !CAM || !CAM.id || typeof camOf !== "function") return null;
+    const c = camOf(CAM.id);
+    if (!c || !c.local || (skip[CAM.id] || 0) > Date.now()) return null;
+    try{
+      const r = await fetch("camera/local.json", {cache: "no-store"});
+      const l = ((await r.json()).cameras || []).find(x => x.id === CAM.id), u = l && l.urls && l.urls[l.stream === "main" ? "main" : "sub"];
+      return Array.isArray(u) ? u.filter(x => /^rtsp:\/\//i.test(x)).slice(0, 2) : null;
+    }catch(e){ return null; }
+  }
   window.stopLive = () => { gen++; playing = false; pageStop(); A.stop(); told = ""; };
   window.startLive = async () => {
     stopLive();
@@ -35,6 +50,16 @@
     LV.played = false;
     const link = src();
     relay = link === RELAY_;
+    own = null;
+    const urls = await camAddresses();
+    if (my !== gen || !LV.on) return;
+    if (urls && urls.length){
+      v.muted = true;   // (cameras are shown without sound)
+      soundBtn();
+      own = {id: CAM.id, next: urls.slice(1), box: new URL(link, location.href).href};
+      A.play(urls[0], false);
+      return;
+    }
     if (relay){   // as the page does: Azan SIP says why when it hasn't got the stream
       try{
         const r = await fetch(RELAY_, {cache: "no-store"});
@@ -55,6 +80,13 @@
     failed(started, why){
       if (!LV.on) return;
       playing = false;
+      if (!started && own){   // the camera's other address, then through AthanBox
+        if (own.next.length) return A.play(own.next.shift(), false);
+        skip[own.id] = Date.now() + 5 * 60000;
+        const box = own.box;
+        own = null;
+        return A.play(box, false);
+      }
       if (!started && !relay && typeof directFailed === "function") return directFailed();   // through Azan SIP instead
       retryLive(started ? "Makkah live was interrupted" : "Makkah live isn't available right now", why || "");
     },

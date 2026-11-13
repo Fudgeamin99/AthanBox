@@ -1006,7 +1006,7 @@ const camOf = id => cams().find(c => c.id === id);
 const liveName = () => CAM.id ? (camOf(CAM.id) || {}).name || "The camera" : "Makkah live";
 const liveKey = () => JSON.stringify(CAM.id ? camOf(CAM.id) || {} : (S && S.live) || {});
 function liveSrc(){
-  if(CAM.id) return `camera/${encodeURIComponent(CAM.id)}/stream.m3u8`;   // always through AthanBox, which reads the camera
+  if(CAM.id) return `camera/${encodeURIComponent(CAM.id)}/stream.m3u8`;   // through AthanBox, which reads the camera (a Wyse screen answers this itself for a camera set to "Screens read it themselves", and the Android app reads that camera itself)
   const l = S && S.live; return l && l.direct && l.url && !LV.directFailed ? l.url : RELAY;
 }
 function directFailed(){

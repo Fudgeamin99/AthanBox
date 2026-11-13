@@ -9,6 +9,8 @@ http://127.0.0.1:8771 only:
 * The azan's volume on the TV app is this screen's own: it replaces AthanBox's TV volume.
 * When AthanBox can't be reached (a restart, an update, the network), the screen shows "Connecting to
   AthanBox" and goes back to the prayer times by itself as soon as AthanBox answers again.
+* A camera set to "Screens read it themselves" on AthanBox is read by this computer itself (with ffmpeg),
+  not through AthanBox: for AthanBox on a cloud server, say, that can't reach the cameras at home.
 * /client/ is this screen's own settings: which AthanBox, its name on AthanBox's TV app page, the volume
   and updates. The volume also has buttons on the prayer-times screen itself (web/screen.js).
 * The same settings open from a phone or computer on the network, on port 8772 (and nothing else
@@ -39,11 +41,13 @@ import json
 import os
 import re
 import secrets
+import shutil
 import signal
 import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -52,7 +56,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.5.4"
+__version__ = "0.6.0"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -656,6 +660,198 @@ class Watch:
             self.wake.clear()
 
 
+# ------------------------------------------------------------------ cameras this screen reads itself
+# A Reolink camera set to "Screens read it themselves" on AthanBox's Display page (for when AthanBox can't
+# reach it, such as AthanBox on a cloud server) is read here, by this screen's own ffmpeg, from its RTSP
+# address. The screen asks for /camera/<id>/stream.m3u8 as before, and gets this computer's own copy.
+# Without ffmpeg, or when this screen can't reach the camera either, it goes through AthanBox as before.
+CAMERA_PATH = re.compile(r"^/camera/([a-z0-9]{1,12}(?:\.sub)?)/(stream\.m3u8|seg\d{1,8}\.ts)$")
+CAMERA_LIST_EVERY = 30.0    # seconds between asking AthanBox which cameras to read here
+CAMERA_IDLE = 60.0          # seconds without the screen asking before ffmpeg stops
+CAMERA_WAIT = 10.0          # how long the screen waits for the first piece of video, from each address
+CAMERA_FAILED_FOR = 300.0   # a camera this screen couldn't read goes through AthanBox for this long
+
+
+class _CamStream:
+    def __init__(self, urls: list, folder: Path):
+        self.urls = urls
+        self.folder = folder
+        self.proc = None
+        self.started = 0.0
+        self.seen = time.monotonic()
+        self.lock = threading.Lock()
+
+    def running(self) -> bool:
+        return self.proc is not None and self.proc.poll() is None
+
+    def start(self, url: str):
+        self.stop()
+        shutil.rmtree(self.folder, ignore_errors=True)
+        self.folder.mkdir(parents=True, exist_ok=True)
+        cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
+               "-rtsp_transport", "tcp", "-timeout", "10000000", "-i", url,
+               "-map", "0:v:0", "-an", "-c:v", "copy",   # the camera's own video as it is: light on the Wyse
+               "-f", "hls", "-hls_time", "2", "-hls_list_size", "5",
+               "-hls_flags", "delete_segments+omit_endlist+independent_segments",
+               "-hls_segment_filename", str(self.folder / "seg%05d.ts"), str(self.folder / "stream.m3u8")]
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.started = time.monotonic()
+
+    def stop(self):
+        p, self.proc = self.proc, None
+        if p and p.poll() is None:
+            p.terminate()
+            try:
+                p.wait(5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+
+
+class Cameras:
+    """The cameras this screen reads itself, while the screen shows them."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.listed: dict = {}         # id -> {"name", "stream", "urls": {"main": [...], "sub": [...]}}
+        self.listed_at = -1e9
+        self.listed_from = ""
+        self.failed: dict = {}         # key -> until when it goes through AthanBox
+        self.streams: dict = {}        # key ("<id>" or "<id>.sub") -> _CamStream
+        self.root: Path | None = None
+        self.reaper: threading.Thread | None = None
+
+    @staticmethod
+    def ffmpeg() -> bool:
+        return bool(shutil.which("ffmpeg"))
+
+    def _list(self, box: str) -> dict:
+        """Which cameras to read here, from AthanBox (asked again every 30 seconds)."""
+        now = time.monotonic()
+        with self.lock:
+            if box == self.listed_from and now - self.listed_at < CAMERA_LIST_EVERY:
+                return self.listed
+            self.listed_at, self.listed_from = now, box
+        listed = None
+        try:
+            base = urllib.parse.urlsplit(box)
+            con = http.client.HTTPConnection(base.hostname, base.port or 80, timeout=5)
+            con.request("GET", "/camera/local.json", headers={"Host": base.netloc, "Connection": "close",
+                                                              "User-Agent": f"azan-sip-client/{__version__}"})
+            r = con.getresponse()
+            body = r.read()
+            con.close()
+            if r.status == 200:
+                listed = {c["id"]: c for c in json.loads(body).get("cameras", [])
+                          if isinstance(c, dict) and isinstance(c.get("id"), str) and isinstance(c.get("urls"), dict)}
+            elif r.status in (403, 404):
+                listed = {}   # TV screens can't connect, or an AthanBox from before 0.13.2
+        except (OSError, ValueError, AttributeError, http.client.HTTPException):
+            pass   # AthanBox can't be reached: keep the last list
+        with self.lock:
+            if listed is not None:
+                if set(listed) != set(self.listed):
+                    log("Cameras read by this screen itself: " + (", ".join(c.get("name", i) for i, c in listed.items()) or "none"))
+                for key, s in list(self.streams.items()):   # removed or changed: stop it
+                    cam = listed.get(key.partition(".")[0])
+                    if cam is None or self._urls(cam, key) != s.urls:
+                        s.stop()
+                        shutil.rmtree(s.folder, ignore_errors=True)
+                        del self.streams[key]
+                self.listed = listed
+            return self.listed
+
+    @staticmethod
+    def _urls(cam: dict, key: str) -> list:
+        q = "sub" if key.endswith(".sub") else ("main" if cam.get("stream") == "main" else "sub")
+        urls = cam["urls"].get(q)
+        return [u for u in urls if isinstance(u, str) and u.startswith("rtsp://")][:2] if isinstance(urls, list) else []
+
+    def here(self, box: str, key: str) -> bool:
+        """Is this camera read by this screen itself (and not given up on for now)?"""
+        if not self.ffmpeg():
+            return False
+        cam = self._list(box).get(key.partition(".")[0])
+        with self.lock:
+            return bool(cam and self._urls(cam, key)) and self.failed.get(key, 0) < time.monotonic()
+
+    def _folder(self, key: str) -> Path:
+        if self.root is None:
+            shm = "/dev/shm" if os.access("/dev/shm", os.W_OK) else None   # in memory: no wear on the disk
+            self.root = Path(tempfile.mkdtemp(prefix="azan-client-cameras-", dir=shm))
+        return self.root / key
+
+    def playlist(self, box: str, key: str) -> bytes | None:
+        """The camera's live playlist, read by this screen itself. None when it can't be read here (the
+        screen then gets it through AthanBox, for the next few minutes)."""
+        cam = self._list(box).get(key.partition(".")[0])
+        if not cam:
+            return None
+        with self.lock:
+            s = self.streams.get(key)
+            if s is None:
+                s = self.streams[key] = _CamStream(self._urls(cam, key), self._folder(key))
+            if self.reaper is None or not self.reaper.is_alive():
+                self.reaper = threading.Thread(target=self._reap, name="camera-reaper", daemon=True)
+                self.reaper.start()
+        s.seen = time.monotonic()
+        with s.lock:
+            f = s.folder / "stream.m3u8"
+            for url in ([] if s.running() else s.urls) or [None]:
+                if url:
+                    s.start(url)
+                deadline = s.started + CAMERA_WAIT
+                while s.running() and time.monotonic() < deadline:
+                    try:
+                        body = f.read_bytes()
+                        if b"#EXTINF" in body:
+                            return body
+                    except OSError:
+                        pass
+                    time.sleep(0.25)
+            s.stop()
+        with self.lock:
+            self.failed[key] = time.monotonic() + CAMERA_FAILED_FOR
+        log(f"Camera {cam.get('name', key)}: this screen can't read it itself, so it shows through AthanBox "
+            f"for the next {CAMERA_FAILED_FOR / 60:.0f} minutes")
+        return None
+
+    def segment(self, key: str, name: str) -> bytes | None:
+        with self.lock:
+            s = self.streams.get(key)
+        if s is None:
+            return None
+        s.seen = time.monotonic()
+        try:
+            return (s.folder / name).read_bytes()
+        except OSError:
+            return None
+
+    def _reap(self):
+        while True:
+            time.sleep(10)
+            with self.lock:
+                for key, s in list(self.streams.items()):
+                    if time.monotonic() - s.seen > CAMERA_IDLE:
+                        s.stop()
+                        shutil.rmtree(s.folder, ignore_errors=True)
+                        del self.streams[key]
+                if not self.streams:
+                    self.reaper = None
+                    return
+
+    def stop_all(self):
+        with self.lock:
+            for s in self.streams.values():
+                s.stop()
+            self.streams.clear()
+            if self.root:
+                shutil.rmtree(self.root, ignore_errors=True)
+                self.root = None
+
+
+CAMERAS = Cameras()
+
+
 def log(msg: str):
     print(msg, file=sys.stderr, flush=True)
 
@@ -829,7 +1025,26 @@ class Handler(BaseHTTPRequestHandler):
             if wall_needed() and self.headers.get("Sec-Fetch-Dest") != "iframe":
                 return self._redirect("/client/wall")
             return self._redirect("/tv?" + urllib.parse.urlencode({"name": c.get("name") or default_name()}))
+        m = CAMERA_PATH.match(p)
+        if m and self._camera(c, m.group(1), m.group(2)):
+            return
         self._proxy(c, url)
+
+    def _camera(self, c: dict, key: str, name: str) -> bool:
+        """A camera this screen reads itself: answered here (True). Otherwise it goes through AthanBox."""
+        if name != "stream.m3u8":
+            body = CAMERAS.segment(key, name)
+            if body is None:
+                return False
+            self._send(200, body, "video/mp2t")
+            return True
+        if not CAMERAS.here(c["box"], key):
+            return False
+        body = CAMERAS.playlist(c["box"], key)
+        if body is None:
+            return False
+        self._send(200, body, "application/vnd.apple.mpegurl")
+        return True
 
     def do_POST(self):
         req = self._body()   # (read before answering, even a refusal, or it's taken for the next request)

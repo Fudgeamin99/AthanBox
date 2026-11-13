@@ -88,6 +88,7 @@ def clean(cams) -> list[dict]:
             "password": str(c.get("password") or ""),
             "stream": "main" if c.get("stream") == "main" else "sub",
             "screens": c.get("screens", True) is not False,   # a Camera button for it on the screens
+            "local": c.get("local") is True,   # screens that can (Wyse) read it themselves, not through AthanBox
             "doorbell": c.get("doorbell") is True,
             "phones": c.get("phones", True) is not False,     # doorbell: ring the phones
             "ring": [str(x) for x in ring if str(x).strip()][:50],   # phone entries to ring (empty: all of them)
@@ -107,8 +108,17 @@ def for_screens(cams: list[dict] | None) -> list[dict]:
             key = json.dumps([c["host"], c["rtsp_port"], c["channel"], c["username"], c["password"], c["stream"]])
             out.append({"id": c["id"], "name": c["name"], "doorbell": bool(c.get("doorbell")),
                         "clear": c["stream"] == "main",   # the grid then asks for its Fluent picture (<id>.sub)
+                        "local": bool(c.get("local")),
                         "v": base64.urlsafe_b64encode(_digest(key)).decode()[:10]})
     return out
+
+
+def for_local_screens(cams: list[dict] | None) -> list[dict]:
+    """For screens that read cameras themselves (the Wyse client): each such camera's RTSP addresses, with its
+    username and password. Only cameras switched to "Screens read it themselves" are listed."""
+    return [{"id": c["id"], "name": c["name"], "stream": c["stream"],
+             "urls": {"main": _rtsp_urls(c, "main"), "sub": _rtsp_urls(c, "sub")}}
+            for c in cams or [] if c.get("local") and c.get("screens", True)]
 
 
 def _digest(text: str) -> bytes:
