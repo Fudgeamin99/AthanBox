@@ -15,6 +15,7 @@ created automatically. The desktop app's own history is in `CHANGELOG.md`.
 - **A camera at another place:** AthanBox has to reach it, by forwarding port 554 on that router or with Tailscale. Reolink's own cloud connection only works in the Reolink app.
 - **Debian:** update as usual in Settings → Updates. Nothing new to install: ffmpeg is already on the box.
 - **Docker:** press **Update**, or run `docker compose pull && docker compose up -d`. The image already has ffmpeg and the container uses the computer's own network, so it reaches cameras on your network. `compose.yaml` doesn't change.
+
 ## 0.12.9 - Enterprise shows only the main site
 
 - **Sites:** pressing **Enterprise** with other sites set up no longer stops with "Remove the other sites first". The other sites are set aside instead: they stop running and their phones can't sign in, but their folders and settings are kept. The Sites page then shows only the main site, without site counts or groups. Press **Group** and they start again, exactly as they were.
