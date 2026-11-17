@@ -51,6 +51,14 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
   `azanLiveSound`, and in its `LV` object while it runs: `screen.js` sets both to match, and when
   that button is pressed it sets `"live_sound"` in turn. Until it is first set, `screen.js` sets
   it from the TV app's own choice. The TV app still keeps Makkah live quiet while the azan plays.
+- **What the screen shows** (the prayer times alone, Makkah live, Crypto, All cameras or one camera)
+  is switched in Screen settings, on the TV or from a phone, under *What the TV shows*, or over SSH
+  with `azan-sip-client show [what]`. `screen.js` tells the client every few seconds what the TV app
+  shows and can show (`POST /client/api/showing`, from the TV only). A choice is
+  `POST /client/api/view` (`{"show": "live"}`, or `times`, `crypto`, `all`, `cam:<id>`); `screen.js`
+  picks it up within 2 seconds and calls the TV app's own `setLive`, `setGrid` or `setCrypto`, as
+  its buttons would, so the TV app keeps it for next time. Screen settings left open on the TV goes
+  back to the prayer times by itself when a phone makes a choice. Nothing changes on AthanBox.
 - **Updates:** *Update now* in Screen settings writes `/var/lib/azan-sip-client/update-now`;
   `azan-sip-client-update.path` sees it and starts `azan-sip-client-update.service`, which runs
   `azan_client.py update` as root. That downloads `azan-sip-client_<version>_all.deb` from the
@@ -67,8 +75,8 @@ Phone or computer ──LAN──> azan-sip-client on port 8772 (Screen settings
 - **32-bit:** the package is `Architecture: all` (Python and shell only), so the same .deb installs on
   64-bit and 32-bit Debian. CI installs it on Debian 12 and 13 (amd64) and Debian 12 (i386).
 - **Screen settings** (`/client/`, or press **S** on a keyboard) chooses AthanBox (by address or by
-  searching the network), the screen's name on AthanBox's TV app page, the volume, Makkah live's
-  sound, updates and shutting down. With
+  searching the network), the screen's name on AthanBox's TV app page, what it shows, the volume,
+  Makkah live's sound, updates and shutting down. With
   several screens it opens on the first one.
 - AthanBox sees the Wyse like any other TV screen: *Let TV screens connect* must be on, and the
   screen is listed on the TV app page under its name.

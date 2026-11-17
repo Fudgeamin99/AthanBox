@@ -3,6 +3,9 @@
 // AthanBox" whenever AthanBox can't be reached (back to the prayer times by itself). The volume
 // is the azan's and Makkah live's. Makkah live's sound is switched on and off in Screen settings, and
 // a change made there (on a phone, say) shows here for a moment.
+// What the screen shows (the prayer times alone, Makkah live, Crypto, a camera or All cameras) can be
+// switched in Screen settings, on a phone too, without a mouse: this page tells the client what it shows
+// and can show, and switches when asked, the same as pressing the TV app's own buttons.
 // On a second screen (a silent copy inside /client/wall), the sound is left to the first one.
 (() => {
   const FRAMED = window.top !== window;
@@ -143,6 +146,67 @@
     }
   }
 
+  // ---- What the screen shows, switched from Screen settings. The TV app's own state (GR, CAM, CR, LV,
+  // cams() and its set... functions) is in the page's script, so each is looked for (typeof) before it's used.
+  const NAMES = {times: "Prayer times", live: "Makkah live", crypto: "Crypto", all: "All cameras"};
+  function camList(){ try{ return typeof cams !== "undefined" ? cams() : []; }catch(e){ return []; } }
+  function viewNow(){
+    try{
+      if (typeof GR !== "undefined" && GR.on) return "all";
+      if (typeof CAM !== "undefined" && CAM.id) return "cam:" + CAM.id;
+      if (typeof LV !== "undefined" && LV.on) return "live";
+      if (typeof CR !== "undefined" && CR.on) return "crypto";
+    }catch(e){}
+    return "times";
+  }
+  function viewOptions(){
+    const o = [{id: "times", name: NAMES.times}];
+    if (typeof setLive !== "undefined") o.push({id: "live", name: NAMES.live});
+    const cb = document.getElementById("cryptobtn");
+    if (typeof setCrypto !== "undefined" && cb && !cb.hidden) o.push({id: "crypto", name: NAMES.crypto});
+    const list = camList();
+    if (list.length > 1 && typeof setGrid !== "undefined") o.push({id: "all", name: NAMES.all});
+    for (const c of list) if (c && c.id) o.push({id: "cam:" + c.id, name: String(c.name || "Camera")});
+    return o;
+  }
+  function showView(v){   // as if its button was pressed on the TV (so the TV app keeps it for next time too)
+    try{
+      if (v === "times"){
+        if (typeof GR !== "undefined" && GR.on) setGrid(false, true);
+        if (typeof LV !== "undefined" && LV.on) setLive(false, true);
+        if (typeof CR !== "undefined" && CR.on) setCrypto(false, true);
+      } else if (v === "live") setLive(true, true);
+      else if (v === "crypto") setCrypto(true, true);
+      else if (v === "all"){ if (camList().length > 1) setGrid(true, true); else return false; }
+      else if (v.startsWith("cam:")){ const id = v.slice(4); if (camList().some(c => c.id === id)) setLive(true, true, id); else return false; }
+      else return false;
+      return true;
+    }catch(e){ return false; }
+  }
+  const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>';
+  let asked = null, said = "", saidAt = 0;
+  function viewCheck(st){
+    const a = st.view_ask || {};
+    if (asked === null){   // a choice made just before this page opened (from Screen settings on the TV, say) still counts
+      asked = Date.now() / 1000 - (a.at || 0) < 20 ? 0 : (a.at || 0);
+    }
+    if (a.view && (a.at || 0) > asked){
+      asked = a.at;
+      if (typeof S !== "undefined" && !S){ asked = 0; return; }   // the TV app hasn't loaded AthanBox's data yet: next time
+      if (showView(a.view) && !MIRROR){
+        const o = viewOptions().find(x => x.id === a.view);
+        popup(EYE, "Showing " + (o ? o.name : NAMES[a.view] || "it"));
+      }
+    }
+    if (MIRROR) return;
+    const now = viewNow(), opts = viewOptions(), key = now + "|" + JSON.stringify(opts);
+    if (key !== said || Date.now() - saidAt > 4000){   // (the client also takes it as "the prayer times are on")
+      said = key; saidAt = Date.now();
+      post0("/client/api/showing", {view: now, options: opts});
+    }
+  }
+  const post0 = (u, body) => fetch(u, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).catch(() => {});
+
   let misses = 0, gone = false;
   async function check(){
     let st = null;
@@ -152,6 +216,7 @@
       vol = st.volume; showVol();
     }
     if (st) liveCheck(st);
+    if (st && st.state === "ok") viewCheck(st);
     if (st && st.state === "ok"){
       misses = 0;
       if (gone) return location.reload();   // back: a fresh page, in case AthanBox was updated

@@ -99,7 +99,7 @@ A spare Dell Wyse, an old laptop or any small PC can be a TV screen for an Athan
 
 ```sh
 sudo apt update && sudo apt install -y wget
-wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.6.1/azan-sip-client.deb
+wget https://github.com/Fudgeamin99/AthanBox/releases/download/client-v0.7.0/azan-sip-client.deb
 sudo apt install -y ./azan-sip-client.deb
 ```
 
