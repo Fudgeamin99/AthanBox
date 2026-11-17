@@ -260,6 +260,43 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(self.phone("/client/api/status", cookie=cookie)[0].status, 401)
         self.assertEqual(self.phone("/client/api/forget", {}, cookie=cookie)[0].status, 404)   # the TV's own
 
+    def test_screen_switched_from_a_phone(self):
+        ac.Handler.pairing = ac.Pairing()
+        ac.Handler.showing = {}
+        tv = lambda: json.loads(self.get("/client/api/status")[1])
+        self.assertIsNone(tv()["showing"])
+        self.assertEqual(self.phone("/client/api/view", {"show": "live"})[0].status, 401)   # signed in first
+        # The prayer times say what they show and can show; a phone can't say that for them
+        opts = [{"id": "times", "name": "Prayer times"}, {"id": "live", "name": "Makkah live"},
+                {"id": "all", "name": "All cameras"}, {"id": "cam:abc1", "name": "Garden"}, {"id": "bad view", "name": "x"}]
+        r, body = self.get("/client/api/showing", "POST", json.dumps({"view": "times", "options": opts}))
+        self.assertTrue(json.loads(body)["ok"])
+        sh = tv()["showing"]
+        self.assertEqual(sh["view"], "times")
+        self.assertTrue(sh["fresh"])
+        self.assertEqual([o["id"] for o in sh["options"]], ["times", "live", "all", "cam:abc1"])
+        self.assertEqual(self.get("/client/api/showing", "POST", json.dumps({"view": "nope", "options": []}))[0].status, 400)
+        self.phone("/client/api/signin/code", {})
+        r, _ = self.phone("/client/api/signin", {"code": tv()["pair_code"]})
+        cookie = r.getheader("Set-Cookie").split(";")[0]
+        self.assertEqual(self.phone("/client/api/showing", {"view": "live", "options": []}, cookie=cookie)[0].status, 404)
+        self.assertEqual(json.loads(self.phone("/client/api/status", cookie=cookie)[1])["showing"]["view"], "times")
+        # Choosing one from the phone: the TV is asked to switch
+        before = tv()["view_ask"]["at"]
+        r, body = self.phone("/client/api/view", {"show": "cam:abc1"}, cookie=cookie)
+        self.assertTrue(json.loads(body)["ok"])
+        ask = tv()["view_ask"]
+        self.assertEqual(ask["view"], "cam:abc1")
+        self.assertGreater(ask["at"], before)
+        for bad in ("", "everything", "cam:", "cam:a b", 3, None):
+            self.assertEqual(self.phone("/client/api/view", {"show": bad}, cookie=cookie)[0].status, 400, bad)
+        self.assertEqual(tv()["view_ask"]["view"], "cam:abc1")
+        # And from Screen settings on the TV itself
+        self.assertTrue(json.loads(self.get("/client/api/view", "POST", json.dumps({"show": "times"}))[1])["ok"])
+        self.assertEqual(tv()["view_ask"]["view"], "times")
+        ac.Handler.showing["at"] -= 60   # the TV left the prayer times (Screen settings open on it)
+        self.assertFalse(tv()["showing"]["fresh"])
+
     def test_wrong_codes_are_limited(self):
         pr = ac.Pairing()
         self.assertTrue(pr.start())

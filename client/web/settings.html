@@ -41,6 +41,10 @@ footer{color:var(--muted);font-size:15px;margin-top:22px}
 .cam .two{display:flex;gap:12px}.cam .two>div{flex:1 1 0;min-width:0}.cam .two>div.narrow{flex:0 0 120px}
 .cam img{display:block;max-width:100%;border-radius:8px;margin-top:10px}
 select option{color:#14312a}
+#views{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:6px}
+#views button{text-align:left;padding:14px 16px;overflow-wrap:anywhere}
+#views button.on{background:var(--accent);color:#14312a;border-color:var(--accent)}
+#views button.on::after{content:"  \2713"}
 @media (max-width:600px){main{padding:24px 16px 40px}section{padding:18px 16px}h1{font-size:26px}}
 </style>
 </head>
@@ -64,6 +68,13 @@ select option{color:#14312a}
     </div>
     <div id="found"></div>
     <div class="msg" id="msg"></div>
+  </section>
+
+  <section id="viewsec" hidden>
+    <h2>What <span class="tv-only">this screen</span><span class="remote-only">the TV</span> shows</h2>
+    <p>Switch <span class="tv-only">the screen</span><span class="remote-only">the TV</span> between the prayer times, Makkah live, Crypto and the cameras, without a mouse. It changes within a couple of seconds, and stays on that the next time it starts.</p>
+    <div id="views"></div>
+    <div class="msg" id="vmsg"></div>
   </section>
 
   <section>
@@ -170,6 +181,7 @@ function show(st, fill){
   $("#foot").textContent = `AthanBox Client ${st.version}`;
   $("#noff").hidden = st.ffmpeg !== false;
   if (CAMS === null) camsFrom(st);
+  views(st);
   place(st.screens || [], st.outputs || []);
 }
 // With several screens plugged in, this page is spread over all of them: keep it on the first one
@@ -312,6 +324,43 @@ $("#savecams").onclick = async () => {
   }catch(e){ cmsg("The cameras weren't saved. Try again.", "bad"); }
   finally{ $("#savecams").disabled = false; }
 };
+// What the screen shows: the prayer times on the TV switch to it (web/screen.js), as their own buttons would
+let viewT = 0, viewSeen = null, viewKey = "";
+function views(st){
+  const sh = st.showing, a = st.view_ask || {};
+  // On the TV: a choice made on a phone while these settings are open takes the TV back to the prayer times
+  if (!st.remote){
+    if (viewSeen === null) viewSeen = a.at || 0;
+    else if ((a.at || 0) > viewSeen && st.box && st.state === "ok"){ viewSeen = a.at; return location.assign("/"); }
+  }
+  $("#viewsec").hidden = !st.box || !sh || !(sh.options || []).length;
+  if ($("#viewsec").hidden) return;
+  const cur = Date.now() - viewT < 4000 ? a.view : sh.view;
+  const key = JSON.stringify([sh.options, cur]);
+  if (key !== viewKey){
+    viewKey = key;
+    $("#views").innerHTML = sh.options.map(o => `<button type="button" data-view="${esc(o.id)}" class="${o.id === cur ? "on" : ""}" aria-pressed="${o.id === cur}">${esc(o.name)}</button>`).join("");
+  }
+  const m = $("#vmsg");
+  if (st.state !== "ok"){ m.textContent = "It can switch when it's connected to AthanBox again."; m.className = "msg warn"; }
+  else if (!sh.fresh && st.remote){ m.textContent = "Screen settings or a message is open on the TV. Choosing one takes it back."; m.className = "msg"; }
+  else if (Date.now() - viewT > 4000){ m.textContent = ""; m.className = "msg"; }
+}
+$("#views").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-view]");
+  if (!b) return;
+  const name = b.textContent.trim();
+  try{
+    const r = await api("/client/api/view", {show: b.dataset.view});
+    if (!r.ok) throw 0;
+    viewT = Date.now();
+    if (!r.remote){ viewSeen = r.view_ask.at; return location.assign("/"); }   // on the TV: back to the prayer times, showing it
+    for (const x of document.querySelectorAll("#views button")){ const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); }
+    viewKey = "";
+    $("#vmsg").textContent = `The TV is switching to ${name}.`; $("#vmsg").className = "msg ok";
+    toast(`Showing ${name}`);
+  }catch(e){ toast("The TV didn't switch. Try again.", "bad"); }
+});
 $("#back").onclick = () => location.assign("/");
 $("#ron").onchange = async () => show(await api("/client/api/settings", {remote: $("#ron").checked}), false);
 $("#forget").onclick = async () => show(await api("/client/api/forget", {}), false);

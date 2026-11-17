@@ -11,8 +11,8 @@ http://127.0.0.1:8771 only:
   AthanBox" and goes back to the prayer times by itself as soon as AthanBox answers again.
 * A camera set to "Screens read it themselves" on AthanBox is read by this computer itself (with ffmpeg),
   not through AthanBox: for AthanBox on a cloud server, say, that can't reach the cameras at home.
-* /client/ is this screen's own settings: which AthanBox, its name on AthanBox's TV app page, the volume
-  and updates. The volume also has buttons on the prayer-times screen itself (web/screen.js).
+* /client/ is this screen's own settings: which AthanBox, its name on AthanBox's TV app page, what the
+  screen shows (the prayer times, Makkah live, Crypto, a camera or all of them), the volume and updates. The volume also has buttons on the prayer-times screen itself (web/screen.js).
 * The same settings open from a phone or computer on the network, on port 8772 (and nothing else
   there: not AthanBox's pages). A browser gets in once by typing a code the TV shows, and stays
   signed in for 90 days. It can be switched off in Screen settings on the TV.
@@ -26,7 +26,7 @@ http://127.0.0.1:8771 only:
   Screen settings) turns the computer off.
 
 Run "azan-sip-client serve" (the azan-sip-client service does). The other commands talk to it:
-    azan-sip-client status | search | connect <address> [--name NAME] | volume [0-100] | update
+    azan-sip-client status | search | connect <address> [--name NAME] | volume [0-100] | show [WHAT] | update
 Only Python's standard library is used.
 """
 from __future__ import annotations
@@ -56,7 +56,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 PORT = 8771                     # 8770 is the Docker box's updater
 REMOTE_PORT = int(os.environ.get("AZAN_CLIENT_REMOTE_PORT", "8772"))   # the settings, from a phone or computer
@@ -71,6 +71,10 @@ PASS_HEADERS = ("content-type", "content-length", "cache-control", "content-disp
                 "accept-ranges", "etag", "last-modified", "location", "x-content-type-options")
 INJECT = b'<script src="/client/screen.js"></script>'
 VOLUME_STEP = 10                # the volume buttons on the screen
+# What the screen shows, chosen in Screen settings: the prayer times alone, Makkah live, Crypto, All cameras,
+# or one camera ("cam:" and its id). web/screen.js switches the TV app to it, as its own buttons would.
+VIEW = re.compile(r"^(times|live|crypto|all|cam:[\w.:-]{1,60})$")
+SHOWING_FRESH = 10              # seconds: the screen tells the client what it shows every 2 seconds
 MAX_SCREENS = 8
 # Updates: the client has its own releases, tagged client-vX.Y.Z (AthanBox's are box-vX.Y.Z), so a
 # client-only change never makes a new Box or Docker version
@@ -993,6 +997,8 @@ class Handler(BaseHTTPRequestHandler):
     pairing: Pairing = None
     REMOTE = False                  # True for a phone or computer (RemoteHandler)
     chime_at = 0.0                  # "Play a test chime on the TV", from a phone or computer
+    view_ask = {"view": None, "at": 0.0}   # what to show, chosen in Screen settings (web/screen.js does it)
+    showing: dict = {}              # what the screen shows and can show, as it last said (web/screen.js)
     server_version = "azan-sip-client"
     protocol_version = "HTTP/1.1"
 
@@ -1033,12 +1039,21 @@ class Handler(BaseHTTPRequestHandler):
               "live_sound": c.get("live_sound") if isinstance(c.get("live_sound"), bool) else None,
               "cameras": [{k: v for k, v in cam.items() if k != "password"} | {"password_set": bool(cam.get("password"))}
                           for cam in own_cameras(c)],
-              "ffmpeg": CAMERAS.ffmpeg()}
+              "ffmpeg": CAMERAS.ffmpeg(), "view_ask": dict(Handler.view_ask), "showing": self._showing()}
         if not self.REMOTE:   # the TV only: the code, and where phones and computers open these settings
             on = c.get("remote", True) is not False and bool(REMOTE_PORT)
             st.update(remote_on=on, remote_url=remote_url() if on else "", signed_in=signed_in(),
                       pair_code=self.pairing.shown() if on and self.pairing else None)
         return st
+
+    @staticmethod
+    def _showing() -> dict | None:
+        """What the screen shows and what it can show, as the prayer times last said. "fresh" is False
+        while it isn't on the prayer times (Screen settings is open on the TV, or AthanBox can't be reached)."""
+        s = Handler.showing
+        if not s:
+            return None
+        return {"view": s["view"], "options": s["options"], "fresh": time.time() - s["at"] < SHOWING_FRESH}
 
     def _update_status(self, force: bool) -> dict:
         u = (self.updates or Updates()).check(force)
@@ -1130,6 +1145,23 @@ class Handler(BaseHTTPRequestHandler):
             if not cams:
                 return self._json({"ok": False, "error": "Type the camera's address first."})
             return self._json(camera_snapshot(cams[0]))
+        if p == "/client/api/view":   # what the screen shows: the prayer times on the TV switch to it (web/screen.js)
+            v = req.get("show")
+            if not isinstance(v, str) or not VIEW.match(v):
+                return self._json({"ok": False, "error": "Bad request"}, 400)
+            Handler.view_ask = {"view": v, "at": time.time()}
+            log(f"Show {v} asked for in Screen settings" + (f" from a phone or computer ({self.client_address[0]})" if self.REMOTE else ""))
+            return self._json({"ok": True, **self._status()})
+        if p == "/client/api/showing" and not self.REMOTE:   # the prayer times say what they show and can show
+            view, opts = req.get("view"), req.get("options")
+            if not isinstance(view, str) or not VIEW.match(view) or not isinstance(opts, list) or len(opts) > 70:
+                return self._json({"ok": False, "error": "Bad request"}, 400)
+            clean = []
+            for o in opts:
+                if isinstance(o, dict) and isinstance(o.get("id"), str) and VIEW.match(o["id"]):
+                    clean.append({"id": o["id"], "name": str(o.get("name") or o["id"])[:60]})
+            Handler.showing = {"view": view, "options": clean, "at": time.time()}
+            return self._json({"ok": True})
         if p == "/client/api/chime":   # the prayer times on the TV play it (web/screen.js)
             Handler.chime_at = time.time()
             return self._json({"ok": True})
@@ -1380,7 +1412,7 @@ class RemoteHandler(Handler):
             return self._send(200, b'{"ok": true}', "application/json", {
                 "Set-Cookie": f"azc={token}; Max-Age={SESSION_DAYS * 86400}; Path=/; HttpOnly; SameSite=Strict"})
         if p in ("/client/api/connect", "/client/api/settings", "/client/api/update", "/client/api/chime",
-                 "/client/api/shutdown", "/client/api/cameras/test"):
+                 "/client/api/shutdown", "/client/api/cameras/test", "/client/api/view"):
             return self._client_post(p, req) if self._signed_in() else self._json(self.SIGN_IN, 401)
         return self._json({"ok": False, "error": "Not found"}, 404)
 
@@ -1438,6 +1470,8 @@ def main(argv=None):
     c.add_argument("--name", help="this screen's name on AthanBox's TV app page")
     v = sub.add_parser("volume", help="show or set the azan's volume on this screen")
     v.add_argument("percent", nargs="?", type=int, help="0 to 100")
+    w = sub.add_parser("show", help="switch what the screen shows: times, live, crypto, all (cameras) or a camera's name")
+    w.add_argument("what", nargs="?", help="leave out to list what it can show")
     u = sub.add_parser("update", help="install the newest AthanBox Client from GitHub (as root)")
     u.add_argument("--check", action="store_true", help="only say whether there is a newer version")
     sub.add_parser("watch-screens", help=argparse.SUPPRESS)
@@ -1488,11 +1522,35 @@ def main(argv=None):
             call("/client/api/settings", {"volume": a.percent})
         print(f"Azan volume on this screen: {call('/client/api/status')['volume']}%")
         return
+    if a.cmd == "show":
+        sh = call("/client/api/status").get("showing") or {}
+        opts = sh.get("options") or []
+        if not a.what:
+            if not opts:
+                sys.exit("The screen hasn't shown the prayer times yet, so it doesn't know what it can show.")
+            for o in opts:
+                print(f"  {'*' if o['id'] == sh.get('view') else ' '} {o['name']}")
+            return
+        want = a.what.strip().lower()
+        pick = {"times": "times", "prayer times": "times", "live": "live", "makkah live": "live", "crypto": "crypto",
+                "all": "all", "all cameras": "all"}.get(want)
+        if not pick:
+            pick = next((o["id"] for o in opts if o["name"].lower() == want or o["id"].lower() in (want, "cam:" + want)), None)
+        if not pick:
+            sys.exit(f"The screen can't show {a.what}. Run azan-sip-client show for the list.")
+        r = call("/client/api/view", {"show": pick})
+        if not r.get("ok"):
+            sys.exit(r.get("error") or "Couldn't switch the screen")
+        print(f"The screen switches to {next((o['name'] for o in opts if o['id'] == pick), a.what)} within 2 seconds.")
+        return
     st = call("/client/api/status")
     print(f"AthanBox Client {st['version']}")
     print(f"Box:    {st.get('box') or '-'} ({STATES.get(st['state'], st['state'])})" + (f", AthanBox {st['box_version']}" if st.get("box_version") else ""))
     print(f"Name:   {st['name']}")
     print(f"Volume: {st['volume']}%")
+    sh = st.get("showing") or {}
+    if sh.get("fresh"):
+        print(f"Showing: {next((o['name'] for o in sh.get('options') or [] if o['id'] == sh.get('view')), sh.get('view'))}")
     if isinstance(st.get("live_sound"), bool):
         print(f"Makkah live sound: {'on' if st['live_sound'] else 'off'}")
     if st.get("remote_on"):

@@ -6,6 +6,16 @@ to the client never makes a new Box version or Docker image. To publish a versio
 `__version__` in `azan_client.py`, add a new `## x.y.z - title` section at the top, point the
 install link in the README at the new tag, and merge it to main: the release is created by itself.
 
+## 0.7.0 - Switch screens from a phone
+
+- **What the TV shows** in Screen settings: switch the TV between the **Prayer times**, **Makkah live**, **Crypto**, **All cameras** and each camera from a phone or computer (port 8772, signed in with the code on the TV), or on the TV itself. No mouse needed on the Wyse. The TV changes within 2 seconds, with a short *Showing Makkah live* note at the top, and keeps it the next time it starts, the same as pressing its own buttons.
+- **It lists what that screen can show:** Crypto only when AthanBox has it switched on, and AthanBox's cameras and the Wyse's own cameras by name. The one showing now is highlighted.
+- **Screen settings left open on the TV** goes back to the prayer times by itself when a phone chooses a screen.
+- **Over SSH:** `azan-sip-client show` lists them, and `azan-sip-client show "Makkah live"` (or `times`, `crypto`, `all`, or a camera's name) switches. `azan-sip-client status` says what's showing.
+- **With two TVs** on one Wyse, both switch.
+- **Screens with 0.5.2 or newer** get it from **Update now** in Screen settings.
+- **Box and Docker:** nothing changes. It uses the TV app's own buttons, so it works with the AthanBox already installed.
+
 ## 0.6.1 - Cameras added on the screen itself
 
 - **Cameras in Screen settings:** add Reolink cameras on the Wyse itself, on the TV or from a phone or computer signed in to Screen settings: a name, the camera's address, username and password, Fluent or Clear picture, and the channel. **Test** shows a picture from the camera. They show with **Camera** on the prayer times, next to AthanBox's own cameras (if it has any), and in **All cameras**.
